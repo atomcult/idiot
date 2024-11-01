@@ -1,0 +1,55 @@
+#!/bin/sh -eu
+
+OPT_IMAGE="pc.img"
+
+errorf() {
+    _err="$(printf "$@")"
+    printf 'ERR:\n  %s\n' "$_err"
+    [ -z "${USAGE:-}" ] || {
+        echo
+        print_usage
+    }
+
+    exit 1
+} >&2
+
+print_usage() {
+    cat <<EOF
+USAGE: core [OPTIONS..] [-- [QEMU_OPTIONS..]
+
+OPTIONS
+  -i, --image FILE    Specify the disk image [default: \`pc.img\`]
+  -h, --help          Print this help
+EOF
+}
+
+launch() {
+    qemu-system-x86_64 \
+        -smp 2 \
+        -m 2048 \
+        -net nic,model=virtio \
+        -net user,hostfwd=tcp::8022-:22,hostfwd=tcp::8090-:80 \
+        -vga qxl \
+        -drive file=/usr/share/OVMF/OVMF_CODE_4M.fd,if=pflash,format=raw,unit=0,readonly=on \
+        -drive file="${OPT_IMAGE}",cache=none,format=raw,id=disk1,if=none \
+        -device virtio-blk-pci,drive=disk1,bootindex=1 \
+        -machine accel=kvm \
+        "$@"
+}
+
+main() {
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -i|--image) OPT_IMAGE="$2"; shift  ;;
+            -h|--help)  print_usage;    exit 0 ;;
+            --) shift; break ;;
+            *) errorf 'Uncrecognized option: %s' "$1" ;;
+        esac
+
+        shift
+    done
+
+    launch "$@"
+}
+
+main "$@"

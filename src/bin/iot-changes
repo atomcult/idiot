@@ -1,0 +1,27 @@
+#!/bin/sh
+
+readonly SUBCOMMAND="changes"
+
+print_description() {
+  echo "Interactively explore Snap changes"
+}
+
+print_usage() {
+  echo "usage: ${PROG} ${SUBCOMMAND}"
+} >&2
+
+explore() {
+  snap changes | tail +2 | fzf --border-label "Changes" --preview "snap change \$(echo {} | cut -f1 -d' ')" >/dev/null
+}
+
+main() {
+	set -eu
+
+	case "${1:-explore}" in
+	  description) print_description ;;
+	  explore) explore ;;
+	  *) print_usage ;;
+	esac
+}
+
+main "$@"

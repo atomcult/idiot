@@ -1,0 +1,17 @@
+#!/bin/sh
+
+print_description() {
+	echo "Change directory to this application's data dir"
+}
+
+main() {
+	set -eu
+	case "${1:-}" in
+		description) print_description ;;
+		*)
+			printf 'cd "%s"' "$SNAP_COMMON"
+			;;
+	esac
+}
+
+main "$@"

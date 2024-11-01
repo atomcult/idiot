@@ -1,0 +1,152 @@
+#!/bin/sh -eu
+
+# TODO: Support multiple paths in MODELPATH
+
+: ${MODELPATH:="${SNAP_USER_COMMON}/models"}; readonly MODELPATH
+
+OPT_MODE=""
+OPT_JSON=false
+OPT_OUTPUT=""
+
+errorf() {
+  _err="$(printf "$@")"
+  printf "ERR:\n  %s\n" "$_err"
+  [ -z "${USAGE:-}" ] || {
+    echo
+    print_usage
+  }
+
+  exit 1
+} >&2
+
+print_description() {
+  echo "Retrieve JSON models and their signed counterparts"
+}
+
+print_usage() cat <<EOF
+USAGE: $(basename "$0") [MODE] [OPTS..]
+
+MODES
+  init
+  health
+  update
+  list
+  copy
+  help
+
+OPTIONS
+  -j, --json
+  -m, --model
+  -o, --output <PATH>
+EOF
+
+get_value() {
+  [ ! -z ${2+set} ] || {
+    USAGE=1 errorf 'Option "%s" requires an argument, but none was given' "$1"
+  }
+  echo "$2"
+}
+
+parse() {
+  while [ "$#" -gt 0 ]; do
+
+    case "$1" in
+      -h|--help)
+        print_usage
+        exit 0
+        ;;
+      -j|--json)    
+        OPT_JSON=true
+        ;;
+      -m|--model)
+        OPT_JSON=false
+        ;;
+      -o|--output)
+        OPT_OUTPUT="$(get_value "$@")"
+        shift
+        ;;
+      *)
+        [ -z "$OPT_MODE" ] || {
+          USAGE=1 errorf 'Unrecognized option: %s' "$1"
+        }
+        OPT_MODE="$1"
+        ;;
+    esac
+
+    shift
+  done
+
+  [ -n "$OPT_MODE" ] || OPT_MODE="copy"
+}
+
+init() {
+  [ -e "$MODELPATH" ] || mkdir -p "$MODELPATH"
+  git clone https://github.com/snapcore/models.git "$MODELPATH"
+}
+
+health() {
+  echo "Health:"
+  for _var in MODELPATH; do
+    printf '%s = %s\n' "$_var" "$(eval echo \$$_var)"
+  done
+}
+
+list() {
+  $OPT_JSON \
+    && _suffix=".json" \
+    || _suffix=".model"
+
+  for _model in "$MODELPATH"/*"$_suffix"; do
+    [ -e "$_model" ] || return
+    echo "${_model%"$_suffix"}"
+  done | xargs basename -a
+}
+ 
+update() {
+  cd "$MODELPATH"
+  git pull || true
+}
+
+copy() {
+  command -v fzf >/dev/null 2>&1 || {
+    errorf 'This mode requires fzf'
+  }
+
+  $OPT_JSON \
+    && _ext="json" \
+    || _ext="model"
+
+  _file="$(list | fzf --border-label Models --preview="batcat -fp ${MODELPATH}/{}.${_ext}")"
+
+  [ -n "${_file}.${_ext}" ] || return
+
+  cp "${MODELPATH}/${_file}.${_ext}" "${OPT_OUTPUT:-"./"}"
+}
+
+main() {
+  parse "$@"
+
+  # FIXME
+  [ "${1:-}" != "description" ] || {
+    print_description
+    return 0
+  }
+
+  ! [ "$OPT_MODE" =   "init" ] || {   init; exit; }
+  ! [ "$OPT_MODE" = "health" ] || { health; exit; }
+
+  [ -e "$MODELPATH" ] || errorf '`%s` does not exit. Please run `get-model init`.' "$MODELPATH"
+
+  case $OPT_MODE in
+    list)   list   ;;
+    update) update ;;
+    copy)   copy   ;;
+    help)
+      print_usage
+      exit 0
+      ;;
+    *) USAGE=1 errorf 'Unrecognized mode: %s' "$OPT_MODE" ;;
+  esac
+}
+
+main "$@"

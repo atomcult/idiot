@@ -1,0 +1,32 @@
+#!/bin/sh
+
+get_arch() {
+	{
+    echo "i386"
+    echo "amd64"
+    echo "armhf"
+    echo "arm64"
+    echo "powerpc"
+    echo "ppc64"
+    echo "ppc64el"
+    echo "s390x"
+  } | fzf --border-label="Architecture" # --history="${SNAP_COMMON}/arch.hist"
+}
+
+print_description() {
+	echo "Set the architecture used by the 'snap' command."
+}
+
+main() {
+  set -eu
+
+  case "${1:-}" in
+  	description) print_description ;;
+  	*)
+			_arch="$(get_arch)"
+			printf 'export UBUNTU_STORE_ARCH="%s"' "$_arch"
+			;;
+  esac
+}
+
+main "$@"

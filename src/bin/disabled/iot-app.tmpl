@@ -1,0 +1,20 @@
+#!/bin/sh
+
+print_description() {
+  echo "This is the description of the subcommand"
+}
+
+print_usage() {
+  echo "This is the help text"
+} >&2
+
+main() {
+	set -eu
+
+	case "${1:-}" in
+	  description) print_description ;;
+	  *) print_usage ;;
+	esac
+}
+
+main "$@"

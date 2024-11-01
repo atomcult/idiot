@@ -1,0 +1,139 @@
+#!/bin/sh
+
+print_description() {
+  echo "Manage and log in with Snapcraft credentials"
+}
+
+get_profile() {
+  _title="$1"; shift
+  {
+    find "$LOGIN_DIR" -type f | sed "s|^${LOGIN_DIR}/||"
+    for _arg in "$@"; do
+      echo "$_arg"
+    done
+  } | fzf --history="${SNAP_USER_COMMON}/login.hist" \
+        --preview="${PROG} preview {}" \
+        --border-label="$_title"
+}
+
+rm_login() {
+  _login="$(get_profile "Remove Profile")"
+}
+
+login() {
+
+  _login="$(get_profile Profiles [NEW])"
+
+  [ "$_login" = "[NEW]" ] || {
+    printf 'export SNAPCRAFT_STORE_CREDENTIALS="%s"' \
+      "$(cat "${LOGIN_DIR}/${_login}")"
+    printf 'export UBUNTU_STORE_AUTH="%s"' \
+      "$(cat "${LOGIN_DIR}/${_login}")"
+    return 0
+  }
+  
+  _perms="$(
+    {
+      echo "Access"
+      echo "Manage"
+      echo "Metrics"
+      echo "Push"
+      echo "Register"
+      echo "Release"
+      echo "Update"
+      echo "Limit Channels"
+      echo "Limit Snaps"
+      echo "Set Expiration"
+      echo 
+    } | fzf --multi --border-label="Permissions" || true
+  )"
+  echo "$_perms" | {
+    while read -r _perm; do
+      case "$_perm" in
+        Access)   _acls="${_acls},package_access"   ;;
+        Manage)   _acls="${_acls},package_manage"   ;;
+        Metrics)  _acls="${_acls},package_metrics"  ;;
+        Push)     _acls="${_acls},package_push"     ;;
+        Register) _acls="${_acls},package_register" ;;
+        Release)  _acls="${_acls},package_release"  ;;
+        Update)   _acls="${_acls},package_update"   ;;
+        "Limit Channels")
+          printf 'Comma-separated list of channels: ' >&2
+          read -r _channels </dev/tty
+          ;;
+        "Limit Snaps")
+          printf 'Comma-separated list of snaps: ' >&2
+          read -r _snaps </dev/tty
+          ;;
+        "Set Expiration")
+          printf 'Expiration: ' >&2
+          read -r _expiration </dev/tty
+          ;;
+      esac
+    done
+
+    _cmd="snapcraft export-login"
+
+    [ -z "$_acls" ] ||
+      _cmd="${_cmd} --acls=\"${_acls#,}\""
+    [ -z "$_channels" ] ||
+      _cmd="${_cmd} --channels=\"${_channels}\""
+    [ -z "$_snaps" ] ||
+      _cmd="${_cmd} --snaps=\"${_snaps}\""
+    [ -z "$_expiration" ] ||
+      _cmd="${_cmd} --expiration=\"${_expiration}\""
+
+    printf 'Profile Name: ' >&2
+    read -r _profile_name </dev/tty
+
+    unset SNAPCRAFT_STORE_CREDENTIALS
+    eval $_cmd "${LOGIN_DIR}/${_profile_name}" >&2 </dev/tty
+
+    _creds="$(cat "${LOGIN_DIR}/${_profile_name}")"
+    printf 'export SNAPCRAFT_STORE_CREDENTIALS="%s"\n' "$_creds"
+    printf 'export UBUNTU_STORE_AUTH="%s"\n' "$_creds"
+  }
+}
+
+preview() {
+  [ "$1" != "[NEW]" ] || {
+    echo "Create new profile."
+    return 0
+  }
+
+  SNAPCRAFT_STORE_CREDENTIALS="$(cat "${SNAP_USER_COMMON}/logins/${1}")"
+  export SNAPCRAFT_STORE_CREDENTIALS
+
+  # TODO: Cache the results of `snapcraft whoami`
+  snapcraft whoami | batcat -l yaml -fp
+}
+
+main() {
+  set -e
+
+  readonly PROG="$0"
+
+  # DEBUG: Set this in main application
+  : "${SNAP_USER_COMMON:=./common}"
+
+  LOGIN_DIR="${SNAP_USER_COMMON}/logins"
+
+  [ -d "$LOGIN_DIR" ] ||
+    mkdir -p "$LOGIN_DIR"
+
+  _cmd="${1:-login}"
+  [ -z "$1" ] || shift
+
+  case "$_cmd" in
+    description) print_description ;;
+    preview) preview "$1" ;;
+    login) login ;;
+    rm|remove) rm_login ;;
+    *)
+      # TODO: Implement help/usage
+      :
+      ;;
+  esac
+}
+
+main "$@"
