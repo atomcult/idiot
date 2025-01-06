@@ -20,38 +20,50 @@ readonly SNAP; export SNAP
 readonly SNAP_USER_COMMON; export SNAP_USER_COMMON
 
 print_usage() {
-	echo "IDIoT (Interactive Development IoT) Tools"
+	echo "IDIoT (Interactive Devtools for IoT)"
 	echo
 	echo "usage: ${PROG} [subcommand]"
 	echo
 	echo "SUBCOMMANDS"
 	for _cmd in $_commands; do
-	  _cmd="$(basename "$_cmd")"; _cmd="${_cmd#iot-}"
-		printf '%8s    %s\n' "$_cmd" "$("${SNAP}/bin/iot-${_cmd}" description)"
+	  _cmd_name="$(basename "$_cmd")"; _cmd_name="${_cmd_name#iot-}"
+		printf '%8s    %s\n' "${_cmd_name}" "$("${_cmd}" description)"
 	done | sort
 } >&2
 
-main() {
-	# set -x
+process_builtins() {
+	case "$_arg" in
+		help)
+			# shellcheck disable=SC2016
+			{
+				echo 'This program is meant to be used in the following way:'
+				echo '  iot() { eval $(idiot "$@"); }'
+				echo
+				print_usage
+				return 1
+			} >&2
+			;;
+	esac
+}
 
+process_commands() {
+	for _cmd in $_commands; do
+	  _cmd_name="$(basename "$_cmd")"
+
+	  [ "iot-${_arg}" != "$_cmd_name" ] ||
+			exec "${_cmd}" "$@"
+  done
+}
+
+main() {
 	_commands="$(find "${SNAP}/bin" -maxdepth 1 -executable -name 'iot-*')"
 
-	_arg="${1:-}"; [ "$#" -eq 0 ] || shift
+	_arg="${1:-help}"
+	shift || true
 
-	# shellcheck disable=SC2016
-	{ [ -n "$_arg" ] && [ ! "$_arg" = "help" ]; } || {
-		echo 'This program is meant to be used in the following way:'
-		echo '  iot() { eval $(idiot $@) }'
-		echo
-		print_usage
-		return 0
-	} >&2
-
-	for _cmd in $_commands; do
-	  _cmd="$(basename "$_cmd")"; _cmd="${_cmd#iot-}"
-	  [ ! "$_arg" = "$_cmd" ] ||
-			exec "${SNAP}/bin/iot-${_cmd}" "$@"
-  done
+	# Process builtins
+	process_builtins "$@"
+	process_commands "$@"
 
 	print_usage
 	return 1
