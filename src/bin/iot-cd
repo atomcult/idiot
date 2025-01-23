@@ -9,7 +9,7 @@ main() {
 	case "${1:-}" in
 		description) print_description ;;
 		*)
-			printf 'cd "%s"' "$SNAP_COMMON"
+			printf 'cd "%s"' "$IDIOT_DATA_ROOT"
 			;;
 	esac
 }

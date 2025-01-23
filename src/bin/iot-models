@@ -23,7 +23,8 @@ print_description() {
   echo "Retrieve JSON models and their signed counterparts"
 }
 
-print_usage() cat <<EOF
+print_usage() {
+  cat <<EOF >&2
 USAGE: $(basename "$0") [MODE] [OPTS..]
 
 MODES
@@ -39,6 +40,7 @@ OPTIONS
   -m, --model
   -o, --output <PATH>
 EOF
+}
 
 get_value() {
   [ ! -z ${2+set} ] || {
@@ -137,7 +139,7 @@ main() {
 
   [ -e "$MODELPATH" ] || errorf '`%s` does not exit. Please run `get-model init`.' "$MODELPATH"
 
-  case $OPT_MODE in
+  case "$OPT_MODE" in
     list)   list   ;;
     update) update ;;
     copy)   copy   ;;

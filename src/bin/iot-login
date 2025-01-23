@@ -21,10 +21,9 @@ rm_login() {
 }
 
 login() {
+  _login="$(get_profile Profiles [New])"
 
-  _login="$(get_profile Profiles [NEW])"
-
-  [ "$_login" = "[NEW]" ] || {
+  [ "$_login" = "[New]" ] || {
     printf 'export SNAPCRAFT_STORE_CREDENTIALS="%s"' \
       "$(cat "${LOGIN_DIR}/${_login}")"
     printf 'export UBUNTU_STORE_AUTH="%s"' \
@@ -96,7 +95,7 @@ login() {
 }
 
 preview() {
-  [ "$1" != "[NEW]" ] || {
+  [ "$1" != "[New]" ] || {
     echo "Create new profile."
     return 0
   }

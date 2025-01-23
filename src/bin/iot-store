@@ -1,0 +1,57 @@
+#!/bin/sh
+
+get_store() {
+	{
+    find "$STORE_DIR" -type f | sed "s|^${STORE_DIR}/||"
+    echo "[None]"
+    echo "[New]"
+  } | fzf --border-label="Brand Store" --history="${SNAP_USER_COMMON}/store.hist"
+}
+
+add_store() {
+	printf 'Store Name: ' >&2
+	read -r _store_name </dev/tty
+
+	[ -n "$_store_name" ] ||
+		return 1
+
+	printf 'Store ID: ' >&2
+	read -r _store_id </dev/tty
+
+	[ -n "$_store_id" ] ||
+		return 1
+
+	echo "$_store_id" > "${STORE_DIR}/${_store_name}"
+}
+
+print_description() {
+	echo "Set a Brand Store to interact with"
+}
+
+main() {
+  set -eu
+
+  STORE_DIR="${SNAP_USER_COMMON}/stores"
+
+  [ -d "$STORE_DIR" ] ||
+  	mkdir -p "$STORE_DIR"
+
+  case "${1:-}" in
+  	description) print_description ;;
+  	*)
+			_store="$(get_store)"
+			[ "$_store" != "[New]" ] || {
+				add_store || true
+				return 0
+			}
+			[ "$_store" != "[None]" ] || {
+				printf 'unset UBUNTU_STORE_ID\n'
+				return 0
+			}
+
+			printf 'export UBUNTU_STORE_ID="%s"\n' "$(cat "${STORE_DIR}/${_store}")"
+			;;
+  esac
+}
+
+main "$@"

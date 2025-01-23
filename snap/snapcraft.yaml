@@ -14,11 +14,15 @@ confinement: classic
 apps:
   idiot:
     command: bin/iot
+    environment:
+      IDIOT_BIN: $SNAP/usr/bin
+      IDIOT_DATA_ROOT: $SNAP_USER_COMMON
 
 parts:
   src:
     plugin: dump
     source: ./src
+
   packages:
     plugin: nil
     stage-packages:
