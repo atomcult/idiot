@@ -1,12 +1,13 @@
 [package]
-name = "idiot-v2"
+name = "idiot-store"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
 base64 = "0.22.1"
-iocraft = "0.6.1"
+clap = "4.5.30"
+iocraft = "0.7.5"
 macaroon = "0.3.0"
 reqwest = { version = "0.12.12", features = ["json", "http2", "gzip", "deflate"]}
 serde = { version = "1.0.217", features = ["derive"]}

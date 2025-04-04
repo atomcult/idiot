@@ -5,8 +5,19 @@ use serde::Serialize;
 use serde_json::Value;
 use tokio;
 
-// const ENDPOINT: &'static str = "http://127.0.0.1:4444/dev/api/acl/";
 const ENDPOINT: &'static str = "https://dashboard.snapcraft.io/dev/api/acl/";
+
+// FIXME
+const EMAIL: &'static str = "";
+const PASSWORD: &'static str = "";
+
+enum SnapType {
+    App,
+    Base,
+    Gadget,
+    Kernel,
+    Snapd,
+}
 
 #[derive(Serialize)]
 struct Package {
@@ -53,12 +64,12 @@ struct LoginRequest {
     otp: Option<String>,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+pub async fn login() -> Result<()> {
     let client = reqwest::ClientBuilder::new()
         .user_agent("snapcraft/8.6.3 ubuntu/24.04 (x86_64)")
         .build()?;
 
+    // FIXME: dynamic expiration, packages, and channels (among other optional fields)
     let payload = MacaroonRequest {
         permissions: vec![String::from("package_access")],
         description: String::from("snapcraft@ubuntu"),
@@ -101,8 +112,8 @@ async fn main() -> Result<()> {
     }
 
     let payload = LoginRequest {
-        email: String::from("ce-team-test@canonical.com"),
-        password: String::from("TheLastThingThatHarryToldSally"),
+        email: String::from(EMAIL),
+        password: String::from(PASSWORD),
         caveat_id,
         otp: None,
     };
@@ -136,16 +147,16 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn is_empty<T>(v: &Vec<T>) -> bool
+fn is_empty<T>(vec: &Vec<T>) -> bool
 where
     T:,
 {
-    v.is_empty()
+    vec.is_empty()
 }
 
-fn is_none<T>(o: &Option<T>) -> bool
+fn is_none<T>(opt: &Option<T>) -> bool
 where
     T:,
 {
-    o.is_none()
+    opt.is_none()
 }

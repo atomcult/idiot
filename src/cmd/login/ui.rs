@@ -87,7 +87,7 @@ fn Form<'a>(props: &mut FormProps<'a>, mut hooks: Hooks) -> impl Into<AnyElement
     }
 }
 
-fn main() {
+pub fn spawn() {
     let mut store_id = String::new();
     smol::block_on(
         element! {
@@ -101,6 +101,7 @@ fn main() {
     if store_id.is_empty() {
         println!("No store ID entered.");
     } else {
+        // FIXME: perform the login
         println!("Hello, {}!", store_id);
     }
 }
