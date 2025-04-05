@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use clap::{Arg, Command};
+use clap::Command;
 
 mod cmd;
 mod store;
 
-use cmd::Cmd;
+use cmd::*;
 
 const HELP_TEMPLATE: &'static str = "\
 {before-help}{name} ({about}) {version}
@@ -20,7 +20,12 @@ const HELP_TEMPLATE: &'static str = "\
 async fn main() -> Result<()> {
     let mut app = cli();
 
-    let cmds = [cmd::login::init()];
+    let cmds = [
+        CmdAdd::init(),
+        CmdList::init(),
+        CmdLogin::init(),
+        CmdRemove::init(),
+    ];
     let mut cmdmap: HashMap<String, Box<dyn Cmd>> = HashMap::new();
 
     for (name, command, func) in cmds {
