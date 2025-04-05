@@ -1,15 +1,11 @@
 use anyhow::Result;
+use base64::prelude::*;
 use macaroon::{Caveat, Macaroon};
 use reqwest;
 use serde::Serialize;
 use serde_json::Value;
-use tokio;
 
 const ENDPOINT: &'static str = "https://dashboard.snapcraft.io/dev/api/acl/";
-
-// FIXME
-const EMAIL: &'static str = "";
-const PASSWORD: &'static str = "";
 
 enum SnapType {
     App,
@@ -64,7 +60,7 @@ struct LoginRequest {
     otp: Option<String>,
 }
 
-pub async fn login() -> Result<()> {
+pub async fn login(email: String, password: String) -> Result<String> {
     let client = reqwest::ClientBuilder::new()
         .user_agent("snapcraft/8.6.3 ubuntu/24.04 (x86_64)")
         .build()?;
@@ -105,15 +101,15 @@ pub async fn login() -> Result<()> {
         };
 
         if &caveat.location() == "login.ubuntu.com" {
-            let caveat_id_bin = base64::decode(caveat.id().to_string())?;
+            let caveat_id_bin = BASE64_STANDARD.decode(caveat.id().to_string())?;
             caveat_id = String::from_utf8(caveat_id_bin)?;
             break;
         }
     }
 
     let payload = LoginRequest {
-        email: String::from(EMAIL),
-        password: String::from(PASSWORD),
+        email,
+        password,
         caveat_id,
         otp: None,
     };
@@ -141,10 +137,7 @@ pub async fn login() -> Result<()> {
         },
     })?;
 
-    let store_macaroon_b64 = base64::encode(&store_macaroon);
-    println!("{}", store_macaroon_b64);
-
-    Ok(())
+    Ok(BASE64_STANDARD.encode(&store_macaroon))
 }
 
 fn is_empty<T>(vec: &Vec<T>) -> bool

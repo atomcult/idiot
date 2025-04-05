@@ -4,7 +4,9 @@ use anyhow::Result;
 use clap::{Arg, Command};
 
 mod cmd;
-use cmd::SubCmd;
+mod store;
+
+use cmd::Cmd;
 
 const HELP_TEMPLATE: &'static str = "\
 {before-help}{name} ({about}) {version}
@@ -14,28 +16,30 @@ const HELP_TEMPLATE: &'static str = "\
 {all-args}{after-help}
 ";
 
-fn main() -> Result<()> {
-    let cmdmap: HashMap<String, SubCmd> =
-        HashMap::from_iter([("login".into(), cmd::login::init())]);
-
+#[tokio::main]
+async fn main() -> Result<()> {
     let mut app = cli();
-    for subcmd in cmdmap.values() {
-        app = app.subcommand((subcmd.cmd)());
+
+    let cmds = [cmd::login::init()];
+    let mut cmdmap: HashMap<String, Box<dyn Cmd>> = HashMap::new();
+
+    for (name, command, func) in cmds {
+        app = app.subcommand(command);
+        cmdmap.insert(name, func);
     }
 
     let matches = &app.get_matches_mut();
     match matches.subcommand() {
         Some((name, args)) => {
             if let Some(cmd) = cmdmap.get(name) {
-                (cmd.run)(args)?;
-            } else {
-                eprintln!("err: subcommand not found: {}\n", name);
-                app.print_help()?;
+                cmd.run(args).await?;
+                return Ok(());
             }
         }
         _ => unreachable!(),
     }
 
+    app.print_help()?;
     Ok(())
 }
 

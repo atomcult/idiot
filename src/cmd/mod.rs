@@ -1,10 +1,10 @@
 use anyhow::Result;
-use clap::{ArgMatches, Command};
+use async_trait::async_trait;
+use clap::ArgMatches;
 
 pub mod login;
 
-pub struct SubCmd {
-    pub name: String,
-    pub cmd: fn() -> Command,
-    pub run: fn(&ArgMatches) -> Result<()>,
+#[async_trait]
+pub trait Cmd {
+    async fn run<'a, 'b>(&'a self, args: &'b ArgMatches) -> Result<()>;
 }
