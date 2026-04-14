@@ -1,0 +1,45 @@
+#!/usr/bin/env sh
+# cmd/creds/login - set store credential environment variables from a credential file
+# Usage: idiot creds login [<name>]
+# Outputs: eval-able export statements
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+name="${1:-}"
+
+# ── interactive selection if no name given ─────────────────────────────────────
+
+if [ -z "$name" ]; then
+    if ! command -v fzf > /dev/null 2>&1; then
+        die "a credential name is required (fzf not found for interactive selection)"
+    fi
+
+    mkdir -p "$IDIOT_CREDS_DIR"
+
+    files=$(find "$IDIOT_CREDS_DIR" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|$IDIOT_CREDS_DIR/||")
+
+    if [ -z "$files" ]; then
+        die "no credentials found — use 'idiot creds import' to add credentials"
+    fi
+
+    export IDIOT_CREDS_DIR
+    if command -v batcat > /dev/null 2>&1; then
+        preview_cmd='batcat --style=plain --color=always "$IDIOT_CREDS_DIR/"{}'
+    else
+        preview_cmd='cat "$IDIOT_CREDS_DIR/"{}'
+    fi
+
+    name=$(printf '%s\n' "$files" | fzf --prompt="credentials> " --preview="$preview_cmd") || exit 0
+fi
+
+# ── load and export ────────────────────────────────────────────────────────────
+
+cred_file="$IDIOT_CREDS_DIR/$name"
+
+if [ ! -f "$cred_file" ]; then
+    die "credentials '$name' not found"
+fi
+
+contents="$(cat "$cred_file")"
+printf 'export UBUNTU_STORE_AUTH=%s\n' "$(shell_quote "$contents")"
+printf 'export SNAPCRAFT_STORE_CREDENTIALS=%s\n' "$(shell_quote "$contents")"

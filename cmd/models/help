@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# cmd/models/help - usage for the models subcommand group
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+say "Usage: idiot models <subcommand>"
+echo >&2
+say "Subcommands:"
+say "  update                   Clone or pull the models repository"
+say "  pick [--signed|--unsigned] [<dir>]"
+say "                           Interactively pick a model assertion and copy it"
+say "                           to <dir> (default: current directory)"
+echo >&2
+say "Model assertion types:"
+say "  --signed     *.model files (default: show all)"
+say "  --unsigned   *.json files  (default: show all)"
+echo >&2
+say "Environment:"
+say "  IDIOT_MODELS_DIR    Local models repository (default: $IDIOT_MODELS_DIR)"

@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+# cmd/creds/list - list credential files in IDIOT_CREDS_DIR
+# Usage: idiot creds list
+# Outputs: eval-able printf statements (display only, no env changes)
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+if [ ! -d "$IDIOT_CREDS_DIR" ]; then
+    say "No credentials directory found at: $IDIOT_CREDS_DIR"
+    exit 0
+fi
+
+# Collect entries (files only, no dotfiles, sorted)
+entries=""
+count=0
+for f in "$IDIOT_CREDS_DIR"/*; do
+    [ -f "$f" ] || continue
+    entries="$entries$(basename "$f")\n"
+    count=$((count + 1))
+done
+
+if [ "$count" -eq 0 ]; then
+    say "No credentials found in: $IDIOT_CREDS_DIR"
+    exit 0
+fi
+
+say "Credentials in $IDIOT_CREDS_DIR:"
+echo >&2
+printf '%b' "$entries" | sort | while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    say "  $name"
+done

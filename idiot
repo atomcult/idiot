@@ -1,0 +1,59 @@
+#!/usr/bin/env sh
+# idiot - shell environment manager
+# Outputs eval-able shell code; use via the shell wrapper installed by:
+#   eval "$(idiot init bash)"   # or zsh / fish
+
+set -e
+
+IDIOT_ROOT="${IDIOT_ROOT:-$(cd "$(dirname "$0")" && pwd)}"
+IDIOT_CMD_DIR="$IDIOT_ROOT/cmd"
+IDIOT_LIB_DIR="$IDIOT_ROOT/lib"
+
+# shellcheck source=lib/common.sh
+. "$IDIOT_LIB_DIR/common.sh"
+
+# ── dispatch ───────────────────────────────────────────────────────────────────
+
+cmd="${1:-}"
+[ $# -ge 1 ] && shift
+
+case "$cmd" in
+    ""|-h|--help|help)
+        idiot_help
+        exit 0
+        ;;
+    -V|--version|version)
+        printf 'idiot v2.0.0\n' >&2
+        exit 0
+        ;;
+    *)
+        cmd_file="$IDIOT_CMD_DIR/$cmd"
+        if [ -d "$cmd_file" ]; then
+            # Subcommand group: cmd/<group>/<subcommand>
+            subcmd="${1:-}"
+            [ $# -ge 1 ] && shift
+            case "$subcmd" in
+                ""|-h|--help|help)
+                    # Run the group's help if present, otherwise generic
+                    if [ -x "$cmd_file/help" ]; then
+                        exec "$cmd_file/help"
+                    else
+                        die "usage: idiot $cmd <subcommand>"
+                    fi
+                    ;;
+                *)
+                    subcmd_file="$cmd_file/$subcmd"
+                    if [ -x "$subcmd_file" ]; then
+                        exec "$subcmd_file" "$@"
+                    else
+                        die "unknown subcommand: $cmd $subcmd"
+                    fi
+                    ;;
+            esac
+        elif [ -x "$cmd_file" ]; then
+            exec "$cmd_file" "$@"
+        else
+            die "unknown command: $cmd"
+        fi
+        ;;
+esac

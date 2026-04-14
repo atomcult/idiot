@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# cmd/store/use - set UBUNTU_STORE_ID to the named store's ID
+# Usage: idiot store use <name>
+# Outputs: eval-able export statement
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+name="${1:-}"
+
+if [ -z "$name" ]; then
+    die "usage: idiot store use <name>"
+fi
+
+mkdir -p "$IDIOT_STORES_DIR"
+store_file="$IDIOT_STORES_DIR/$name"
+
+if [ ! -f "$store_file" ]; then
+    die "store '$name' not found — run 'idiot store list' to see available stores"
+fi
+
+store_id="$(cat "$store_file")"
+printf 'export UBUNTU_STORE_ID=%s\n' "$(shell_quote "$store_id")"

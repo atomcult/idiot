@@ -1,0 +1,88 @@
+#!/usr/bin/env sh
+# cmd/models/pick - interactively select a model assertion and copy it
+# Usage: idiot models pick [--signed|--unsigned] [<dir>]
+#
+# Signed model assertions:   *.model
+# Unsigned model assertions: *.json
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+# ── argument parsing ───────────────────────────────────────────────────────────
+
+filter=""
+dest="."
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --signed)   filter="signed" ;;
+        --unsigned) filter="unsigned" ;;
+        -*)         die "unknown option: $1" ;;
+        *)          dest="$1" ;;
+    esac
+    shift
+done
+
+# ── preflight checks ───────────────────────────────────────────────────────────
+
+if ! command -v fzf > /dev/null 2>&1; then
+    die "fzf is required but not found (https://github.com/junegunn/fzf)"
+fi
+
+if [ ! -d "$IDIOT_MODELS_DIR/.git" ]; then
+    die "models repository not found — run 'idiot models update' first"
+fi
+
+if [ ! -d "$dest" ]; then
+    die "destination directory does not exist: $dest"
+fi
+
+# ── find model files ───────────────────────────────────────────────────────────
+
+files=$(
+    find "$IDIOT_MODELS_DIR" -type f ! -path '*/.git/*' ! -name '.*' \
+    | sort \
+    | sed "s|$IDIOT_MODELS_DIR/||" \
+    | case "$filter" in
+        signed)   grep '\.model$' ;;
+        unsigned) grep '\.json$' ;;
+        *)        grep '\.\(model\|json\)$';;
+      esac
+)
+
+if [ -z "$files" ]; then
+    case "$filter" in
+        signed)   die "no signed model assertions (*.model) found in $IDIOT_MODELS_DIR" ;;
+        unsigned) die "no unsigned model assertions (*.json) found in $IDIOT_MODELS_DIR" ;;
+        *)        die "no model assertions found in $IDIOT_MODELS_DIR" ;;
+    esac
+fi
+
+# ── interactive selection ──────────────────────────────────────────────────────
+
+case "$filter" in
+    signed)   prompt="signed model> " ;;
+    unsigned) prompt="unsigned model> " ;;
+    *)        prompt="model> " ;;
+esac
+
+export IDIOT_MODELS_DIR
+if command -v batcat > /dev/null 2>&1; then
+    preview_cmd='batcat --style=plain --color=always "$IDIOT_MODELS_DIR/"{}'
+else
+    preview_cmd='command cat "$IDIOT_MODELS_DIR/"{}'
+fi
+
+selection=$(
+    printf '%s\n' "$files" \
+    | fzf --prompt="$prompt" \
+          --preview="$preview_cmd"
+) || exit 0  # fzf exits non-zero on cancel; treat as a no-op
+
+# ── copy ───────────────────────────────────────────────────────────────────────
+
+src="$IDIOT_MODELS_DIR/$selection"
+filename="$(basename "$selection")"
+dest_file="$dest/$filename"
+
+cp "$src" "$dest_file"
+say "Copied '$selection' → '$dest_file'"

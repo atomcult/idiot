@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# cmd/creds/logout - unset store credential environment variables
+# Usage: idiot creds logout
+# Outputs: eval-able unset statements
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+printf 'unset SNAPCRAFT_STORE_CREDENTIALS\n'
+printf 'unset UBUNTU_STORE_AUTH\n'

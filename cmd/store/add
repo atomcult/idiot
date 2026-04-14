@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# cmd/store/add - save a Dedicated Snap Store ID under a human-readable name
+# Usage: idiot store add <name> <store-id>
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+name="${1:-}"
+store_id="${2:-}"
+
+if [ -z "$name" ] || [ -z "$store_id" ]; then
+    die "usage: idiot store add <name> <store-id>"
+fi
+
+case "$name" in
+    *[!A-Za-z0-9_-]*) die "invalid store name '$name': use only letters, digits, hyphens, underscores" ;;
+esac
+
+mkdir -p "$IDIOT_STORES_DIR"
+store_file="$IDIOT_STORES_DIR/$name"
+
+if [ -f "$store_file" ]; then
+    die "store '$name' already exists (use 'idiot store remove $name' first)"
+fi
+
+printf '%s' "$store_id" > "$store_file"
+say "Added store '$name' ($store_id)"

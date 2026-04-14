@@ -1,0 +1,63 @@
+#!/usr/bin/env sh
+# cmd/load - load variables from a .env file into the calling shell
+# Usage: idiot load <file>
+# Outputs: eval-able shell code
+#
+# Supported .env syntax:
+#   VAR=value          bare value
+#   VAR="value"        double-quoted (quotes stripped, no interpolation)
+#   VAR='value'        single-quoted (quotes stripped)
+#   # comment          ignored
+#   export VAR=value   leading 'export' keyword accepted
+
+. "$(dirname "$0")/../lib/common.sh"
+
+file="${1:-}"
+
+if [ -z "$file" ]; then
+    die "usage: idiot load <file>"
+fi
+
+if [ ! -f "$file" ]; then
+    die "file not found: $file"
+fi
+
+lineno=0
+while IFS= read -r line || [ -n "$line" ]; do
+    lineno=$((lineno + 1))
+
+    # Strip leading whitespace
+    trimmed="${line#"${line%%[! ]*}"}"
+
+    # Skip blank lines and comments
+    case "$trimmed" in
+        ''|\#*) continue ;;
+    esac
+
+    # Strip optional leading 'export'
+    case "$trimmed" in
+        export\ *) trimmed="${trimmed#export }" ;;
+    esac
+
+    # Split on first '='
+    var="${trimmed%%=*}"
+    val_raw="${trimmed#*=}"
+
+    # Validate var name
+    case "$var" in
+        ''|[0-9]*|*[!A-Za-z0-9_]*)
+            warn "$(printf 'skipping invalid entry at %s:%d' "$file" "$lineno")"
+            continue
+            ;;
+    esac
+
+    # Strip surrounding quotes from value (no interpolation)
+    case "$val_raw" in
+        \"*\") val="${val_raw%\"}"; val="${val#\"}" ;;
+        \'*\') val="${val_raw%\'}"; val="${val#\'}" ;;
+        *)     val="$val_raw" ;;
+    esac
+
+    state_track "$var"
+    printf 'export %s=%s\n' "$var" "$(shell_quote "$val")"
+done < "$file"

@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+# cmd/store/list - list saved stores and their IDs
+# Usage: idiot store list
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+mkdir -p "$IDIOT_STORES_DIR"
+
+# Determine the longest name for alignment
+max_len=0
+for f in "$IDIOT_STORES_DIR"/*; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    len="${#name}"
+    [ "$len" -gt "$max_len" ] && max_len="$len"
+done
+
+if [ "$max_len" -eq 0 ]; then
+    say "No stores saved yet (use 'idiot store add <name> <store-id>')"
+    exit 0
+fi
+
+say "Saved stores:"
+echo >&2
+for f in "$IDIOT_STORES_DIR"/*; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    store_id="$(cat "$f")"
+    printf "  %-${max_len}s  %s\n" "$name" "$store_id" >&2
+done

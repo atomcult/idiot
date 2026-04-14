@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# cmd/list - list variables currently managed by idiot
+# Usage: idiot list
+# Outputs: eval-able printf statements (display only, no env changes)
+
+. "$(dirname "$0")/../lib/common.sh"
+
+managed="$(state_list)"
+
+if [ -z "$managed" ]; then
+    say "(no variables managed by idiot)"
+    exit 0
+fi
+
+say "Variables managed by idiot:"
+echo >&2
+
+printf '%s\n' "$managed" | while IFS= read -r var; do
+    # Retrieve current value via indirect expansion in eval context.
+    # We output a small shell snippet that prints the var's current value.
+    printf 'printf "  %%s=%%s\\n" %s "$(printf '"'"'%%s'"'"' "${%s}")" \n' \
+        "$(shell_quote "$var")" "$var"
+done

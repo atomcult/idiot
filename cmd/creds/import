@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+# cmd/creds/import - import a credential file into IDIOT_CREDS_DIR
+# Usage: idiot creds import <file> [<name>]
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+src="${1:-}"
+name="${2:-}"
+
+if [ -z "$src" ]; then
+    die "usage: idiot creds import <file> [<name>]"
+fi
+
+if [ ! -f "$src" ]; then
+    die "file not found: $src"
+fi
+
+if [ -z "$name" ]; then
+    name="$(basename "$src")"
+fi
+
+mkdir -p "$IDIOT_CREDS_DIR"
+dest="$IDIOT_CREDS_DIR/$name"
+
+if [ -f "$dest" ]; then
+    die "credentials '$name' already exist (remove it first)"
+fi
+
+cp "$src" "$dest"
+say "Imported '$src' as '$name'"
