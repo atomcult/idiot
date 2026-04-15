@@ -9,4 +9,26 @@ if [ -z "${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
     exit 0
 fi
 
+# ── cached path ────────────────────────────────────────────────────────────────
+
+if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
+    whoami_cache="$IDIOT_CACHE_DIR/whoami/$IDIOT_ACTIVE_CRED"
+
+    if [ -f "$whoami_cache" ]; then
+        cat "$whoami_cache" >&2
+        exit 0
+    fi
+
+    output="$(snapcraft whoami 2>&1)"
+    rc=$?
+    printf '%s\n' "$output" >&2
+    if [ $rc -eq 0 ]; then
+        mkdir -p "$IDIOT_CACHE_DIR/whoami"
+        printf '%s\n' "$output" > "$whoami_cache"
+    fi
+    exit $rc
+fi
+
+# ── no active credential name known (manually set credentials) ─────────────────
+
 snapcraft whoami >&2

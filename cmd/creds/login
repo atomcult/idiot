@@ -43,3 +43,4 @@ fi
 contents="$(cat "$cred_file")"
 printf 'export UBUNTU_STORE_AUTH=%s\n' "$(shell_quote "$contents")"
 printf 'export SNAPCRAFT_STORE_CREDENTIALS=%s\n' "$(shell_quote "$contents")"
+printf 'export IDIOT_ACTIVE_CRED=%s\n' "$(shell_quote "$name")"

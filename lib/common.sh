@@ -11,6 +11,9 @@ IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-$HOME/.local/share/idiot/stores}"
 # Cloned models repository
 IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-$HOME/.local/share/idiot/models}"
 
+# Cache directory
+IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/idiot}"
+
 # ── color ─────────────────────────────────────────────────────────────────────
 # Use colors only when stderr is a TTY and NO_COLOR is unset
 if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then
