@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # cmd/models/pick - interactively select a model assertion and copy it
-# Usage: idiot models pick [--signed|--unsigned] [<dir>]
+# Usage: idiot models pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]
 #
 # Signed model assertions:   *.model
 # Unsigned model assertions: *.json
@@ -11,13 +11,22 @@
 
 filter=""
 dest="."
+output=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --signed)   filter="signed" ;;
-        --unsigned) filter="unsigned" ;;
-        -*)         die "unknown option: $1" ;;
-        *)          dest="$1" ;;
+        --signed)    filter="signed" ;;
+        --unsigned)  filter="unsigned" ;;
+        -o|--output)
+            [ -z "${2:-}" ] && die "option '$1' requires an argument"
+            output="$2"
+            shift
+            ;;
+        -*)          die "unknown option: $1" ;;
+        *)
+            [ -n "$output" ] && die "cannot combine -o/--output with a destination directory"
+            dest="$1"
+            ;;
     esac
     shift
 done
@@ -32,7 +41,7 @@ if [ ! -d "$IDIOT_MODELS_DIR/.git" ]; then
     die "models repository not found — run 'idiot models update' first"
 fi
 
-if [ ! -d "$dest" ]; then
+if [ -z "$output" ] && [ ! -d "$dest" ]; then
     die "destination directory does not exist: $dest"
 fi
 
@@ -78,11 +87,17 @@ selection=$(
           --preview="$preview_cmd"
 ) || exit 0  # fzf exits non-zero on cancel; treat as a no-op
 
-# ── copy ───────────────────────────────────────────────────────────────────────
+# ── output ─────────────────────────────────────────────────────────────────────
 
 src="$IDIOT_MODELS_DIR/$selection"
-filename="$(basename "$selection")"
-dest_file="$dest/$filename"
 
-cp "$src" "$dest_file"
-say "Copied '$selection' → '$dest_file'"
+if [ "$output" = "-" ]; then
+    cat "$src"
+elif [ -n "$output" ]; then
+    cp "$src" "$output"
+    say "Saved '$selection' → '$output'"
+else
+    dest_file="$dest/$(basename "$selection")"
+    cp "$src" "$dest_file"
+    say "Copied '$selection' → '$dest_file'"
+fi
