@@ -12,14 +12,12 @@ fi
 
 # Collect entries (files only, no dotfiles, sorted)
 entries=""
-count=0
 for f in "$IDIOT_CREDS_DIR"/*; do
     [ -f "$f" ] || continue
     entries="$entries$(basename "$f")\n"
-    count=$((count + 1))
 done
 
-if [ "$count" -eq 0 ]; then
+if [ -z "$entries" ]; then
     say "No credentials found in: $IDIOT_CREDS_DIR"
     exit 0
 fi
