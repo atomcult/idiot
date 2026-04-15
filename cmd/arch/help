@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# cmd/arch/help - usage for the arch subcommand group
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+say "Usage: idiot arch <subcommand>"
+echo >&2
+say "Subcommands:"
+say "  set [<architecture>] Set UBUNTU_STORE_ARCH"
+say "                         (valid: amd64, arm64, armhf, i386, ppc64el, riscv64, s390x)"
+say "                         (launches fzf selector if no architecture given)"
+say "  unset                Unset UBUNTU_STORE_ARCH"
+say "  status               Show current architecture (or host arch if unset)"
+echo >&2
+say "Environment:"
+say "  UBUNTU_STORE_ARCH    Target architecture override"

@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# cmd/arch/status - show the current target architecture
+# Usage: idiot arch status
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+if [ -n "${UBUNTU_STORE_ARCH:-}" ]; then
+    say "$UBUNTU_STORE_ARCH"
+    exit 0
+fi
+
+# Fall back to host architecture
+case "$(uname -m)" in
+    x86_64)        say "amd64" ;;
+    aarch64)       say "arm64" ;;
+    armv7l|armv6l) say "armhf" ;;
+    i686|i386)     say "i386" ;;
+    ppc64le)       say "ppc64el" ;;
+    riscv64)       say "riscv64" ;;
+    s390x)         say "s390x" ;;
+    *)             say "$(uname -m)" ;;
+esac
