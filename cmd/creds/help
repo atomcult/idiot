@@ -1,24 +1,19 @@
 #!/usr/bin/env sh
 # cmd/creds/help - usage for the creds subcommand group
-# Outputs: eval-able printf statements
 
 . "$(dirname "$0")/../../lib/common.sh"
 
 say "Usage: idiot creds <subcommand>"
 echo >&2
 say "Subcommands:"
-say "  add <name>              Create new credentials via snapcraft export-login"
-say "  list                    List available credential files"
-say "  import <file> [<name>]  Import a credential file (name defaults to filename)"
-say "  login [<name>]          Set UBUNTU_STORE_AUTH and SNAPCRAFT_STORE_CREDENTIALS"
-say "                            (launches fzf selector if no name given)"
-say "  remove [<name>]         Remove a credential file"
-say "                            (launches fzf selector if no name given)"
-say "  export [<name>] [-f <file>]"
-say "                          Print a credential file to stdout, or write to <file>"
-say "                            (launches fzf selector if no name given)"
-say "  status                  Show login status (runs snapcraft whoami if logged in)"
-say "  logout                  Unset store credential environment variables"
+say "  add       Create credentials via snapcraft export-login"
+say "  list      List available credential files"
+say "  import    Import a credential file"
+say "  login     Set UBUNTU_STORE_AUTH and SNAPCRAFT_STORE_CREDENTIALS"
+say "  remove    Remove a credential file"
+say "  export    Print a credential file to stdout, or write to a file"
+say "  status    Show login status"
+say "  logout    Unset store credential environment variables"
 echo >&2
 say "Environment:"
 say "  IDIOT_CREDS_DIR    Credentials directory (default: $IDIOT_CREDS_DIR)"

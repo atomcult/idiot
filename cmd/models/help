@@ -6,16 +6,8 @@
 say "Usage: idiot models <subcommand>"
 echo >&2
 say "Subcommands:"
-say "  update                   Clone or pull the models repository"
-say "  pick [--signed|--unsigned] [-o <file>] [<dir>]"
-say "                           Interactively pick a model assertion"
-say "                           -o <file>  save to a named file"
-say "                           -o -       print to stdout"
-say "                           <dir>      copy to directory (default: current dir)"
-echo >&2
-say "Model assertion types:"
-say "  --signed     *.model files (default: show all)"
-say "  --unsigned   *.json files  (default: show all)"
+say "  update    Clone or pull the models repository"
+say "  pick      Interactively select a model assertion"
 echo >&2
 say "Environment:"
 say "  IDIOT_MODELS_DIR    Local models repository (default: $IDIOT_MODELS_DIR)"
