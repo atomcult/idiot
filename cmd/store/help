@@ -6,12 +6,12 @@
 say "Usage: idiot store <subcommand>"
 echo >&2
 say "Subcommands:"
-say "  add       Save a Dedicated Snap Store ID under a human-readable name"
+say "  add       Save a store"
 say "  remove    Remove a saved store"
-say "  list      List saved stores and their IDs"
-say "  use       Set UBUNTU_STORE_ID"
-say "  status    Show current UBUNTU_STORE_ID (or 'global' if unset)"
-say "  unset     Unset UBUNTU_STORE_ID"
+say "  list      List saved stores"
+say "  use       Activate a store"
+say "  status    Show the active store"
+say "  unset     Clear the active store"
 echo >&2
 say "Environment:"
 say "  IDIOT_STORES_DIR    Stores directory (default: $IDIOT_STORES_DIR)"
