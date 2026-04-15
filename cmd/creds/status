@@ -9,26 +9,43 @@ if [ -z "${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
     exit 0
 fi
 
-# ── cached path ────────────────────────────────────────────────────────────────
+# ── get raw whoami output (cached or live) ────────────────────────────────────
 
 if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
     whoami_cache="$IDIOT_CACHE_DIR/whoami/$IDIOT_ACTIVE_CRED"
 
     if [ -f "$whoami_cache" ]; then
-        cat "$whoami_cache" >&2
-        exit 0
-    fi
-
-    output="$(snapcraft whoami 2>&1)"
-    rc=$?
-    printf '%s\n' "$output" >&2
-    if [ $rc -eq 0 ]; then
+        raw="$(cat "$whoami_cache")"
+    else
+        raw="$(snapcraft whoami 2>&1)"
+        rc=$?
+        if [ $rc -ne 0 ]; then
+            printf '%s\n' "$raw" >&2
+            exit $rc
+        fi
         mkdir -p "$IDIOT_CACHE_DIR/whoami"
-        printf '%s\n' "$output" > "$whoami_cache"
+        printf '%s\n' "$raw" > "$whoami_cache"
     fi
-    exit $rc
+else
+    raw="$(snapcraft whoami 2>&1)"
+    rc=$?
+    if [ $rc -ne 0 ]; then
+        printf '%s\n' "$raw" >&2
+        exit $rc
+    fi
 fi
 
-# ── no active credential name known (manually set credentials) ─────────────────
+# ── colorize and print ────────────────────────────────────────────────────────
 
-snapcraft whoami >&2
+printf '%s\n' "$raw" | while IFS= read -r line; do
+    case "$line" in
+        *:' '*)
+            key="${line%%:*}"
+            val="${line#*: }"
+            printf '%s\n' "${CYAN}${key}${RESET}: ${val}" >&2
+            ;;
+        *)
+            printf '%s\n' "$line" >&2
+            ;;
+    esac
+done

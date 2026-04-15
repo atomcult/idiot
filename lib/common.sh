@@ -20,11 +20,13 @@ if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then
     BOLD="$(printf '\033[1m')"
     DIM="$(printf '\033[2m')"
     RED="$(printf '\033[31m')"
+    CYAN="$(printf '\033[36m')"
     RESET="$(printf '\033[0m')"
 else
     BOLD=''
     DIM=''
     RED=''
+    CYAN=''
     RESET=''
 fi
 
