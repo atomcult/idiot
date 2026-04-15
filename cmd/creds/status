@@ -19,6 +19,7 @@ map_permission() {
         package_release)  printf 'Publish releases' ;;
         package_update)   printf 'Update package metadata' ;;
         package_manage)   printf 'Manage collaborators' ;;
+        package_metrics)  printf 'View package metrics' ;;
         store_admin)      printf 'Administer store' ;;
         account_admin)    printf 'Administer account' ;;
         openid)           printf 'OpenID authentication' ;;
