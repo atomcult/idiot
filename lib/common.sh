@@ -53,24 +53,22 @@ shell_quote() {
 # ── help ───────────────────────────────────────────────────────────────────────
 
 idiot_help() {
-    cat >&2 <<'EOF'
-idiot - shell environment manager
-
-Usage: idiot <command> [args...]
-
-Commands:
-  creds     Manage credentials
-  store     Manage Dedicated Snap Stores
-  arch      Manage target architecture
-  models    Manage model assertions
-  changes   Browse recent changes
-  init      Set up shell integration
-
-Shell setup (run once, add to your shell rc):
-  eval "$(idiot init bash)"    # bash
-  eval "$(idiot init zsh)"     # zsh
-  idiot init fish | source     # fish
-
-Run 'idiot <command> help' for subcommand details.
-EOF
+    say "${BOLD}idiot${RESET} - shell environment manager"
+    echo >&2
+    say "${BOLD}Usage:${RESET} idiot <command> [args...]"
+    echo >&2
+    say "${BOLD}Commands:${RESET}"
+    say "  ${BOLD}creds${RESET}     Manage credentials"
+    say "  ${BOLD}store${RESET}     Manage Dedicated Snap Stores"
+    say "  ${BOLD}arch${RESET}      Manage target architecture"
+    say "  ${BOLD}models${RESET}    Manage model assertions"
+    say "  ${BOLD}changes${RESET}   Browse recent changes"
+    say "  ${BOLD}init${RESET}      Set up shell integration"
+    echo >&2
+    say "${BOLD}Shell setup${RESET} (run once, add to your shell rc):"
+    say '  eval "$(idiot init bash)"    # bash'
+    say '  eval "$(idiot init zsh)"     # zsh'
+    say '  idiot init fish | source     # fish'
+    echo >&2
+    say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
 }

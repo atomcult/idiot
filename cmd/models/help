@@ -3,11 +3,11 @@
 
 . "$(dirname "$0")/../../lib/common.sh"
 
-say "Usage: idiot models <subcommand>"
+say "${BOLD}Usage:${RESET} idiot models <subcommand>"
 echo >&2
-say "Subcommands:"
-say "  pick      Interactively select a model assertion"
-say "  update    Fetch the latest model assertions"
+say "${BOLD}Subcommands:${RESET}"
+say "  ${BOLD}pick${RESET}      Interactively select a model assertion"
+say "  ${BOLD}update${RESET}    Fetch the latest model assertions"
 echo >&2
-say "Environment:"
-say "  IDIOT_MODELS_DIR    Models repository"
+say "${BOLD}Environment:${RESET}"
+say "  ${BOLD}IDIOT_MODELS_DIR${RESET}    Models repository"
