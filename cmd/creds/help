@@ -6,14 +6,15 @@
 say "Usage: idiot creds <subcommand>"
 echo >&2
 say "Subcommands:"
-say "  add       Create a new credential"
-say "  list      List saved credentials"
-say "  import    Import a credential from a file"
 say "  login     Activate a credential"
+say "  logout    Log out"
+say "  status    Show login status"
+echo >&2
+say "  add       Create a new credential"
+say "  import    Import a credential from a file"
+say "  list      List saved credentials"
 say "  remove    Remove a saved credential"
 say "  export    Output a credential"
-say "  status    Show login status"
-say "  logout    Log out"
 echo >&2
 say "Environment:"
 say "  IDIOT_CREDS_DIR    Credentials directory (default: $IDIOT_CREDS_DIR)"
