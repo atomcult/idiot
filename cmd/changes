@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# cmd/changes - browse snap changes interactively
+# Usage: idiot changes
+
+. "$(dirname "$0")/../lib/common.sh"
+
+if ! command -v fzf > /dev/null 2>&1; then
+    die "fzf is required but not found (https://github.com/junegunn/fzf)"
+fi
+
+if ! command -v snap > /dev/null 2>&1; then
+    die "snap is required but not found"
+fi
+
+snap changes \
+    | fzf \
+        --header-lines=1 \
+        --no-sort \
+        --prompt="change> " \
+        --preview="snap change {1}" \
+        --preview-window="down:60%:wrap" \
+    > /dev/null || true

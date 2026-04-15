@@ -84,11 +84,12 @@ idiot - shell environment manager
 Usage: idiot <command> [args...]
 
 Commands:
-  arch   <arch|unset>   Set or unset UBUNTU_STORE_ARCH
-  creds  <subcommand>   Manage credentials (list, import, login, logout)
-  store  <subcommand>   Manage Dedicated Snap Stores (add, remove, list, use, unset)
-  models <subcommand>   Manage model assertions (update, pick)
-  init   <shell>        Print shell integration code
+  arch    <arch|unset>  Set or unset UBUNTU_STORE_ARCH
+  creds   <subcommand>  Manage credentials (list, import, login, logout)
+  store   <subcommand>  Manage Dedicated Snap Stores (add, remove, list, use, unset)
+  models  <subcommand>  Manage model assertions (update, pick)
+  changes               Browse snap changes interactively
+  init    <shell>       Print shell integration code
 
 Shell setup (run once, add to your shell rc):
   eval "$(idiot init bash)"    # bash

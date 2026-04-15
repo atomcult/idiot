@@ -34,7 +34,7 @@ case "$cmd" in
             [ $# -ge 1 ] && shift
             case "$subcmd" in
                 ""|-h|--help|help)
-                    # Run the group's help if present, otherwise generic
+                    # Help is always allowed without init
                     if [ -x "$cmd_file/help" ]; then
                         exec "$cmd_file/help"
                     else
@@ -42,6 +42,7 @@ case "$cmd" in
                     fi
                     ;;
                 *)
+                    [ -z "$IDIOT_SHELL" ] && die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
                     subcmd_file="$cmd_file/$subcmd"
                     if [ -x "$subcmd_file" ]; then
                         exec "$subcmd_file" "$@"
@@ -51,7 +52,13 @@ case "$cmd" in
                     ;;
             esac
         elif [ -x "$cmd_file" ]; then
-            exec "$cmd_file" "$@"
+            case "$cmd" in
+                init) exec "$cmd_file" "$@" ;;
+                *)
+                    [ -z "$IDIOT_SHELL" ] && die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+                    exec "$cmd_file" "$@"
+                    ;;
+            esac
         else
             die "unknown command: $cmd"
         fi
