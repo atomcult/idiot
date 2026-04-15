@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # cmd/store/use - set UBUNTU_STORE_ID to the named store's ID
-# Usage: idiot store use <name>
+# Usage: idiot store use [<name>]
 # Outputs: eval-able export statement
 
 . "$(dirname "$0")/../../lib/common.sh"
@@ -8,14 +8,27 @@
 name="${1:-}"
 
 if [ -z "$name" ]; then
-    die "usage: idiot store use <name>"
+    if ! command -v fzf > /dev/null 2>&1; then
+        die "a store name is required (fzf not found for interactive selection)"
+    fi
+
+    mkdir -p "$IDIOT_STORES_DIR"
+
+    files=$(find "$IDIOT_STORES_DIR" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|$IDIOT_STORES_DIR/||")
+
+    if [ -z "$files" ]; then
+        die "no stores saved — use 'idiot store add' to add a store"
+    fi
+
+    export IDIOT_STORES_DIR
+    name=$(printf '%s\n' "$files" | fzf --prompt="store> " --preview='cat "$IDIOT_STORES_DIR/"{}'  ) || exit 0
 fi
 
 mkdir -p "$IDIOT_STORES_DIR"
 store_file="$IDIOT_STORES_DIR/$name"
 
 if [ ! -f "$store_file" ]; then
-    die "store '$name' not found — run 'idiot store list' to see available stores"
+    die "store '$name' not found"
 fi
 
 store_id="$(cat "$store_file")"
