@@ -27,4 +27,4 @@ trap 'rm -f "$tmpfile"' EXIT INT TERM
 snapcraft export-login "$tmpfile" >&2 || die "snapcraft export-login failed"
 
 cp "$tmpfile" "$dest"
-say "Added credentials '$name'"
+say "Added credentials '${BOLD}$name${RESET}'"

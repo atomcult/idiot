@@ -95,9 +95,9 @@ if [ "$output" = "-" ]; then
     cat "$src"
 elif [ -n "$output" ]; then
     cp "$src" "$output"
-    say "Saved '$selection' → '$output'"
+    say "Saved '${BOLD}$selection${RESET}' → '${BOLD}$output${RESET}'"
 else
     dest_file="$dest/$(basename "$selection")"
     cp "$src" "$dest_file"
-    say "Copied '$selection' → '$dest_file'"
+    say "Copied '${BOLD}$selection${RESET}' → '${BOLD}$dest_file${RESET}'"
 fi

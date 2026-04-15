@@ -23,4 +23,4 @@ if [ -f "$store_file" ]; then
 fi
 
 printf '%s' "$store_id" > "$store_file"
-say "Added store '$name' ($store_id)"
+say "Added store '${BOLD}$name${RESET}' ($store_id)"

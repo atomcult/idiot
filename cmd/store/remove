@@ -18,4 +18,4 @@ if [ ! -f "$store_file" ]; then
 fi
 
 rm "$store_file"
-say "Removed store '$name'"
+say "Removed store '${BOLD}$name${RESET}'"

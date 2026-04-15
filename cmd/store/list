@@ -26,5 +26,6 @@ for f in "$IDIOT_STORES_DIR"/*; do
     [ -f "$f" ] || continue
     name="$(basename "$f")"
     store_id="$(cat "$f")"
-    printf "  %-${max_len}s  %s\n" "$name" "$store_id" >&2
+    padded="$(printf "%-${max_len}s" "$name")"
+    printf '  %s  %s\n' "${BOLD}${padded}${RESET}" "$store_id" >&2
 done

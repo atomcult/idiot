@@ -26,5 +26,5 @@ say "Credentials in $IDIOT_CREDS_DIR:"
 echo >&2
 printf '%b' "$entries" | sort | while IFS= read -r name; do
     [ -n "$name" ] || continue
-    say "  $name"
+    say "  ${BOLD}$name${RESET}"
 done

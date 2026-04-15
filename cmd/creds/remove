@@ -36,4 +36,4 @@ if [ ! -f "$cred_file" ]; then
 fi
 
 rm "$cred_file"
-say "Removed credentials '$name'"
+say "Removed credentials '${BOLD}$name${RESET}'"

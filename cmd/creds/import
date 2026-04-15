@@ -27,4 +27,4 @@ if [ -f "$dest" ]; then
 fi
 
 cp "$src" "$dest"
-say "Imported '$src' as '$name'"
+say "Imported '${BOLD}$src${RESET}' as '${BOLD}$name${RESET}'"
