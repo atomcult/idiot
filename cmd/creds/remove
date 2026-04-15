@@ -1,0 +1,39 @@
+#!/usr/bin/env sh
+# cmd/creds/remove - remove a credential file from IDIOT_CREDS_DIR
+# Usage: idiot creds remove [<name>]
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+name="${1:-}"
+
+if [ -z "$name" ]; then
+    if ! command -v fzf > /dev/null 2>&1; then
+        die "a credential name is required (fzf not found for interactive selection)"
+    fi
+
+    mkdir -p "$IDIOT_CREDS_DIR"
+
+    files=$(find "$IDIOT_CREDS_DIR" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|$IDIOT_CREDS_DIR/||")
+
+    if [ -z "$files" ]; then
+        die "no credentials found"
+    fi
+
+    export IDIOT_CREDS_DIR
+    if command -v batcat > /dev/null 2>&1; then
+        preview_cmd='batcat --style=plain --color=always "$IDIOT_CREDS_DIR/"{}'
+    else
+        preview_cmd='cat "$IDIOT_CREDS_DIR/"{}'
+    fi
+
+    name=$(printf '%s\n' "$files" | fzf --prompt="remove credentials> " --preview="$preview_cmd") || exit 0
+fi
+
+cred_file="$IDIOT_CREDS_DIR/$name"
+
+if [ ! -f "$cred_file" ]; then
+    die "credentials '$name' not found"
+fi
+
+rm "$cred_file"
+say "Removed credentials '$name'"

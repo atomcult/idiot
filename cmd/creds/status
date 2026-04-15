@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# cmd/creds/status - show login status
+# Usage: idiot creds status
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+if [ -z "${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
+    say "Not logged in"
+    exit 0
+fi
+
+snapcraft whoami >&2

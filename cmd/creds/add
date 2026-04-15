@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+# cmd/creds/add - create new credentials using snapcraft export-login
+# Usage: idiot creds add <name>
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+name="${1:-}"
+
+if [ -z "$name" ]; then
+    die "usage: idiot creds add <name>"
+fi
+
+case "$name" in
+    *[!A-Za-z0-9_-]*) die "invalid credential name '$name': use only letters, digits, hyphens, underscores" ;;
+esac
+
+mkdir -p "$IDIOT_CREDS_DIR"
+dest="$IDIOT_CREDS_DIR/$name"
+
+if [ -f "$dest" ]; then
+    die "credentials '$name' already exist (remove it first)"
+fi
+
+tmpfile="$(mktemp)"
+trap 'rm -f "$tmpfile"' EXIT INT TERM
+
+snapcraft export-login "$tmpfile" >&2 || die "snapcraft export-login failed"
+
+cp "$tmpfile" "$dest"
+say "Added credentials '$name'"
