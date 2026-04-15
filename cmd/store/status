@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# cmd/store/status - show the current store ID
+# Usage: idiot store status
+
+. "$(dirname "$0")/../../lib/common.sh"
+
+if [ -n "${UBUNTU_STORE_ID:-}" ]; then
+    say "$UBUNTU_STORE_ID"
+else
+    say "global"
+fi

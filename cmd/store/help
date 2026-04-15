@@ -10,6 +10,7 @@ say "  add <name> <store-id>    Save a Dedicated Snap Store ID under a human-rea
 say "  remove <name>            Remove a saved store"
 say "  list                     List saved stores and their IDs"
 say "  use <name>               Set UBUNTU_STORE_ID to the named store's ID"
+say "  status                   Show current UBUNTU_STORE_ID (or 'global' if unset)"
 say "  unset                    Unset UBUNTU_STORE_ID"
 echo >&2
 say "Environment:"
