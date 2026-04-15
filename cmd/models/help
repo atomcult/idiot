@@ -10,4 +10,4 @@ say "  pick      Interactively select a model assertion"
 say "  update    Fetch the latest model assertions"
 echo >&2
 say "Environment:"
-say "  IDIOT_MODELS_DIR    Local models repository (default: $IDIOT_MODELS_DIR)"
+say "  IDIOT_MODELS_DIR    Models repository"

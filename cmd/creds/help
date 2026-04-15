@@ -17,4 +17,4 @@ say "  remove    Remove a saved credential"
 say "  export    Output a credential"
 echo >&2
 say "Environment:"
-say "  IDIOT_CREDS_DIR    Credentials directory (default: $IDIOT_CREDS_DIR)"
+say "  IDIOT_CREDS_DIR    Credentials directory"

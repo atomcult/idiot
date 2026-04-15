@@ -15,4 +15,4 @@ say "  remove    Remove a saved store"
 say "  list      List saved stores"
 echo >&2
 say "Environment:"
-say "  IDIOT_STORES_DIR    Stores directory (default: $IDIOT_STORES_DIR)"
+say "  IDIOT_STORES_DIR    Stores directory"
