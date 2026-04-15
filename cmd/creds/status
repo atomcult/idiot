@@ -9,6 +9,25 @@ if [ -z "${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
     exit 0
 fi
 
+# ── human-readable permission names ──────────────────────────────────────────
+
+map_permission() {
+    case "$1" in
+        package_access)   printf 'Access packages' ;;
+        package_push)     printf 'Push packages' ;;
+        package_register) printf 'Register snap names' ;;
+        package_release)  printf 'Publish releases' ;;
+        package_update)   printf 'Update package metadata' ;;
+        package_manage)   printf 'Manage collaborators' ;;
+        store_admin)      printf 'Administer store' ;;
+        account_admin)    printf 'Administer account' ;;
+        openid)           printf 'OpenID authentication' ;;
+        edit_account)     printf 'Edit account' ;;
+        create_store)     printf 'Create stores' ;;
+        *)                printf '%s' "$1" ;;
+    esac
+}
+
 # ── get raw whoami output (cached or live) ────────────────────────────────────
 
 if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
@@ -39,6 +58,15 @@ fi
 
 printf '%s\n' "$raw" | while IFS= read -r line; do
     case "$line" in
+        'permissions: '*)
+            val="${line#*: }"
+            printf '%s\n' "${CYAN}permissions${RESET}:" >&2
+            IFS=','
+            for perm in $val; do
+                perm="${perm# }"; perm="${perm% }"
+                printf '%s\n' "  ${DIM}-${RESET} $(map_permission "$perm")" >&2
+            done
+            ;;
         *:' '*)
             key="${line%%:*}"
             val="${line#*: }"
