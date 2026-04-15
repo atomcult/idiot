@@ -7,9 +7,21 @@
 
 IDIOT_BIN="$(cd "$(dirname "$0")/.." && pwd)/idiot"
 
+. "$(dirname "$0")/../lib/common.sh"
+
 shell="${1:-}"
 
 case "$shell" in
+    ""|-h|--help|help)
+        say "${BOLD}Usage:${RESET} idiot init <shell>"
+        echo >&2
+        say "${BOLD}Shells:${RESET}"
+        say "  ${BOLD}bash${RESET}    Bash shell integration"
+        say "  ${BOLD}zsh${RESET}     Zsh shell integration"
+        say "  ${BOLD}fish${RESET}    Fish shell integration"
+        exit 0
+        ;;
+
     bash|zsh)
         cat <<EOF
 # idiot shell integration for $shell
@@ -38,13 +50,7 @@ end
 EOF
         ;;
 
-    "")
-        printf 'printf "usage: idiot init <bash|zsh|fish>\\n" >&2\n'
-        exit 1
-        ;;
-
     *)
-        printf 'printf "idiot: unsupported shell: %s\\n" >&2\n' "$shell"
-        exit 1
+        die "unsupported shell: $shell (supported: bash, zsh, fish)"
         ;;
 esac
