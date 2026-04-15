@@ -84,12 +84,12 @@ idiot - shell environment manager
 Usage: idiot <command> [args...]
 
 Commands:
-  arch    <subcommand>  Manage target architecture (set, unset, status)
-  creds   <subcommand>  Manage credentials (add, remove, export, import, login, logout, status)
-  store   <subcommand>  Manage Dedicated Snap Stores (add, remove, list, use, unset, status)
-  models  <subcommand>  Manage model assertions (update, pick)
-  changes               Browse snap changes interactively
-  init    <shell>       Print shell integration code
+  creds     Manage credentials
+  store     Manage Dedicated Snap Stores
+  arch      Manage target architecture
+  models    Manage model assertions
+  changes   Browse recent changes
+  init      Set up shell integration
 
 Shell setup (run once, add to your shell rc):
   eval "$(idiot init bash)"    # bash
