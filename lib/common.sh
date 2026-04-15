@@ -2,10 +2,6 @@
 # lib/common.sh - shared helpers for idiot subcommands
 # Source this file; do not execute directly.
 
-# State directory for tracking managed vars
-IDIOT_STATE_DIR="${IDIOT_STATE_DIR:-$HOME/.local/state/idiot}"
-IDIOT_MANAGED_FILE="$IDIOT_STATE_DIR/managed"
-
 # Credentials directory
 IDIOT_CREDS_DIR="${IDIOT_CREDS_DIR:-$HOME/.local/share/idiot/creds}"
 
@@ -31,11 +27,6 @@ die() {
     exit 1
 }
 
-# Warn without exiting
-warn() {
-    printf 'idiot: warn: %s\n' "$*" >&2
-}
-
 # ── shell quoting ──────────────────────────────────────────────────────────────
 
 # POSIX-safe single-quote escaping
@@ -43,36 +34,6 @@ shell_quote() {
     printf "'"
     printf '%s' "$1" | sed "s/'/'\\\\''/g"
     printf "'"
-}
-
-# ── state management ───────────────────────────────────────────────────────────
-
-state_init() {
-    mkdir -p "$IDIOT_STATE_DIR"
-    touch "$IDIOT_MANAGED_FILE"
-}
-
-# Record a variable name as managed by idiot
-state_track() {
-    state_init
-    var="$1"
-    # Add only if not already present
-    grep -qxF "$var" "$IDIOT_MANAGED_FILE" 2>/dev/null || printf '%s\n' "$var" >> "$IDIOT_MANAGED_FILE"
-}
-
-# Remove a variable from managed tracking
-state_untrack() {
-    state_init
-    var="$1"
-    tmp="$(mktemp)"
-    grep -vxF "$var" "$IDIOT_MANAGED_FILE" > "$tmp" 2>/dev/null || true
-    mv "$tmp" "$IDIOT_MANAGED_FILE"
-}
-
-# List all tracked variable names
-state_list() {
-    state_init
-    cat "$IDIOT_MANAGED_FILE"
 }
 
 # ── help ───────────────────────────────────────────────────────────────────────
