@@ -3,7 +3,7 @@
 # Source this file; do not execute directly.
 
 # Credentials directory
-IDIOT_CREDS_DIR="${IDIOT_CREDS_DIR:-${HOME}/.local/share/idiot/creds}"
+IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${HOME}/.local/share/idiot/creds}"
 
 # Dedicated Snap Store definitions directory
 IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${HOME}/.local/share/idiot/stores}"

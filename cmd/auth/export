@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# cmd/creds/export - print a credential file to stdout or write to a file
-# Usage: idiot creds export [<name>] [-f|--file <file>]
+# cmd/auth/export - print a credential file to stdout or write to a file
+# Usage: idiot auth export [<name>] [-f|--file <file>]
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
@@ -19,7 +19,7 @@ main() {
                 die "unknown option: ${1}"
                 ;;
             *)
-                [ -n "${name}" ] && die "usage: idiot creds export [<name>] [-f <file>]"
+                [ -n "${name}" ] && die "usage: idiot auth export [<name>] [-f <file>]"
                 name="${1}"
                 shift
                 ;;
@@ -29,19 +29,19 @@ main() {
     [ -n "${name}" ] || {
         command -v fzf > /dev/null 2>&1 || die "a credential name is required (fzf not found for interactive selection)"
 
-        mkdir -p "${IDIOT_CREDS_DIR}"
+        mkdir -p "${IDIOT_AUTH_DIR}"
 
-        files=$(find "${IDIOT_CREDS_DIR}" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|${IDIOT_CREDS_DIR}/||")
+        files=$(find "${IDIOT_AUTH_DIR}" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|${IDIOT_AUTH_DIR}/||")
 
         [ -n "${files}" ] || die "no credentials found"
 
-        export IDIOT_CREDS_DIR
-        preview_cmd="$(file_preview_cmd IDIOT_CREDS_DIR)"
+        export IDIOT_AUTH_DIR
+        preview_cmd="$(file_preview_cmd IDIOT_AUTH_DIR)"
 
-        name=$(printf '%s\n' "${files}" | fzf --prompt="export credentials> " --preview="${preview_cmd}") || exit 0
+        name=$(printf '%s\n' "${files}" | fzf --prompt="export auth> " --preview="${preview_cmd}") || exit 0
     }
 
-    cred_file="${IDIOT_CREDS_DIR}/${name}"
+    cred_file="${IDIOT_AUTH_DIR}/${name}"
 
     [ -f "${cred_file}" ] || die "credentials '${name}' not found"
 

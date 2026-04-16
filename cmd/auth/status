@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# cmd/creds/status - show login status
-# Usage: idiot creds status
+# cmd/auth/status - show login status
+# Usage: idiot auth status
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

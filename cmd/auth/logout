@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# cmd/creds/logout - unset store credential environment variables
-# Usage: idiot creds logout
+# cmd/auth/logout - unset store credential environment variables
+# Usage: idiot auth logout
 # Outputs: eval-able unset statements
 
 . "$(dirname "${0}")/../../lib/common.sh"

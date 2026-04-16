@@ -1,14 +1,14 @@
 #!/usr/bin/env sh
-# cmd/creds/list - list credential files in IDIOT_CREDS_DIR
-# Usage: idiot creds list
+# cmd/auth/list - list credential files in IDIOT_AUTH_DIR
+# Usage: idiot auth list
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    [ -d "${IDIOT_CREDS_DIR}" ] ||
+    [ -d "${IDIOT_AUTH_DIR}" ] ||
         exit 0
 
-    for f in "${IDIOT_CREDS_DIR}"/*; do
+    for f in "${IDIOT_AUTH_DIR}"/*; do
         [ -f "${f}" ] || continue
         say "$(basename "${f}")"
     done
