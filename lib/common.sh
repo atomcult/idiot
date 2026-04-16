@@ -3,7 +3,7 @@
 # Source this file; do not execute directly.
 
 # Credentials directory
-IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${HOME}/.local/share/idiot/creds}"
+IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${HOME}/.local/share/idiot/auth}"
 
 # Dedicated Snap Store definitions directory
 IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${HOME}/.local/share/idiot/stores}"
@@ -73,29 +73,4 @@ file_preview_cmd() {
     else
         printf 'cat "$%s/"{}\n' "${1}"
     fi
-}
-
-idiot_help() {
-    say "${BOLD}idiot${RESET} - shell environment manager"
-    echo >&2
-    say "${BOLD}${BLUE}Usage:${RESET} idiot <command> [args...]"
-    echo >&2
-    say "${BOLD}${BLUE}Commands:${RESET}"
-    say "  ${CYAN}creds${RESET}     Manage credentials"
-    say "  ${CYAN}store${RESET}     Manage Dedicated Snap Stores"
-    say "  ${CYAN}arch${RESET}      Manage target architecture"
-    say "  ${CYAN}models${RESET}    Manage model assertions"
-    say "  ${CYAN}changes${RESET}   Browse recent changes"
-    say "  ${CYAN}init${RESET}      Set up shell integration"
-    echo >&2
-    say "${BOLD}${BLUE}Shell setup${RESET} (run once, add to your shell rc):"
-
-    # shellcheck disable=SC2016
-    {
-        say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init bash)"'"${RESET}    ${DIM}# bash${RESET}"
-        say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init zsh)"'"${RESET}     ${DIM}# zsh${RESET}"
-        say "  ${CYAN}idiot${RESET} init fish | ${CYAN}source${RESET}     ${DIM}# fish${RESET}"
-    }
-    echo >&2
-    say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
 }
