@@ -5,19 +5,19 @@
 
 set -e
 
-IDIOT_ROOT="${IDIOT_ROOT:-$(cd "$(dirname "$0")" && pwd)}"
-IDIOT_CMD_DIR="$IDIOT_ROOT/cmd"
-IDIOT_LIB_DIR="$IDIOT_ROOT/lib"
+IDIOT_ROOT="${IDIOT_ROOT:-$(cd "$(dirname "${0}")" && pwd)}"
+IDIOT_CMD_DIR="${IDIOT_ROOT}/cmd"
+IDIOT_LIB_DIR="${IDIOT_ROOT}/lib"
 
 # shellcheck source=lib/common.sh
-. "$IDIOT_LIB_DIR/common.sh"
+. "${IDIOT_LIB_DIR}/common.sh"
 
 # ── dispatch ───────────────────────────────────────────────────────────────────
 
 cmd="${1:-}"
 [ $# -ge 1 ] && shift
 
-case "$cmd" in
+case "${cmd}" in
     ""|-h|--help|help)
         idiot_help
         exit 0
@@ -27,40 +27,40 @@ case "$cmd" in
         exit 0
         ;;
     *)
-        cmd_file="$IDIOT_CMD_DIR/$cmd"
-        if [ -d "$cmd_file" ]; then
+        cmd_file="${IDIOT_CMD_DIR}/${cmd}"
+        if [ -d "${cmd_file}" ]; then
             # Subcommand group: cmd/<group>/<subcommand>
             subcmd="${1:-}"
             [ $# -ge 1 ] && shift
-            case "$subcmd" in
+            case "${subcmd}" in
                 ""|-h|--help|help)
                     # Help is always allowed without init
-                    if [ -x "$cmd_file/help" ]; then
-                        exec "$cmd_file/help"
+                    if [ -x "${cmd_file}/help" ]; then
+                        exec "${cmd_file}/help"
                     else
-                        die "usage: idiot $cmd <subcommand>"
+                        die "usage: idiot ${cmd} <subcommand>"
                     fi
                     ;;
                 *)
-                    [ -z "$IDIOT_SHELL" ] && die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
-                    subcmd_file="$cmd_file/$subcmd"
-                    if [ -x "$subcmd_file" ]; then
-                        exec "$subcmd_file" "$@"
+                    [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+                    subcmd_file="${cmd_file}/${subcmd}"
+                    if [ -x "${subcmd_file}" ]; then
+                        exec "${subcmd_file}" "$@"
                     else
-                        die "unknown subcommand: $cmd $subcmd"
+                        die "unknown subcommand: ${cmd} ${subcmd}"
                     fi
                     ;;
             esac
-        elif [ -x "$cmd_file" ]; then
-            case "$cmd" in
-                init) exec "$cmd_file" "$@" ;;
+        elif [ -x "${cmd_file}" ]; then
+            case "${cmd}" in
+                init) exec "${cmd_file}" "$@" ;;
                 *)
-                    [ -z "$IDIOT_SHELL" ] && die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
-                    exec "$cmd_file" "$@"
+                    [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+                    exec "${cmd_file}" "$@"
                     ;;
             esac
         else
-            die "unknown command: $cmd"
+            die "unknown command: ${cmd}"
         fi
         ;;
 esac

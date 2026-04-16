@@ -2,29 +2,19 @@
 # cmd/creds/import - import a credential file into IDIOT_CREDS_DIR
 # Usage: idiot creds import <file> [<name>]
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
 src="${1:-}"
 name="${2:-}"
 
-if [ -z "$src" ]; then
-    die "usage: idiot creds import <file> [<name>]"
-fi
+[ -n "${src}" ] || die "usage: idiot creds import <file> [<name>]"
+[ -f "${src}" ] || die "file not found: ${src}"
+[ -n "${name}" ] || name="$(basename "${src}")"
 
-if [ ! -f "$src" ]; then
-    die "file not found: $src"
-fi
+mkdir -p "${IDIOT_CREDS_DIR}"
+dest="${IDIOT_CREDS_DIR}/${name}"
 
-if [ -z "$name" ]; then
-    name="$(basename "$src")"
-fi
+[ -f "${dest}" ] && die "credentials '${name}' already exist (remove it first)"
 
-mkdir -p "$IDIOT_CREDS_DIR"
-dest="$IDIOT_CREDS_DIR/$name"
-
-if [ -f "$dest" ]; then
-    die "credentials '$name' already exist (remove it first)"
-fi
-
-cp "$src" "$dest"
-say "Imported '${BOLD}$src${RESET}' as '${BOLD}$name${RESET}'"
+cp "${src}" "${dest}"
+say "Imported '${BOLD}${src}${RESET}' as '${BOLD}${name}${RESET}'"

@@ -1,30 +1,23 @@
 #!/usr/bin/env sh
 # cmd/creds/list - list credential files in IDIOT_CREDS_DIR
 # Usage: idiot creds list
-# Outputs: eval-able printf statements (display only, no env changes)
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
-if [ ! -d "$IDIOT_CREDS_DIR" ]; then
-    say "No credentials directory found at: $IDIOT_CREDS_DIR"
-    exit 0
-fi
+[ -d "${IDIOT_CREDS_DIR}" ] || { say "No credentials directory found at: ${IDIOT_CREDS_DIR}"; exit 0; }
 
 # Collect entries (files only, no dotfiles, sorted)
 entries=""
-for f in "$IDIOT_CREDS_DIR"/*; do
-    [ -f "$f" ] || continue
-    entries="$entries$(basename "$f")\n"
+for f in "${IDIOT_CREDS_DIR}"/*; do
+    [ -f "${f}" ] || continue
+    entries="${entries}$(basename "${f}")\n"
 done
 
-if [ -z "$entries" ]; then
-    say "No credentials found in: $IDIOT_CREDS_DIR"
-    exit 0
-fi
+[ -n "${entries}" ] || { say "No credentials found in: ${IDIOT_CREDS_DIR}"; exit 0; }
 
-say "Credentials in $IDIOT_CREDS_DIR:"
+say "Credentials in ${IDIOT_CREDS_DIR}:"
 echo >&2
-printf '%b' "$entries" | sort | while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    say "  ${BOLD}$name${RESET}"
+printf '%b' "${entries}" | sort | while IFS= read -r name; do
+    [ -n "${name}" ] || continue
+    say "  ${BOLD}${name}${RESET}"
 done

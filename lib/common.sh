@@ -3,16 +3,16 @@
 # Source this file; do not execute directly.
 
 # Credentials directory
-IDIOT_CREDS_DIR="${IDIOT_CREDS_DIR:-$HOME/.local/share/idiot/creds}"
+IDIOT_CREDS_DIR="${IDIOT_CREDS_DIR:-${HOME}/.local/share/idiot/creds}"
 
 # Dedicated Snap Store definitions directory
-IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-$HOME/.local/share/idiot/stores}"
+IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${HOME}/.local/share/idiot/stores}"
 
 # Cloned models repository
-IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-$HOME/.local/share/idiot/models}"
+IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${HOME}/.local/share/idiot/models}"
 
 # Cache directory
-IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/idiot}"
+IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 
 # ── color ─────────────────────────────────────────────────────────────────────
 # Use colors only when stderr is a TTY and NO_COLOR is unset
@@ -51,7 +51,7 @@ die() {
 # POSIX-safe single-quote escaping
 shell_quote() {
     printf "'"
-    printf '%s' "$1" | sed "s/'/'\\\\''/g"
+    printf '%s' "${1}" | sed "s/'/'\\\\''/g"
     printf "'"
 }
 

@@ -2,25 +2,21 @@
 # cmd/store/add - save a Dedicated Snap Store ID under a human-readable name
 # Usage: idiot store add <name> <store-id>
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
 name="${1:-}"
 store_id="${2:-}"
 
-if [ -z "$name" ] || [ -z "$store_id" ]; then
-    die "usage: idiot store add <name> <store-id>"
-fi
+[ -n "${name}" ] && [ -n "${store_id}" ] || die "usage: idiot store add <name> <store-id>"
 
-case "$name" in
-    *[!A-Za-z0-9_-]*) die "invalid store name '$name': use only letters, digits, hyphens, underscores" ;;
+case "${name}" in
+    *[!A-Za-z0-9_-]*) die "invalid store name '${name}': use only letters, digits, hyphens, underscores" ;;
 esac
 
-mkdir -p "$IDIOT_STORES_DIR"
-store_file="$IDIOT_STORES_DIR/$name"
+mkdir -p "${IDIOT_STORES_DIR}"
+store_file="${IDIOT_STORES_DIR}/${name}"
 
-if [ -f "$store_file" ]; then
-    die "store '$name' already exists (use 'idiot store remove $name' first)"
-fi
+[ -f "${store_file}" ] && die "store '${name}' already exists (use 'idiot store remove ${name}' first)"
 
-printf '%s' "$store_id" > "$store_file"
-say "Added store '${BOLD}$name${RESET}' ($store_id)"
+printf '%s' "${store_id}" > "${store_file}"
+say "Added store '${BOLD}${name}${RESET}' (${store_id})"

@@ -2,14 +2,14 @@
 # cmd/models/update - clone or pull the canonical/models repository
 # Usage: idiot models update
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
 MODELS_REPO_URL="https://github.com/canonical/models.git"
 
-if [ -d "$IDIOT_MODELS_DIR/.git" ]; then
+if [ -d "${IDIOT_MODELS_DIR}/.git" ]; then
     say "Updating models repository..."
-    git -C "$IDIOT_MODELS_DIR" pull >&2
+    git -C "${IDIOT_MODELS_DIR}" pull >&2
 else
     say "Cloning models repository..."
-    git clone "$MODELS_REPO_URL" "$IDIOT_MODELS_DIR" >&2
+    git clone "${MODELS_REPO_URL}" "${IDIOT_MODELS_DIR}" >&2
 fi

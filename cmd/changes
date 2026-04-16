@@ -2,15 +2,10 @@
 # cmd/changes - browse snap changes interactively
 # Usage: idiot changes
 
-. "$(dirname "$0")/../lib/common.sh"
+. "$(dirname "${0}")/../lib/common.sh"
 
-if ! command -v fzf > /dev/null 2>&1; then
-    die "fzf is required but not found (https://github.com/junegunn/fzf)"
-fi
-
-if ! command -v snap > /dev/null 2>&1; then
-    die "snap is required but not found"
-fi
+command -v fzf > /dev/null 2>&1 || die "fzf is required but not found (https://github.com/junegunn/fzf)"
+command -v snap > /dev/null 2>&1 || die "snap is required but not found"
 
 snap changes \
     | fzf \

@@ -2,20 +2,16 @@
 # cmd/store/remove - remove a saved store
 # Usage: idiot store remove <name>
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
 name="${1:-}"
 
-if [ -z "$name" ]; then
-    die "usage: idiot store remove <name>"
-fi
+[ -n "${name}" ] || die "usage: idiot store remove <name>"
 
-mkdir -p "$IDIOT_STORES_DIR"
-store_file="$IDIOT_STORES_DIR/$name"
+mkdir -p "${IDIOT_STORES_DIR}"
+store_file="${IDIOT_STORES_DIR}/${name}"
 
-if [ ! -f "$store_file" ]; then
-    die "store '$name' not found"
-fi
+[ -f "${store_file}" ] || die "store '${name}' not found"
 
-rm "$store_file"
-say "Removed store '${BOLD}$name${RESET}'"
+rm "${store_file}"
+say "Removed store '${BOLD}${name}${RESET}'"

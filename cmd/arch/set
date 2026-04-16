@@ -3,20 +3,18 @@
 # Usage: idiot arch set [<architecture>]
 # Outputs: eval-able export statement
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
 arch="${1:-}"
 
-if [ -z "$arch" ]; then
-    if ! command -v fzf > /dev/null 2>&1; then
-        die "an architecture is required (fzf not found for interactive selection)"
-    fi
+[ -n "${arch}" ] || {
+    command -v fzf > /dev/null 2>&1 || die "an architecture is required (fzf not found for interactive selection)"
     arch=$(printf 'amd64\narm64\narmhf\ni386\nppc64el\nriscv64\ns390x\n' | fzf --prompt="arch> ") || exit 0
-fi
+}
 
-case "$arch" in
+case "${arch}" in
     amd64|arm64|armhf|i386|ppc64el|riscv64|s390x)
-        printf 'export UBUNTU_STORE_ARCH=%s\n' "$(shell_quote "$arch")"
+        printf 'export UBUNTU_STORE_ARCH=%s\n' "$(shell_quote "${arch}")"
         ;;
-    *) die "invalid architecture: '$arch' (valid: amd64, arm64, armhf, i386, ppc64el, riscv64, s390x)" ;;
+    *) die "invalid architecture: '${arch}' (valid: amd64, arm64, armhf, i386, ppc64el, riscv64, s390x)" ;;
 esac
