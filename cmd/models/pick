@@ -15,6 +15,15 @@ output=""
 
 while [ $# -gt 0 ]; do
     case "${1}" in
+        help|-h|--help)
+            say "${BOLD}${CYAN}Usage:${RESET} idiot models pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]"
+            echo >&2
+            say "${BOLD}${CYAN}Options:${RESET}"
+            say "  ${BOLD}--signed${RESET}      Only show signed model assertions (*.model)"
+            say "  ${BOLD}--unsigned${RESET}    Only show unsigned model assertions (*.json)"
+            say "  ${BOLD}-o${RESET} ${BOLD}<file>${RESET}      Write to file; use ${BOLD}-${RESET} for stdout"
+            exit 0
+            ;;
         --signed)    filter="signed" ;;
         --unsigned)  filter="unsigned" ;;
         -o|--output)
