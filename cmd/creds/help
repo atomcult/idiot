@@ -3,9 +3,9 @@
 
 . "$(dirname "$0")/../../lib/common.sh"
 
-say "${BOLD}Usage:${RESET} idiot creds <subcommand>"
+say "${BOLD}${CYAN}Usage:${RESET} idiot creds <subcommand>"
 echo >&2
-say "${BOLD}Subcommands:${RESET}"
+say "${BOLD}${CYAN}Subcommands:${RESET}"
 say "  ${BOLD}login${RESET}     Activate a credential"
 say "  ${BOLD}logout${RESET}    Log out"
 say "  ${BOLD}status${RESET}    Show login status"
@@ -16,5 +16,5 @@ say "  ${BOLD}list${RESET}      List saved credentials"
 say "  ${BOLD}remove${RESET}    Remove a saved credential"
 say "  ${BOLD}export${RESET}    Output a credential"
 echo >&2
-say "${BOLD}Environment:${RESET}"
+say "${BOLD}${CYAN}Environment:${RESET}"
 say "  ${BOLD}IDIOT_CREDS_DIR${RESET}    Credentials directory"
