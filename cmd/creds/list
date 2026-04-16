@@ -4,7 +4,7 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-[ -d "${IDIOT_CREDS_DIR}" ] || { say "No credentials directory found at: ${IDIOT_CREDS_DIR}"; exit 0; }
+[ -d "${IDIOT_CREDS_DIR}" ] || exit 0
 
 # Collect entries (files only, no dotfiles, sorted)
 entries=""
@@ -13,11 +13,9 @@ for f in "${IDIOT_CREDS_DIR}"/*; do
     entries="${entries}$(basename "${f}")\n"
 done
 
-[ -n "${entries}" ] || { say "No credentials found in: ${IDIOT_CREDS_DIR}"; exit 0; }
+[ -n "${entries}" ] || exit 0
 
-say "Credentials in ${IDIOT_CREDS_DIR}:"
-echo >&2
 printf '%b' "${entries}" | sort | while IFS= read -r name; do
     [ -n "${name}" ] || continue
-    say "  ${BOLD}${name}${RESET}"
+    say "${name}"
 done
