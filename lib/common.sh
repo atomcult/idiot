@@ -78,22 +78,24 @@ file_preview_cmd() {
 idiot_help() {
     say "${BOLD}idiot${RESET} - shell environment manager"
     echo >&2
-    say "${BOLD}${CYAN}Usage:${RESET} idiot <command> [args...]"
+    say "${BOLD}${BLUE}Usage:${RESET} idiot <command> [args...]"
     echo >&2
-    say "${BOLD}${CYAN}Commands:${RESET}"
-    say "  ${BOLD}creds${RESET}     Manage credentials"
-    say "  ${BOLD}store${RESET}     Manage Dedicated Snap Stores"
-    say "  ${BOLD}arch${RESET}      Manage target architecture"
-    say "  ${BOLD}models${RESET}    Manage model assertions"
-    say "  ${BOLD}changes${RESET}   Browse recent changes"
-    say "  ${BOLD}init${RESET}      Set up shell integration"
+    say "${BOLD}${BLUE}Commands:${RESET}"
+    say "  ${CYAN}creds${RESET}     Manage credentials"
+    say "  ${CYAN}store${RESET}     Manage Dedicated Snap Stores"
+    say "  ${CYAN}arch${RESET}      Manage target architecture"
+    say "  ${CYAN}models${RESET}    Manage model assertions"
+    say "  ${CYAN}changes${RESET}   Browse recent changes"
+    say "  ${CYAN}init${RESET}      Set up shell integration"
     echo >&2
-    say "${BOLD}${CYAN}Shell setup${RESET} (run once, add to your shell rc):"
+    say "${BOLD}${BLUE}Shell setup${RESET} (run once, add to your shell rc):"
+
     # shellcheck disable=SC2016
-    say '  eval "$(idiot init bash)"    # bash'
-    # shellcheck disable=SC2016
-    say '  eval "$(idiot init zsh)"     # zsh'
-    say '  idiot init fish | source     # fish'
+    {
+        say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init bash)"'"${RESET}    ${DIM}# bash${RESET}"
+        say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init zsh)"'"${RESET}     ${DIM}# zsh${RESET}"
+        say "  ${CYAN}idiot${RESET} init fish | ${CYAN}source${RESET}     ${DIM}# fish${RESET}"
+    }
     echo >&2
     say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
 }
