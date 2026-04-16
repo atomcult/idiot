@@ -1,6 +1,6 @@
 PREFIX   ?= $(HOME)/.local
 BINDIR    = $(PREFIX)/bin
-DATADIR   = $(PREFIX)/share/idiot
+LIBDIR    = $(PREFIX)/lib/idiot
 
 .PHONY: check install uninstall
 
@@ -11,14 +11,14 @@ check:
 	exit $$rc
 
 install:
-	install -d '$(DATADIR)' '$(BINDIR)'
-	rm -rf '$(DATADIR)/cmd' '$(DATADIR)/lib'
-	cp -rp cmd lib '$(DATADIR)/'
-	install -m755 idiot '$(DATADIR)/idiot'
+	install -d '$(LIBDIR)' '$(BINDIR)'
+	rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/lib'
+	cp -rp cmd lib '$(LIBDIR)/'
+	install -m755 idiot '$(LIBDIR)/idiot'
 	printf '#!/usr/bin/env sh\nIDIOT_ROOT=%s\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
-	    '$(DATADIR)' > '$(BINDIR)/idiot'
+	    '$(LIBDIR)' > '$(BINDIR)/idiot'
 	chmod 755 '$(BINDIR)/idiot'
 
 uninstall:
-	rm -rf '$(DATADIR)'
+	rm -rf '$(LIBDIR)'
 	rm -f '$(BINDIR)/idiot'
