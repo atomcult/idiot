@@ -7,9 +7,9 @@ main() {
     say "${BOLD}${BLUE}Usage:${RESET} idiot arch <subcommand>"
     echo >&2
     say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${BOLD}set${RESET}       Set the target architecture"
-    say "  ${BOLD}unset${RESET}     Clear the target architecture"
-    say "  ${BOLD}status${RESET}    Show the active architecture"
+    say "  ${CYAN}set${RESET}       Set the target architecture"
+    say "  ${CYAN}unset${RESET}     Clear the target architecture"
+    say "  ${CYAN}status${RESET}    Show the active architecture"
     echo >&2
     say "${BOLD}${BLUE}Environment:${RESET}"
     say "  ${BOLD}UBUNTU_STORE_ARCH${RESET}    Target architecture override"

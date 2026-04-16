@@ -17,9 +17,9 @@ main() {
             say "${BOLD}${BLUE}Usage:${RESET} idiot init <shell>"
             echo >&2
             say "${BOLD}${BLUE}Shells:${RESET}"
-            say "  ${BOLD}bash${RESET}    Bash shell integration"
-            say "  ${BOLD}zsh${RESET}     Zsh shell integration"
-            say "  ${BOLD}fish${RESET}    Fish shell integration"
+            say "  ${CYAN}bash${RESET}    Bash shell integration"
+            say "  ${CYAN}zsh${RESET}     Zsh shell integration"
+            say "  ${CYAN}fish${RESET}    Fish shell integration"
             exit 0
             ;;
 

@@ -7,15 +7,15 @@ main() {
     say "${BOLD}${BLUE}Usage:${RESET} idiot creds <subcommand>"
     echo >&2
     say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${BOLD}login${RESET}     Activate a credential"
-    say "  ${BOLD}logout${RESET}    Log out"
-    say "  ${BOLD}status${RESET}    Show login status"
+    say "  ${CYAN}login${RESET}     Activate a credential"
+    say "  ${CYAN}logout${RESET}    Log out"
+    say "  ${CYAN}status${RESET}    Show login status"
     echo >&2
-    say "  ${BOLD}add${RESET}       Create a new credential"
-    say "  ${BOLD}import${RESET}    Import a credential from a file"
-    say "  ${BOLD}list${RESET}      List saved credentials"
-    say "  ${BOLD}remove${RESET}    Remove a saved credential"
-    say "  ${BOLD}export${RESET}    Output a credential"
+    say "  ${CYAN}add${RESET}       Create a new credential"
+    say "  ${CYAN}import${RESET}    Import a credential from a file"
+    say "  ${CYAN}list${RESET}      List saved credentials"
+    say "  ${CYAN}remove${RESET}    Remove a saved credential"
+    say "  ${CYAN}export${RESET}    Output a credential"
     echo >&2
     say "${BOLD}${BLUE}Environment:${RESET}"
     say "  ${BOLD}IDIOT_CREDS_DIR${RESET}    Credentials directory"

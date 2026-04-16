@@ -7,13 +7,13 @@ main() {
     say "${BOLD}${BLUE}Usage:${RESET} idiot store <subcommand>"
     echo >&2
     say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${BOLD}use${RESET}       Activate a store"
-    say "  ${BOLD}unset${RESET}     Clear the active store"
-    say "  ${BOLD}status${RESET}    Show the active store"
+    say "  ${CYAN}use${RESET}       Activate a store"
+    say "  ${CYAN}unset${RESET}     Clear the active store"
+    say "  ${CYAN}status${RESET}    Show the active store"
     echo >&2
-    say "  ${BOLD}add${RESET}       Save a store"
-    say "  ${BOLD}remove${RESET}    Remove a saved store"
-    say "  ${BOLD}list${RESET}      List saved stores"
+    say "  ${CYAN}add${RESET}       Save a store"
+    say "  ${CYAN}remove${RESET}    Remove a saved store"
+    say "  ${CYAN}list${RESET}      List saved stores"
     echo >&2
     say "${BOLD}${BLUE}Environment:${RESET}"
     say "  ${BOLD}IDIOT_STORES_DIR${RESET}    Stores directory"
