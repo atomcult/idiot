@@ -4,25 +4,27 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-mkdir -p "${IDIOT_STORES_DIR}"
+main() {
+    mkdir -p "${IDIOT_STORES_DIR}"
 
-# Determine the longest name for alignment
-max_len=0
-for f in "${IDIOT_STORES_DIR}"/*; do
-    [ -f "${f}" ] || continue
-    name="$(basename "${f}")"
-    len="${#name}"
-    [ "${len}" -gt "${max_len}" ] && max_len="${len}"
-done
+    max_len=0
+    for f in "${IDIOT_STORES_DIR}"/*; do
+        [ -f "${f}" ] || continue
+        name="$(basename "${f}")"
+        len="${#name}"
+        [ "${len}" -gt "${max_len}" ] && max_len="${len}"
+    done
 
-[ "${max_len}" -ne 0 ] || { say "No stores saved yet (use 'idiot store add <name> <store-id>')"; exit 0; }
+    [ "${max_len}" -ne 0 ] || { say "No stores saved yet (use 'idiot store add <name> <store-id>')"; exit 0; }
 
-say "Saved stores:"
-echo >&2
-for f in "${IDIOT_STORES_DIR}"/*; do
-    [ -f "${f}" ] || continue
-    name="$(basename "${f}")"
-    store_id="$(cat "${f}")"
-    padded="$(printf "%-${max_len}s" "${name}")"
-    printf '  %s  %s\n' "${BOLD}${padded}${RESET}" "${store_id}" >&2
-done
+    say "Saved stores:"
+    echo >&2
+    for f in "${IDIOT_STORES_DIR}"/*; do
+        [ -f "${f}" ] || continue
+        name="$(basename "${f}")"
+        store_id="$(cat "${f}")"
+        padded="$(printf "%-${max_len}s" "${name}")"
+        printf '  %s  %s\n' "${BOLD}${padded}${RESET}" "${store_id}" >&2
+    done
+}
+main "$@"

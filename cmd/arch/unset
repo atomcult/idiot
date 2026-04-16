@@ -5,4 +5,7 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-printf 'unset UBUNTU_STORE_ARCH\n'
+main() {
+    printf 'unset UBUNTU_STORE_ARCH\n'
+}
+main "$@"

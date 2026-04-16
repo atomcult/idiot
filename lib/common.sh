@@ -14,7 +14,6 @@ IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${HOME}/.local/share/idiot/models}"
 # Cache directory
 IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 
-# ── color ─────────────────────────────────────────────────────────────────────
 # Use colors only when stderr is a TTY and NO_COLOR is unset
 if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then
     BOLD="$(printf '\033[1m')"
@@ -30,7 +29,6 @@ else
     RESET=''
 fi
 
-# ── output helpers ─────────────────────────────────────────────────────────────
 # Display output goes to stderr — it bypasses eval in the shell wrapper and
 # reaches the terminal directly in all shells. Only env-modifying output
 # (export / unset statements) goes to stdout to be eval'd by the wrapper.
@@ -46,8 +44,6 @@ die() {
     exit 1
 }
 
-# ── shell quoting ──────────────────────────────────────────────────────────────
-
 # POSIX-safe single-quote escaping
 shell_quote() {
     printf "'"
@@ -55,7 +51,16 @@ shell_quote() {
     printf "'"
 }
 
-# ── help ───────────────────────────────────────────────────────────────────────
+# Return an fzf --preview command string for files inside a directory.
+# $1: name of the exported shell variable holding the directory path.
+# The returned string uses {} as the fzf-supplied filename.
+file_preview_cmd() {
+    if command -v batcat > /dev/null 2>&1; then
+        printf 'batcat --style=plain --color=always "$%s/"{}\n' "${1}"
+    else
+        printf 'cat "$%s/"{}\n' "${1}"
+    fi
+}
 
 idiot_help() {
     say "${BOLD}idiot${RESET} - shell environment manager"

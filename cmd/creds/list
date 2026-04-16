@@ -4,18 +4,20 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-[ -d "${IDIOT_CREDS_DIR}" ] || exit 0
+main() {
+    [ -d "${IDIOT_CREDS_DIR}" ] || exit 0
 
-# Collect entries (files only, no dotfiles, sorted)
-entries=""
-for f in "${IDIOT_CREDS_DIR}"/*; do
-    [ -f "${f}" ] || continue
-    entries="${entries}$(basename "${f}")\n"
-done
+    entries=""
+    for f in "${IDIOT_CREDS_DIR}"/*; do
+        [ -f "${f}" ] || continue
+        entries="${entries}$(basename "${f}")\n"
+    done
 
-[ -n "${entries}" ] || exit 0
+    [ -n "${entries}" ] || exit 0
 
-printf '%b' "${entries}" | sort | while IFS= read -r name; do
-    [ -n "${name}" ] || continue
-    say "${name}"
-done
+    printf '%b' "${entries}" | sort | while IFS= read -r name; do
+        [ -n "${name}" ] || continue
+        say "${name}"
+    done
+}
+main "$@"

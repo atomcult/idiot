@@ -4,23 +4,26 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-name="${1:-}"
+main() {
+    name="${1:-}"
 
-[ -n "${name}" ] || die "usage: idiot creds add <name>"
+    [ -n "${name}" ] || die "usage: idiot creds add <name>"
 
-case "${name}" in
-    *[!A-Za-z0-9_-]*) die "invalid credential name '${name}': use only letters, digits, hyphens, underscores" ;;
-esac
+    case "${name}" in
+        *[!A-Za-z0-9_-]*) die "invalid credential name '${name}': use only letters, digits, hyphens, underscores" ;;
+    esac
 
-mkdir -p "${IDIOT_CREDS_DIR}"
-dest="${IDIOT_CREDS_DIR}/${name}"
+    mkdir -p "${IDIOT_CREDS_DIR}"
+    dest="${IDIOT_CREDS_DIR}/${name}"
 
-[ -f "${dest}" ] && die "credentials '${name}' already exist (remove it first)"
+    [ -f "${dest}" ] && die "credentials '${name}' already exist (remove it first)"
 
-tmpfile="$(mktemp)"
-trap 'rm -f "${tmpfile}"' EXIT INT TERM
+    tmpfile="$(mktemp)"
+    trap 'rm -f "${tmpfile}"' EXIT INT TERM
 
-snapcraft export-login "${tmpfile}" >&2 || die "snapcraft export-login failed"
+    snapcraft export-login "${tmpfile}" >&2 || die "snapcraft export-login failed"
 
-cp "${tmpfile}" "${dest}"
-say "Added credentials '${BOLD}${name}${RESET}'"
+    cp "${tmpfile}" "${dest}"
+    say "Added credentials '${BOLD}${name}${RESET}'"
+}
+main "$@"

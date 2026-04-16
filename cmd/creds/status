@@ -4,10 +4,6 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-[ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || { say "${DIM}Not logged in${RESET}"; exit 0; }
-
-# ── human-readable permission names ──────────────────────────────────────────
-
 map_permission() {
     case "${1}" in
         package_access)   printf 'Access packages' ;;
@@ -26,46 +22,47 @@ map_permission() {
     esac
 }
 
-# ── get raw whoami output (cached or live) ────────────────────────────────────
+main() {
+    [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || { say "${DIM}Not logged in${RESET}"; exit 0; }
 
-if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
-    whoami_cache="${IDIOT_CACHE_DIR}/whoami/${IDIOT_ACTIVE_CRED}"
+    if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
+        whoami_cache="${IDIOT_CACHE_DIR}/whoami/${IDIOT_ACTIVE_CRED}"
 
-    if [ -f "${whoami_cache}" ]; then
-        raw="$(cat "${whoami_cache}")"
+        if [ -f "${whoami_cache}" ]; then
+            raw="$(cat "${whoami_cache}")"
+        else
+            raw="$(snapcraft whoami 2>&1)"
+            rc=$?
+            [ "${rc}" -eq 0 ] || { printf '%s\n' "${raw}" >&2; exit "${rc}"; }
+            mkdir -p "${IDIOT_CACHE_DIR}/whoami"
+            printf '%s\n' "${raw}" > "${whoami_cache}"
+        fi
     else
         raw="$(snapcraft whoami 2>&1)"
         rc=$?
         [ "${rc}" -eq 0 ] || { printf '%s\n' "${raw}" >&2; exit "${rc}"; }
-        mkdir -p "${IDIOT_CACHE_DIR}/whoami"
-        printf '%s\n' "${raw}" > "${whoami_cache}"
     fi
-else
-    raw="$(snapcraft whoami 2>&1)"
-    rc=$?
-    [ "${rc}" -eq 0 ] || { printf '%s\n' "${raw}" >&2; exit "${rc}"; }
-fi
 
-# ── colorize and print ────────────────────────────────────────────────────────
-
-printf '%s\n' "${raw}" | while IFS= read -r line; do
-    case "${line}" in
-        'permissions: '*)
-            val="${line#*: }"
-            printf '%s\n' "${CYAN}permissions${RESET}:" >&2
-            IFS=','
-            for perm in ${val}; do
-                perm="${perm# }"; perm="${perm% }"
-                printf '%s\n' "  ${DIM}-${RESET} $(map_permission "${perm}")" >&2
-            done
-            ;;
-        *:' '*)
-            key="${line%%:*}"
-            val="${line#*: }"
-            printf '%s\n' "${CYAN}${key}${RESET}: ${val}" >&2
-            ;;
-        *)
-            printf '%s\n' "${line}" >&2
-            ;;
-    esac
-done
+    printf '%s\n' "${raw}" | while IFS= read -r line; do
+        case "${line}" in
+            'permissions: '*)
+                val="${line#*: }"
+                printf '%s\n' "${CYAN}permissions${RESET}:" >&2
+                IFS=','
+                for perm in ${val}; do
+                    perm="${perm# }"; perm="${perm% }"
+                    printf '%s\n' "  ${DIM}-${RESET} $(map_permission "${perm}")" >&2
+                done
+                ;;
+            *:' '*)
+                key="${line%%:*}"
+                val="${line#*: }"
+                printf '%s\n' "${CYAN}${key}${RESET}: ${val}" >&2
+                ;;
+            *)
+                printf '%s\n' "${line}" >&2
+                ;;
+        esac
+    done
+}
+main "$@"

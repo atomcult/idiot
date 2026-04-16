@@ -1,18 +1,21 @@
 #!/usr/bin/env sh
 # cmd/store/help - usage for the store subcommand group
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
-say "${BOLD}${CYAN}Usage:${RESET} idiot store <subcommand>"
-echo >&2
-say "${BOLD}${CYAN}Subcommands:${RESET}"
-say "  ${BOLD}use${RESET}       Activate a store"
-say "  ${BOLD}unset${RESET}     Clear the active store"
-say "  ${BOLD}status${RESET}    Show the active store"
-echo >&2
-say "  ${BOLD}add${RESET}       Save a store"
-say "  ${BOLD}remove${RESET}    Remove a saved store"
-say "  ${BOLD}list${RESET}      List saved stores"
-echo >&2
-say "${BOLD}${CYAN}Environment:${RESET}"
-say "  ${BOLD}IDIOT_STORES_DIR${RESET}    Stores directory"
+main() {
+    say "${BOLD}${CYAN}Usage:${RESET} idiot store <subcommand>"
+    echo >&2
+    say "${BOLD}${CYAN}Subcommands:${RESET}"
+    say "  ${BOLD}use${RESET}       Activate a store"
+    say "  ${BOLD}unset${RESET}     Clear the active store"
+    say "  ${BOLD}status${RESET}    Show the active store"
+    echo >&2
+    say "  ${BOLD}add${RESET}       Save a store"
+    say "  ${BOLD}remove${RESET}    Remove a saved store"
+    say "  ${BOLD}list${RESET}      List saved stores"
+    echo >&2
+    say "${BOLD}${CYAN}Environment:${RESET}"
+    say "  ${BOLD}IDIOT_STORES_DIR${RESET}    Stores directory"
+}
+main "$@"

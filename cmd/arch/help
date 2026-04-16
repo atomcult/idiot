@@ -1,14 +1,17 @@
 #!/usr/bin/env sh
 # cmd/arch/help - usage for the arch subcommand group
 
-. "$(dirname "$0")/../../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
-say "${BOLD}${CYAN}Usage:${RESET} idiot arch <subcommand>"
-echo >&2
-say "${BOLD}${CYAN}Subcommands:${RESET}"
-say "  ${BOLD}set${RESET}       Set the target architecture"
-say "  ${BOLD}unset${RESET}     Clear the target architecture"
-say "  ${BOLD}status${RESET}    Show the active architecture"
-echo >&2
-say "${BOLD}${CYAN}Environment:${RESET}"
-say "  ${BOLD}UBUNTU_STORE_ARCH${RESET}    Target architecture override"
+main() {
+    say "${BOLD}${CYAN}Usage:${RESET} idiot arch <subcommand>"
+    echo >&2
+    say "${BOLD}${CYAN}Subcommands:${RESET}"
+    say "  ${BOLD}set${RESET}       Set the target architecture"
+    say "  ${BOLD}unset${RESET}     Clear the target architecture"
+    say "  ${BOLD}status${RESET}    Show the active architecture"
+    echo >&2
+    say "${BOLD}${CYAN}Environment:${RESET}"
+    say "  ${BOLD}UBUNTU_STORE_ARCH${RESET}    Target architecture override"
+}
+main "$@"

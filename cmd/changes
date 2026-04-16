@@ -4,14 +4,17 @@
 
 . "$(dirname "${0}")/../lib/common.sh"
 
-command -v fzf > /dev/null 2>&1 || die "fzf is required but not found (https://github.com/junegunn/fzf)"
-command -v snap > /dev/null 2>&1 || die "snap is required but not found"
+main() {
+    command -v fzf > /dev/null 2>&1 || die "fzf is required but not found (https://github.com/junegunn/fzf)"
+    command -v snap > /dev/null 2>&1 || die "snap is required but not found"
 
-snap changes \
-    | fzf \
-        --header-lines=1 \
-        --no-sort \
-        --prompt="change> " \
-        --preview="snap change {1}" \
-        --preview-window="down:60%:wrap" \
-    > /dev/null || true
+    snap changes \
+        | fzf \
+            --header-lines=1 \
+            --no-sort \
+            --prompt="change> " \
+            --preview="snap change {1}" \
+            --preview-window="down:60%:wrap" \
+        > /dev/null || true
+}
+main "$@"

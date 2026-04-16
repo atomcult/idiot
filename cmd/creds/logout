@@ -5,6 +5,9 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-printf 'unset SNAPCRAFT_STORE_CREDENTIALS\n'
-printf 'unset UBUNTU_STORE_AUTH\n'
-printf 'unset IDIOT_ACTIVE_CRED\n'
+main() {
+    printf 'unset SNAPCRAFT_STORE_CREDENTIALS\n'
+    printf 'unset UBUNTU_STORE_AUTH\n'
+    printf 'unset IDIOT_ACTIVE_CRED\n'
+}
+main "$@"

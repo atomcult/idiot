@@ -4,53 +4,52 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-name=""
-outfile=""
+main() {
+    name=""
+    outfile=""
 
-while [ $# -gt 0 ]; do
-    case "${1}" in
-        -f|--file)
-            [ -n "${2:-}" ] || die "option '${1}' requires an argument"
-            outfile="${2}"
-            shift 2
-            ;;
-        -*)
-            die "unknown option: ${1}"
-            ;;
-        *)
-            [ -n "${name}" ] && die "usage: idiot creds export [<name>] [-f <file>]"
-            name="${1}"
-            shift
-            ;;
-    esac
-done
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            -f|--file)
+                [ -n "${2:-}" ] || die "option '${1}' requires an argument"
+                outfile="${2}"
+                shift 2
+                ;;
+            -*)
+                die "unknown option: ${1}"
+                ;;
+            *)
+                [ -n "${name}" ] && die "usage: idiot creds export [<name>] [-f <file>]"
+                name="${1}"
+                shift
+                ;;
+        esac
+    done
 
-[ -n "${name}" ] || {
-    command -v fzf > /dev/null 2>&1 || die "a credential name is required (fzf not found for interactive selection)"
+    [ -n "${name}" ] || {
+        command -v fzf > /dev/null 2>&1 || die "a credential name is required (fzf not found for interactive selection)"
 
-    mkdir -p "${IDIOT_CREDS_DIR}"
+        mkdir -p "${IDIOT_CREDS_DIR}"
 
-    files=$(find "${IDIOT_CREDS_DIR}" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|${IDIOT_CREDS_DIR}/||")
+        files=$(find "${IDIOT_CREDS_DIR}" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|${IDIOT_CREDS_DIR}/||")
 
-    [ -n "${files}" ] || die "no credentials found"
+        [ -n "${files}" ] || die "no credentials found"
 
-    export IDIOT_CREDS_DIR
-    if command -v batcat > /dev/null 2>&1; then
-        preview_cmd='batcat --style=plain --color=always "$IDIOT_CREDS_DIR/"{}'
+        export IDIOT_CREDS_DIR
+        preview_cmd="$(file_preview_cmd IDIOT_CREDS_DIR)"
+
+        name=$(printf '%s\n' "${files}" | fzf --prompt="export credentials> " --preview="${preview_cmd}") || exit 0
+    }
+
+    cred_file="${IDIOT_CREDS_DIR}/${name}"
+
+    [ -f "${cred_file}" ] || die "credentials '${name}' not found"
+
+    if [ -n "${outfile}" ]; then
+        cp "${cred_file}" "${outfile}"
+        say "Exported '${BOLD}${name}${RESET}' to '${BOLD}${outfile}${RESET}'"
     else
-        preview_cmd='cat "$IDIOT_CREDS_DIR/"{}'
+        cat "${cred_file}"
     fi
-
-    name=$(printf '%s\n' "${files}" | fzf --prompt="export credentials> " --preview="${preview_cmd}") || exit 0
 }
-
-cred_file="${IDIOT_CREDS_DIR}/${name}"
-
-[ -f "${cred_file}" ] || die "credentials '${name}' not found"
-
-if [ -n "${outfile}" ]; then
-    cp "${cred_file}" "${outfile}"
-    say "Exported '${BOLD}${name}${RESET}' to '${BOLD}${outfile}${RESET}'"
-else
-    cat "${cred_file}"
-fi
+main "$@"

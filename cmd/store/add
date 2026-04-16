@@ -4,19 +4,22 @@
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
-name="${1:-}"
-store_id="${2:-}"
+main() {
+    name="${1:-}"
+    store_id="${2:-}"
 
-[ -n "${name}" ] && [ -n "${store_id}" ] || die "usage: idiot store add <name> <store-id>"
+    [ -n "${name}" ] && [ -n "${store_id}" ] || die "usage: idiot store add <name> <store-id>"
 
-case "${name}" in
-    *[!A-Za-z0-9_-]*) die "invalid store name '${name}': use only letters, digits, hyphens, underscores" ;;
-esac
+    case "${name}" in
+        *[!A-Za-z0-9_-]*) die "invalid store name '${name}': use only letters, digits, hyphens, underscores" ;;
+    esac
 
-mkdir -p "${IDIOT_STORES_DIR}"
-store_file="${IDIOT_STORES_DIR}/${name}"
+    mkdir -p "${IDIOT_STORES_DIR}"
+    store_file="${IDIOT_STORES_DIR}/${name}"
 
-[ -f "${store_file}" ] && die "store '${name}' already exists (use 'idiot store remove ${name}' first)"
+    [ -f "${store_file}" ] && die "store '${name}' already exists (use 'idiot store remove ${name}' first)"
 
-printf '%s' "${store_id}" > "${store_file}"
-say "Added store '${BOLD}${name}${RESET}' (${store_id})"
+    printf '%s' "${store_id}" > "${store_file}"
+    say "Added store '${BOLD}${name}${RESET}' (${store_id})"
+}
+main "$@"
