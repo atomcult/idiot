@@ -19,6 +19,7 @@ main() {
 
         status_cmd="$(dirname "${0}")/status"
         export IDIOT_CREDS_DIR
+        # shellcheck disable=SC2016
         preview_cmd='SNAPCRAFT_STORE_CREDENTIALS=$(cat "$IDIOT_CREDS_DIR/{}") IDIOT_ACTIVE_CRED="{}" '"${status_cmd}"' 2>&1'
 
         name=$(printf '%s\n' "${files}" | fzf --prompt="credentials> " --preview="${preview_cmd}") || exit 0

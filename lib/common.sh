@@ -76,7 +76,9 @@ idiot_help() {
     say "  ${BOLD}init${RESET}      Set up shell integration"
     echo >&2
     say "${BOLD}${CYAN}Shell setup${RESET} (run once, add to your shell rc):"
+    # shellcheck disable=SC2016
     say '  eval "$(idiot init bash)"    # bash'
+    # shellcheck disable=SC2016
     say '  eval "$(idiot init zsh)"     # zsh'
     say '  idiot init fish | source     # fish'
     echo >&2
