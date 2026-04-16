@@ -3,13 +3,13 @@
 # Source this file; do not execute directly.
 
 # Credentials directory
-IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${HOME}/.local/share/idiot/auth}"
+IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/auth}"
 
 # Dedicated Snap Store definitions directory
-IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${HOME}/.local/share/idiot/stores}"
+IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/stores}"
 
 # Cloned models repository
-IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${HOME}/.local/share/idiot/models}"
+IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/models}"
 
 # Cache directory
 IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
