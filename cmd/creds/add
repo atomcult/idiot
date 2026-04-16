@@ -9,21 +9,19 @@ main() {
 
     [ -n "${name}" ] || die "usage: idiot creds add <name>"
 
-    case "${name}" in
-        *[!A-Za-z0-9_-]*) die "invalid credential name '${name}': use only letters, digits, hyphens, underscores" ;;
-    esac
-
     mkdir -p "${IDIOT_CREDS_DIR}"
     dest="${IDIOT_CREDS_DIR}/${name}"
 
-    [ -f "${dest}" ] && die "credentials '${name}' already exist (remove it first)"
+    ! [ -f "${dest}" ] ||
+        die "credentials '${name}' already exist (remove it first)"
 
     tmpfile="$(mktemp)"
     trap 'rm -f "${tmpfile}"' EXIT INT TERM
 
-    snapcraft export-login "${tmpfile}" >&2 || die "snapcraft export-login failed"
+    snapcraft export-login "${tmpfile}" >&2 ||
+        die "snapcraft export-login failed"
 
-    cp "${tmpfile}" "${dest}"
+    mv "${tmpfile}" "${dest}"
     say "Added credentials '${BOLD}${name}${RESET}'"
 }
 main "$@"

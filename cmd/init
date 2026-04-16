@@ -14,9 +14,9 @@ main() {
 
     case "${shell}" in
         ""|-h|--help|help)
-            say "${BOLD}${CYAN}Usage:${RESET} idiot init <shell>"
+            say "${BOLD}${BLUE}Usage:${RESET} idiot init <shell>"
             echo >&2
-            say "${BOLD}${CYAN}Shells:${RESET}"
+            say "${BOLD}${BLUE}Shells:${RESET}"
             say "  ${BOLD}bash${RESET}    Bash shell integration"
             say "  ${BOLD}zsh${RESET}     Zsh shell integration"
             say "  ${BOLD}fish${RESET}    Fish shell integration"

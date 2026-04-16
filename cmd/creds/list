@@ -5,19 +5,12 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    [ -d "${IDIOT_CREDS_DIR}" ] || exit 0
+    [ -d "${IDIOT_CREDS_DIR}" ] ||
+        exit 0
 
-    entries=""
     for f in "${IDIOT_CREDS_DIR}"/*; do
         [ -f "${f}" ] || continue
-        entries="${entries}$(basename "${f}")\n"
-    done
-
-    [ -n "${entries}" ] || exit 0
-
-    printf '%b' "${entries}" | sort | while IFS= read -r name; do
-        [ -n "${name}" ] || continue
-        say "${name}"
+        say "$(basename "${f}")"
     done
 }
 main "$@"

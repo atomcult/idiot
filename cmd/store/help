@@ -4,9 +4,9 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    say "${BOLD}${CYAN}Usage:${RESET} idiot store <subcommand>"
+    say "${BOLD}${BLUE}Usage:${RESET} idiot store <subcommand>"
     echo >&2
-    say "${BOLD}${CYAN}Subcommands:${RESET}"
+    say "${BOLD}${BLUE}Subcommands:${RESET}"
     say "  ${BOLD}use${RESET}       Activate a store"
     say "  ${BOLD}unset${RESET}     Clear the active store"
     say "  ${BOLD}status${RESET}    Show the active store"
@@ -15,7 +15,7 @@ main() {
     say "  ${BOLD}remove${RESET}    Remove a saved store"
     say "  ${BOLD}list${RESET}      List saved stores"
     echo >&2
-    say "${BOLD}${CYAN}Environment:${RESET}"
+    say "${BOLD}${BLUE}Environment:${RESET}"
     say "  ${BOLD}IDIOT_STORES_DIR${RESET}    Stores directory"
 }
 main "$@"

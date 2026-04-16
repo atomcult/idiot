@@ -52,4 +52,5 @@ main() {
         cat "${cred_file}"
     fi
 }
+
 main "$@"

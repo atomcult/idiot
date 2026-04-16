@@ -5,17 +5,19 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    src="${1:-}"
-    name="${2:-}"
+    name="${1:-}"
+    src="${2:-}"
 
-    [ -n "${src}" ] || die "usage: idiot creds import <file> [<name>]"
-    [ -f "${src}" ] || die "file not found: ${src}"
-    [ -n "${name}" ] || name="$(basename "${src}")"
+    { [ -n "${name}" ] || [ -n "${src}"  ]; } ||
+        die "usage: idiot creds import <name> <file>"
+
+    [ -f "${src}"  ] || die "file not found: ${src}"
 
     mkdir -p "${IDIOT_CREDS_DIR}"
     dest="${IDIOT_CREDS_DIR}/${name}"
 
-    [ -f "${dest}" ] && die "credentials '${name}' already exist (remove it first)"
+    ! [ -f "${dest}" ] ||
+        die "credentials '${name}' already exist (remove it first)"
 
     cp "${src}" "${dest}"
     say "Imported '${BOLD}${src}${RESET}' as '${BOLD}${name}${RESET}'"
