@@ -18,12 +18,9 @@ name="${1:-}"
 
     [ -n "${files}" ] || die "no credentials found — use 'idiot creds import' to add credentials"
 
+    status_cmd="$(dirname "${0}")/status"
     export IDIOT_CREDS_DIR
-    if command -v batcat > /dev/null 2>&1; then
-        preview_cmd='batcat --style=plain --color=always "$IDIOT_CREDS_DIR/"{}'
-    else
-        preview_cmd='cat "$IDIOT_CREDS_DIR/"{}'
-    fi
+    preview_cmd='SNAPCRAFT_STORE_CREDENTIALS=$(cat "$IDIOT_CREDS_DIR/{}") IDIOT_ACTIVE_CRED="{}" '"${status_cmd}"' 2>&1'
 
     name=$(printf '%s\n' "${files}" | fzf --prompt="credentials> " --preview="${preview_cmd}") || exit 0
 }
