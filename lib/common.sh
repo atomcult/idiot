@@ -15,17 +15,30 @@ IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${HOME}/.local/share/idiot/models}"
 IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 
 # Use colors only when stderr is a TTY and NO_COLOR is unset
+# shellcheck disable=SC2034
 if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then
     BOLD="$(printf '\033[1m')"
     DIM="$(printf '\033[2m')"
+    BLACK="$(printf '\033[30m')"
     RED="$(printf '\033[31m')"
+    GREEN="$(printf '\033[32m')"
+    YELLOW="$(printf '\033[33m')"
+    BLUE="$(printf '\033[34m')"
+    MAGENTA="$(printf '\033[35m')"
     CYAN="$(printf '\033[36m')"
+    WHITE="$(printf '\033[37m')"
     RESET="$(printf '\033[0m')"
 else
     BOLD=''
     DIM=''
+    BLACK=''
     RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    MAGENTA=''
     CYAN=''
+    WHITE=''
     RESET=''
 fi
 
