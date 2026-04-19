@@ -12,9 +12,9 @@ main() {
     say "  ${CYAN}status${RESET}    Show login status"
     echo >&2
     say "  ${CYAN}add${RESET}       Create a new credential"
-    say "  ${CYAN}import${RESET}    Import a credential from a file"
-    say "  ${CYAN}list${RESET}      List saved credentials"
     say "  ${CYAN}remove${RESET}    Remove a saved credential"
+    say "  ${CYAN}list${RESET}      List saved credentials"
+    say "  ${CYAN}import${RESET}    Import a credential from a file"
     say "  ${CYAN}export${RESET}    Output a credential"
     echo >&2
     say "${BOLD}${BLUE}Environment:${RESET}"
