@@ -23,7 +23,7 @@ main() {
             say "${DIM}would delete${RESET} ${BOLD}${name}${RESET}"
         else
             say "Deleting ${BOLD}${name}${RESET}..."
-            lxc delete --project snapcraft --force "${name}"
+            lxc delete --project snapcraft --force "${name}" >/dev/null 2>&1
         fi
     done
 }
