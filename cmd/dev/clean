@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# cmd/dev/clean - remove all dangerously-installed (unasserted) snaps
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    command -v snap > /dev/null 2>&1 || die "snap is required but not found"
+
+    # Dangerously-installed snaps have sideloaded revisions (x<N>)
+    snaps=$(snap list 2>/dev/null | awk 'NR>1 && $3 ~ /^x[0-9]+$/ {print $1}')
+    [ -n "${snaps}" ] || { say "No dangerously-installed snaps found."; exit 0; }
+
+    printf '%s\n' "${snaps}" | while IFS= read -r name; do
+        say "Removing ${BOLD}${name}${RESET}..."
+        snap remove "${name}"
+    done
+}
+main "$@"

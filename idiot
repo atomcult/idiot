@@ -23,6 +23,7 @@ idiot_help() {
     say "  ${CYAN}arch${RESET}      Manage target architecture"
     say "  ${CYAN}models${RESET}    Manage model assertions"
     say "  ${CYAN}changes${RESET}   Browse recent changes"
+    say "  ${CYAN}dev${RESET}       Developer utilities"
     say "  ${CYAN}init${RESET}      Set up shell integration"
     echo >&2
     say "${BOLD}${BLUE}Shell setup${RESET} (run once, add to your shell rc):"

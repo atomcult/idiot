@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+# cmd/dev/purge - remove all LXD containers in the snapcraft project
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    command -v lxc > /dev/null 2>&1 || die "lxc is required but not found"
+
+    containers=$(lxc list --project snapcraft --format csv --columns n 2>/dev/null)
+    [ -n "${containers}" ] || { say "No containers in snapcraft project."; exit 0; }
+
+    printf '%s\n' "${containers}" | while IFS= read -r name; do
+        say "Deleting ${BOLD}${name}${RESET}..."
+        lxc delete --project snapcraft --force "${name}"
+    done
+}
+main "$@"
