@@ -7,6 +7,7 @@ main() {
     say "${BOLD}${BLUE}Usage:${RESET} idiot prune <subcommand>"
     echo >&2
     say "${BOLD}${BLUE}Subcommands:${RESET}"
+    say "  ${CYAN}all${RESET}          Remove all containers and dangerously-installed snaps"
     say "  ${CYAN}containers${RESET}   Remove all LXD containers in the snapcraft project"
     say "  ${CYAN}snaps${RESET}        Remove all dangerously-installed snaps"
 }
