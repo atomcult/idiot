@@ -35,50 +35,6 @@ idiot_help() {
     say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
 }
 
-dispatch_subcmd() {
-    cmd="${1}"; cmd_file="${2}"; shift 2
-    subcmd="${1:-}"
-    [ $# -ge 1 ] && shift
-    case "${subcmd}" in
-        ""|-h|--help|help)
-            if [ -x "${cmd_file}/help" ]; then
-                exec "${cmd_file}/help"
-            else
-                die "usage: idiot ${cmd} <subcommand>"
-            fi
-            ;;
-        *)
-            [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
-            subcmd_file="${cmd_file}/${subcmd}"
-            if [ -d "${subcmd_file}" ]; then
-                subsubcmd="${1:-}"
-                [ $# -ge 1 ] && shift
-                case "${subsubcmd}" in
-                    ""|-h|--help|help)
-                        if [ -x "${subcmd_file}/help" ]; then
-                            exec "${subcmd_file}/help"
-                        else
-                            die "usage: idiot ${cmd} ${subcmd} <subcommand>"
-                        fi
-                        ;;
-                    *)
-                        subsubcmd_file="${subcmd_file}/${subsubcmd}"
-                        if [ -x "${subsubcmd_file}" ]; then
-                            exec "${subsubcmd_file}" "$@"
-                        else
-                            die "unknown subcommand: ${cmd} ${subcmd} ${subsubcmd}"
-                        fi
-                        ;;
-                esac
-            elif [ -x "${subcmd_file}" ]; then
-                exec "${subcmd_file}" "$@"
-            else
-                die "unknown subcommand: ${cmd} ${subcmd}"
-            fi
-            ;;
-    esac
-}
-
 main() {
     cmd="${1:-}"
     [ $# -ge 1 ] && shift

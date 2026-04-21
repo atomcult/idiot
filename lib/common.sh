@@ -64,6 +64,54 @@ shell_quote() {
     printf "'"
 }
 
+# Dispatch to a subcommand within a command group directory.
+# $1: display name of the parent command (e.g. "env")
+# $2: path to the command group directory
+# Remaining args are passed through to the subcommand.
+dispatch_subcmd() {
+    cmd="${1}"; cmd_file="${2}"; shift 2
+    subcmd="${1:-}"
+    [ $# -ge 1 ] && shift
+    case "${subcmd}" in
+        ""|-h|--help|help)
+            if [ -x "${cmd_file}/help" ]; then
+                exec "${cmd_file}/help"
+            else
+                die "usage: idiot ${cmd} <subcommand>"
+            fi
+            ;;
+        *)
+            [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+            subcmd_file="${cmd_file}/${subcmd}"
+            if [ -d "${subcmd_file}" ]; then
+                subsubcmd="${1:-}"
+                [ $# -ge 1 ] && shift
+                case "${subsubcmd}" in
+                    ""|-h|--help|help)
+                        if [ -x "${subcmd_file}/help" ]; then
+                            exec "${subcmd_file}/help"
+                        else
+                            die "usage: idiot ${cmd} ${subcmd} <subcommand>"
+                        fi
+                        ;;
+                    *)
+                        subsubcmd_file="${subcmd_file}/${subsubcmd}"
+                        if [ -x "${subsubcmd_file}" ]; then
+                            exec "${subsubcmd_file}" "$@"
+                        else
+                            die "unknown subcommand: ${cmd} ${subcmd} ${subsubcmd}"
+                        fi
+                        ;;
+                esac
+            elif [ -x "${subcmd_file}" ]; then
+                exec "${subcmd_file}" "$@"
+            else
+                die "unknown subcommand: ${cmd} ${subcmd}"
+            fi
+            ;;
+    esac
+}
+
 # Return an fzf --preview command string for files inside a directory.
 # $1: name of the exported shell variable holding the directory path.
 # The returned string uses {} as the fzf-supplied filename.
