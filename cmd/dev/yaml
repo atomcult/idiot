@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# cmd/dev/yaml - print snap/snapcraft.yaml or meta/snap.yaml from a snap file
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    [ $# -ge 1 ] || die "usage: idiot dev yaml <snap-file>"
+
+    snap_file="${1}"
+
+    [ -f "${snap_file}" ] ||
+        die "file not found: ${snap_file}"
+
+    command -v unsquashfs > /dev/null 2>&1 ||
+        die "unsquashfs is required but not found"
+
+    ! unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >&2 ||
+        exit 0
+
+    unsquashfs -q -cat "${snap_file}" meta/snap.yaml >&2 ||
+        die "neither snap/snapcraft.yaml nor meta/snap.yaml found in ${snap_file}"
+}
+main "$@"
