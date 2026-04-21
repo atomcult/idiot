@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# cmd/changes - browse snap changes interactively
-# Usage: idiot changes
+# cmd/inspect/changes - browse snap changes interactively
+# Usage: idiot inspect changes
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
     command -v fzf > /dev/null 2>&1 || die "fzf is required but not found (https://github.com/junegunn/fzf)"

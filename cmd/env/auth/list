@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# cmd/auth/list - list credential files in IDIOT_AUTH_DIR
-# Usage: idiot auth list
+# cmd/env/auth/list - list credential files in IDIOT_AUTH_DIR
+# Usage: idiot env auth list
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     [ -d "${IDIOT_AUTH_DIR}" ] ||

@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# cmd/arch/status - show the current target architecture
-# Usage: idiot arch status
+# cmd/env/arch/status - show the current target architecture
+# Usage: idiot env arch status
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     [ -n "${UBUNTU_STORE_ARCH:-}" ] && { say "${BOLD}${UBUNTU_STORE_ARCH}${RESET}"; exit 0; }

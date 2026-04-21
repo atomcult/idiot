@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# cmd/auth/status - show login status
-# Usage: idiot auth status
+# cmd/env/auth/status - show login status
+# Usage: idiot env auth status
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 map_permission() {
     case "${1}" in

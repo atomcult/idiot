@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# cmd/store/use - set UBUNTU_STORE_ID to the named store's ID
-# Usage: idiot store use [<name>]
+# cmd/env/store/use - set UBUNTU_STORE_ID to the named store's ID
+# Usage: idiot env store use [<name>]
 # Outputs: eval-able export statement
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     name="${1:-}"
@@ -15,7 +15,7 @@ main() {
 
         files=$(find "${IDIOT_STORES_DIR}" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|${IDIOT_STORES_DIR}/||")
 
-        [ -n "${files}" ] || die "no stores saved — use 'idiot store add' to add a store"
+        [ -n "${files}" ] || die "no stores saved — use 'idiot env store add' to add a store"
 
         export IDIOT_STORES_DIR
         preview_cmd="$(file_preview_cmd IDIOT_STORES_DIR)"

@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# cmd/arch/set - set the target architecture for store operations
-# Usage: idiot arch set [<architecture>]
+# cmd/env/arch/set - set the target architecture for store operations
+# Usage: idiot env arch set [<architecture>]
 # Outputs: eval-able export statement
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     arch="${1:-}"

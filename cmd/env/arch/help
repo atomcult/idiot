@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
-# cmd/arch/help - usage for the arch subcommand group
+# cmd/env/arch/help - usage for the arch subcommand group
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot arch <subcommand>"
+    say "${BOLD}${BLUE}Usage:${RESET} idiot env arch <subcommand>"
     echo >&2
     say "${BOLD}${BLUE}Subcommands:${RESET}"
     say "  ${CYAN}set${RESET}       Set the target architecture"

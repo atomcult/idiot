@@ -9,6 +9,5 @@ main() {
     say "${BOLD}${BLUE}Subcommands:${RESET}"
     say "  ${CYAN}purge${RESET}     Remove all LXD containers in the snapcraft project"
     say "  ${CYAN}clean${RESET}     Remove all dangerously-installed snaps"
-    say "  ${CYAN}yaml${RESET}      Print the snapcraft.yaml or snap.yaml from a snap file"
 }
 main "$@"

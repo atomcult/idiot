@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
-# cmd/auth/help - usage for the creds subcommand group
+# cmd/env/auth/help - usage for the creds subcommand group
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot auth <subcommand>"
+    say "${BOLD}${BLUE}Usage:${RESET} idiot env auth <subcommand>"
     echo >&2
     say "${BOLD}${BLUE}Subcommands:${RESET}"
     say "  ${CYAN}login${RESET}     Activate a credential"

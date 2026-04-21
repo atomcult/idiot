@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# cmd/auth/login - set store credential environment variables from a credential file
-# Usage: idiot auth login [<name>]
+# cmd/env/auth/login - set store credential environment variables from a credential file
+# Usage: idiot env auth login [<name>]
 # Outputs: eval-able export statements
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     name="${1:-}"
@@ -15,7 +15,7 @@ main() {
 
         files=$(find "${IDIOT_AUTH_DIR}" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|${IDIOT_AUTH_DIR}/||")
 
-        [ -n "${files}" ] || die "no credentials found — use 'idiot auth import' to add credentials"
+        [ -n "${files}" ] || die "no credentials found — use 'idiot env auth import' to add credentials"
 
         status_cmd="$(dirname "${0}")/status"
         export IDIOT_AUTH_DIR

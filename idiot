@@ -18,11 +18,9 @@ idiot_help() {
     say "${BOLD}${BLUE}Usage:${RESET} idiot <command> [args...]"
     echo >&2
     say "${BOLD}${BLUE}Commands:${RESET}"
-    say "  ${CYAN}auth${RESET}      Manage credentials"
-    say "  ${CYAN}store${RESET}     Manage Dedicated Snap Stores"
-    say "  ${CYAN}arch${RESET}      Manage target architecture"
+    say "  ${CYAN}env${RESET}       Manage shell environment (auth, store, arch)"
+    say "  ${CYAN}inspect${RESET}   Inspect snap store objects"
     say "  ${CYAN}models${RESET}    Manage model assertions"
-    say "  ${CYAN}changes${RESET}   Browse recent changes"
     say "  ${CYAN}dev${RESET}       Developer utilities"
     say "  ${CYAN}init${RESET}      Set up shell integration"
     echo >&2
@@ -35,6 +33,50 @@ idiot_help() {
     }
     echo >&2
     say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
+}
+
+dispatch_subcmd() {
+    cmd="${1}"; cmd_file="${2}"; shift 2
+    subcmd="${1:-}"
+    [ $# -ge 1 ] && shift
+    case "${subcmd}" in
+        ""|-h|--help|help)
+            if [ -x "${cmd_file}/help" ]; then
+                exec "${cmd_file}/help"
+            else
+                die "usage: idiot ${cmd} <subcommand>"
+            fi
+            ;;
+        *)
+            [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+            subcmd_file="${cmd_file}/${subcmd}"
+            if [ -d "${subcmd_file}" ]; then
+                subsubcmd="${1:-}"
+                [ $# -ge 1 ] && shift
+                case "${subsubcmd}" in
+                    ""|-h|--help|help)
+                        if [ -x "${subcmd_file}/help" ]; then
+                            exec "${subcmd_file}/help"
+                        else
+                            die "usage: idiot ${cmd} ${subcmd} <subcommand>"
+                        fi
+                        ;;
+                    *)
+                        subsubcmd_file="${subcmd_file}/${subsubcmd}"
+                        if [ -x "${subsubcmd_file}" ]; then
+                            exec "${subsubcmd_file}" "$@"
+                        else
+                            die "unknown subcommand: ${cmd} ${subcmd} ${subsubcmd}"
+                        fi
+                        ;;
+                esac
+            elif [ -x "${subcmd_file}" ]; then
+                exec "${subcmd_file}" "$@"
+            else
+                die "unknown subcommand: ${cmd} ${subcmd}"
+            fi
+            ;;
+    esac
 }
 
 main() {
@@ -53,26 +95,7 @@ main() {
         *)
             cmd_file="${IDIOT_CMD_DIR}/${cmd}"
             if [ -d "${cmd_file}" ]; then
-                subcmd="${1:-}"
-                [ $# -ge 1 ] && shift
-                case "${subcmd}" in
-                    ""|-h|--help|help)
-                        if [ -x "${cmd_file}/help" ]; then
-                            exec "${cmd_file}/help"
-                        else
-                            die "usage: idiot ${cmd} <subcommand>"
-                        fi
-                        ;;
-                    *)
-                        [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
-                        subcmd_file="${cmd_file}/${subcmd}"
-                        if [ -x "${subcmd_file}" ]; then
-                            exec "${subcmd_file}" "$@"
-                        else
-                            die "unknown subcommand: ${cmd} ${subcmd}"
-                        fi
-                        ;;
-                esac
+                dispatch_subcmd "${cmd}" "${cmd_file}" "$@"
             elif [ -x "${cmd_file}" ]; then
                 case "${cmd}" in
                     init) exec "${cmd_file}" "$@" ;;

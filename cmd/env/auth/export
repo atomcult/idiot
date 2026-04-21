@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# cmd/auth/export - print a credential file to stdout or write to a file
-# Usage: idiot auth export [<name>] [-f|--file <file>]
+# cmd/env/auth/export - print a credential file to stdout or write to a file
+# Usage: idiot env auth export [<name>] [-f|--file <file>]
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     name=""
@@ -19,7 +19,7 @@ main() {
                 die "unknown option: ${1}"
                 ;;
             *)
-                [ -n "${name}" ] && die "usage: idiot auth export [<name>] [-f <file>]"
+                [ -n "${name}" ] && die "usage: idiot env auth export [<name>] [-f <file>]"
                 name="${1}"
                 shift
                 ;;

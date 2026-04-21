@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# cmd/inspect/help - usage for the inspect subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    say "${BOLD}${BLUE}Usage:${RESET} idiot inspect <subcommand> [args...]"
+    echo >&2
+    say "${BOLD}${BLUE}Subcommands:${RESET}"
+    say "  ${CYAN}changes${RESET}   Browse recent snap changes"
+    say "  ${CYAN}snap${RESET}      Print the snapcraft.yaml or snap.yaml from a snap file"
+}
+main "$@"

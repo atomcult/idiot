@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/dev/yaml - print snap/snapcraft.yaml or meta/snap.yaml from a snap file
+# cmd/inspect/snap - print snap/snapcraft.yaml or meta/snap.yaml from a snap file
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

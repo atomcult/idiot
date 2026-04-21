@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# cmd/env/store/unset - unset UBUNTU_STORE_ID
+# Usage: idiot env store unset
+# Outputs: eval-able unset statement
+
+. "$(dirname "${0}")/../../../lib/common.sh"
+
+main() {
+    printf 'unset UBUNTU_STORE_ID\n'
+}
+main "$@"

@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# cmd/auth/remove - remove a credential file from IDIOT_AUTH_DIR
-# Usage: idiot auth remove [<name>]
+# cmd/env/auth/remove - remove a credential file from IDIOT_AUTH_DIR
+# Usage: idiot env auth remove [<name>]
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     name="${1:-}"

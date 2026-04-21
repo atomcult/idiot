@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# cmd/env/arch/unset - unset the target architecture
+# Usage: idiot env arch unset
+# Outputs: eval-able unset statement
+
+. "$(dirname "${0}")/../../../lib/common.sh"
+
+main() {
+    printf 'unset UBUNTU_STORE_ARCH\n'
+}
+main "$@"

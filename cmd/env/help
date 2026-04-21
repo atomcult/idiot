@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# cmd/env/help - usage for the env subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    say "${BOLD}${BLUE}Usage:${RESET} idiot env <subcommand> [args...]"
+    echo >&2
+    say "${BOLD}${BLUE}Subcommands:${RESET}"
+    say "  ${CYAN}auth${RESET}      Manage credentials"
+    say "  ${CYAN}store${RESET}     Manage Dedicated Snap Stores"
+    say "  ${CYAN}arch${RESET}      Manage target architecture"
+    echo >&2
+    say "Run ${DIM}idiot env <subcommand> help${RESET} for subcommand details."
+}
+main "$@"

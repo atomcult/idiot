@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
-# cmd/auth/add - create new credentials using snapcraft export-login
-# Usage: idiot auth add <name>
+# cmd/env/auth/add - create new credentials using snapcraft export-login
+# Usage: idiot env auth add <name>
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
     name="${1:-}"
 
-    [ -n "${name}" ] || die "usage: idiot auth add <name>"
+    [ -n "${name}" ] || die "usage: idiot env auth add <name>"
 
     mkdir -p "${IDIOT_AUTH_DIR}"
     dest="${IDIOT_AUTH_DIR}/${name}"
