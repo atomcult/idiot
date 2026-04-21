@@ -21,7 +21,7 @@ idiot_help() {
     say "  ${CYAN}env${RESET}       Manage shell environment (auth, store, arch)"
     say "  ${CYAN}inspect${RESET}   Inspect snap store objects"
     say "  ${CYAN}models${RESET}    Manage model assertions"
-    say "  ${CYAN}dev${RESET}       Developer utilities"
+    say "  ${CYAN}prune${RESET}     Remove development leftovers"
     say "  ${CYAN}init${RESET}      Set up shell integration"
     echo >&2
     say "${BOLD}${BLUE}Shell setup${RESET} (run once, add to your shell rc):"

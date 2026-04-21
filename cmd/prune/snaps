@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/dev/clean - remove all dangerously-installed (unasserted) snaps
+# cmd/prune/snaps - remove all dangerously-installed (unasserted) snaps
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

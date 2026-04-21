@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/dev/purge - remove all LXD containers in the snapcraft project
+# cmd/prune/containers - remove all LXD containers in the snapcraft project
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

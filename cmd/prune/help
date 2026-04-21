@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# cmd/prune/help - usage for the prune subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    say "${BOLD}${BLUE}Usage:${RESET} idiot prune <subcommand>"
+    echo >&2
+    say "${BOLD}${BLUE}Subcommands:${RESET}"
+    say "  ${CYAN}containers${RESET}   Remove all LXD containers in the snapcraft project"
+    say "  ${CYAN}snaps${RESET}        Remove all dangerously-installed snaps"
+}
+main "$@"
