@@ -4,14 +4,27 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
+    dry_run=0
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            -n|--dry-run) dry_run=1 ;;
+            *) die "unknown option: ${1}" ;;
+        esac
+        shift
+    done
+
     command -v lxc > /dev/null 2>&1 || die "lxc is required but not found"
 
     containers=$(lxc list --project snapcraft --format csv --columns n 2>/dev/null)
     [ -n "${containers}" ] || { say "No containers in snapcraft project."; exit 0; }
 
     printf '%s\n' "${containers}" | while IFS= read -r name; do
-        say "Deleting ${BOLD}${name}${RESET}..."
-        lxc delete --project snapcraft --force "${name}"
+        if [ "${dry_run}" -eq 1 ]; then
+            say "${DIM}would delete${RESET} ${BOLD}${name}${RESET}"
+        else
+            say "Deleting ${BOLD}${name}${RESET}..."
+            lxc delete --project snapcraft --force "${name}"
+        fi
     done
 }
 main "$@"

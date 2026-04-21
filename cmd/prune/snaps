@@ -4,6 +4,15 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
+    dry_run=0
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            -n|--dry-run) dry_run=1 ;;
+            *) die "unknown option: ${1}" ;;
+        esac
+        shift
+    done
+
     command -v snap > /dev/null 2>&1 || die "snap is required but not found"
 
     # Dangerously-installed snaps have sideloaded revisions (x<N>)
@@ -11,8 +20,12 @@ main() {
     [ -n "${snaps}" ] || { say "No dangerously-installed snaps found."; exit 0; }
 
     printf '%s\n' "${snaps}" | while IFS= read -r name; do
-        say "Removing ${BOLD}${name}${RESET}..."
-        snap remove "${name}"
+        if [ "${dry_run}" -eq 1 ]; then
+            say "${DIM}would remove${RESET} ${BOLD}${name}${RESET}"
+        else
+            say "Removing ${BOLD}${name}${RESET}..."
+            snap remove "${name}" >/dev/null 2>&1
+        fi
     done
 }
 main "$@"
