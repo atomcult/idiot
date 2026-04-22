@@ -94,13 +94,6 @@ tpm_device_for_arch() {
     esac
 }
 
-# Non-x86 machines require an explicit machine type
-machine_flags_for_arch() {
-    case "${1}" in
-        arm64|armhf|riscv64) printf -- '-machine virt' ;;
-    esac
-}
-
 main() {
     arch=''
     image=''
@@ -133,12 +126,21 @@ main() {
     qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
     command -v "${qemu_bin}" > /dev/null 2>&1 || die "${qemu_bin} is required but not found"
 
+    # Machine type and chipset flags
+    case "${arch}" in
+        amd64|i386)
+            machine_flags='-machine q35 -global ICH9-LPC.disable_s3=1' ;;
+        arm64|armhf|riscv64)
+            machine_flags='-machine virt' ;;
+        *)
+            machine_flags='' ;;
+    esac
+
     kvm_flags=''
     if [ "${arch}" = "$(host_arch)" ] && [ -e /dev/kvm ]; then
         kvm_flags='-enable-kvm -cpu host'
     fi
 
-    machine_flags="$(machine_flags_for_arch "${arch}")"
     fw_flags=''
     tpm_flags=''
 
@@ -151,7 +153,7 @@ main() {
         setup_firmware "${arch}"
         fw_vars="${tmpdir}/fw_vars.fd"
         cp "${fw_vars_template}" "${fw_vars}"
-        fw_flags="-drive if=pflash,format=raw,readonly=on,file=${fw_code} -drive if=pflash,format=raw,file=${fw_vars}"
+        fw_flags="-drive if=pflash,format=raw,unit=0,readonly=on,file=${fw_code} -drive if=pflash,format=raw,unit=1,file=${fw_vars}"
     fi
 
     if [ "${tpm}" -eq 1 ]; then
@@ -166,7 +168,17 @@ main() {
     fi
 
     # shellcheck disable=SC2086
-    "${qemu_bin}" -hda "${image}" -m 2G \
-        ${machine_flags} ${kvm_flags} ${fw_flags} ${tpm_flags} >&2
+    "${qemu_bin}" \
+        -smp "$(nproc)" \
+        -m 2048 \
+        ${machine_flags} \
+        ${kvm_flags} \
+        -net nic,model=virtio \
+        -net user,hostfwd=tcp::8022-:22 \
+        ${fw_flags} \
+        -drive "file=${image},if=none,format=raw,id=disk1" \
+        -device virtio-blk-pci,drive=disk1,bootindex=1 \
+        ${tpm_flags} \
+        -serial mon:stdio >&2
 }
 main "$@"
