@@ -22,6 +22,7 @@ idiot_help() {
     say "  ${CYAN}inspect${RESET}   Inspect snap store objects"
     say "  ${CYAN}models${RESET}    Manage model assertions"
     say "  ${CYAN}prune${RESET}     Remove development leftovers"
+    say "  ${CYAN}vm${RESET}        Launch a QEMU VM"
     say "  ${CYAN}init${RESET}      Set up shell integration"
     echo >&2
     say "${BOLD}${BLUE}Shell setup${RESET} (run once, add to your shell rc):"

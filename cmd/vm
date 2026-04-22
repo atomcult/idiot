@@ -1,0 +1,69 @@
+#!/usr/bin/env sh
+# cmd/vm - launch a QEMU VM with the given disk image
+# Usage: idiot vm [--arch <arch>] <image>
+
+. "$(dirname "${0}")/../lib/common.sh"
+
+# Normalise uname -m output to snap arch naming
+host_arch() {
+    case "$(uname -m)" in
+        x86_64)  printf 'amd64' ;;
+        aarch64) printf 'arm64' ;;
+        armv7l)  printf 'armhf' ;;
+        riscv64) printf 'riscv64' ;;
+        s390x)   printf 's390x' ;;
+        ppc64le) printf 'ppc64el' ;;
+        i686)    printf 'i386' ;;
+        *)       uname -m ;;
+    esac
+}
+
+# Map snap arch name to qemu-system-* binary suffix
+arch_to_qemu() {
+    case "${1}" in
+        amd64)   printf 'x86_64' ;;
+        arm64)   printf 'aarch64' ;;
+        armhf)   printf 'arm' ;;
+        riscv64) printf 'riscv64' ;;
+        s390x)   printf 's390x' ;;
+        ppc64el) printf 'ppc64' ;;
+        i386)    printf 'i386' ;;
+        *) die "unsupported architecture: ${1}" ;;
+    esac
+}
+
+main() {
+    arch=''
+    image=''
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            --arch)
+                [ -n "${2:-}" ] || die "--arch requires an argument"
+                arch="${2}"; shift ;;
+            -*)
+                die "unknown option: ${1}" ;;
+            *)
+                [ -z "${image}" ] || die "unexpected argument: ${1}"
+                image="${1}" ;;
+        esac
+        shift
+    done
+
+    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] <image>"
+    [ -f "${image}" ] || die "image not found: ${image}"
+
+    [ -n "${arch}" ] || arch="$(host_arch)"
+
+    qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
+    command -v "${qemu_bin}" > /dev/null 2>&1 || die "${qemu_bin} is required but not found"
+
+    kvm_flags=''
+    if [ "${arch}" = "$(host_arch)" ] && [ -e /dev/kvm ]; then
+        kvm_flags='-enable-kvm -cpu host'
+    fi
+
+    # shellcheck disable=SC2086
+    exec "${qemu_bin}" -hda "${image}" -m 2G ${kvm_flags} >&2
+}
+main "$@"
