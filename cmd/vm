@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # cmd/vm - launch a QEMU VM with the given disk image
-# Usage: idiot vm [--arch <arch>] <image>
+# Usage: idiot vm [--arch <arch>] [--sb] [--tpm] <image>
 
 . "$(dirname "${0}")/../lib/common.sh"
 
@@ -32,15 +32,90 @@ arch_to_qemu() {
     esac
 }
 
+# Return the first path from the argument list that exists as a regular file
+find_first() {
+    for p in "$@"; do
+        [ -f "${p}" ] && { printf '%s' "${p}"; return 0; }
+    done
+    return 1
+}
+
+# Sets fw_code and fw_vars_template for the given arch
+setup_firmware() {
+    case "${1}" in
+        amd64)
+            fw_code=$(find_first \
+                /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
+                /usr/share/OVMF/OVMF_CODE.secboot.fd) \
+                || die "UEFI secure boot firmware not found — install the ovmf package"
+            fw_vars_template=$(find_first \
+                /usr/share/OVMF/OVMF_VARS_4M.ms.fd \
+                /usr/share/OVMF/OVMF_VARS.ms.fd) \
+                || die "UEFI vars not found — install the ovmf package"
+            ;;
+        arm64)
+            fw_code=$(find_first \
+                /usr/share/AAVMF/AAVMF_CODE.secboot.fd \
+                /usr/share/qemu-efi-aarch64/QEMU_EFI.secboot.fd) \
+                || die "UEFI secure boot firmware not found — install the qemu-efi-aarch64 package"
+            fw_vars_template=$(find_first \
+                /usr/share/AAVMF/AAVMF_VARS.ms.fd \
+                /usr/share/qemu-efi-aarch64/QEMU_VARS.ms.fd) \
+                || die "UEFI vars not found — install the qemu-efi-aarch64 package"
+            ;;
+        armhf)
+            fw_code=$(find_first \
+                /usr/share/AAVMF/AAVMF32_CODE.secboot.fd \
+                /usr/share/qemu-efi-arm/QEMU_EFI.secboot.fd) \
+                || die "UEFI secure boot firmware not found — install the qemu-efi-arm package"
+            fw_vars_template=$(find_first \
+                /usr/share/AAVMF/AAVMF32_VARS.ms.fd \
+                /usr/share/qemu-efi-arm/QEMU_VARS.ms.fd) \
+                || die "UEFI vars not found — install the qemu-efi-arm package"
+            ;;
+        riscv64)
+            fw_code=$(find_first \
+                /usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd) \
+                || die "UEFI firmware not found — install the qemu-efi-riscv64 package"
+            fw_vars_template=$(find_first \
+                /usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd) \
+                || die "UEFI vars not found — install the qemu-efi-riscv64 package"
+            ;;
+        *)
+            die "secure boot is not supported for architecture: ${1}" ;;
+    esac
+}
+
+# TPM passthrough device type differs between x86 (ISA bus) and everything else
+tpm_device_for_arch() {
+    case "${1}" in
+        amd64|i386) printf 'tpm-tis' ;;
+        *)          printf 'tpm-tis-device' ;;
+    esac
+}
+
+# Non-x86 machines require an explicit machine type
+machine_flags_for_arch() {
+    case "${1}" in
+        arm64|armhf|riscv64) printf -- '-machine virt' ;;
+    esac
+}
+
 main() {
     arch=''
     image=''
+    sb=0
+    tpm=0
 
     while [ $# -gt 0 ]; do
         case "${1}" in
             --arch)
                 [ -n "${2:-}" ] || die "--arch requires an argument"
                 arch="${2}"; shift ;;
+            --sb)     sb=1 ;;
+            --no-sb)  sb=0 ;;
+            --tpm)    tpm=1 ;;
+            --no-tpm) tpm=0 ;;
             -*)
                 die "unknown option: ${1}" ;;
             *)
@@ -50,7 +125,7 @@ main() {
         shift
     done
 
-    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] <image>"
+    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] <image>"
     [ -f "${image}" ] || die "image not found: ${image}"
 
     [ -n "${arch}" ] || arch="$(host_arch)"
@@ -63,7 +138,35 @@ main() {
         kvm_flags='-enable-kvm -cpu host'
     fi
 
+    machine_flags="$(machine_flags_for_arch "${arch}")"
+    fw_flags=''
+    tpm_flags=''
+
+    if [ "${sb}" -eq 1 ] || [ "${tpm}" -eq 1 ]; then
+        tmpdir="$(mktemp -d)"
+        trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP
+    fi
+
+    if [ "${sb}" -eq 1 ]; then
+        setup_firmware "${arch}"
+        fw_vars="${tmpdir}/fw_vars.fd"
+        cp "${fw_vars_template}" "${fw_vars}"
+        fw_flags="-drive if=pflash,format=raw,readonly=on,file=${fw_code} -drive if=pflash,format=raw,file=${fw_vars}"
+    fi
+
+    if [ "${tpm}" -eq 1 ]; then
+        command -v swtpm > /dev/null 2>&1 || die "swtpm is required for TPM emulation — install the swtpm package"
+        tpm_sock="${tmpdir}/swtpm.sock"
+        swtpm socket \
+            --tpmstate "dir=${tmpdir}" \
+            --ctrl "type=unixio,path=${tpm_sock}" \
+            --tpm2 --daemon
+        tpm_dev="$(tpm_device_for_arch "${arch}")"
+        tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock} -tpmdev emulator,id=tpm0,chardev=chrtpm -device ${tpm_dev},tpmdev=tpm0"
+    fi
+
     # shellcheck disable=SC2086
-    exec "${qemu_bin}" -hda "${image}" -m 2G ${kvm_flags} >&2
+    "${qemu_bin}" -hda "${image}" -m 2G \
+        ${machine_flags} ${kvm_flags} ${fw_flags} ${tpm_flags} >&2
 }
 main "$@"
