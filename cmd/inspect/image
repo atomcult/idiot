@@ -51,7 +51,7 @@ main() {
     seed_offset=$(( seed_start * seed_ss ))
 
     label=$(mdir -b -i "${image}@@${seed_offset}" '::/systems' 2>/dev/null \
-        | head -1 | sed 's|.*/||; s|\r||')
+        | head -1 | sed 's|.*/\(.*\)/$|\1|; s|\r||')
     assertion=$(mcopy -i "${image}@@${seed_offset}" \
         "::/systems/${label}/model" - 2>/dev/null)
     model=$(parse_model "${assertion}")
