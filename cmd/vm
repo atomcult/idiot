@@ -99,16 +99,19 @@ main() {
     image=''
     sb=0
     tpm=0
+    no_gfx=0
 
     while [ $# -gt 0 ]; do
         case "${1}" in
+            --) shift; break ;;
             --arch)
                 [ -n "${2:-}" ] || die "--arch requires an argument"
                 arch="${2}"; shift ;;
-            --sb)     sb=1 ;;
-            --no-sb)  sb=0 ;;
-            --tpm)    tpm=1 ;;
-            --no-tpm) tpm=0 ;;
+            --sb)      sb=1 ;;
+            --no-sb)   sb=0 ;;
+            --tpm)     tpm=1 ;;
+            --no-tpm)  tpm=0 ;;
+            --no-gfx)  no_gfx=1 ;;
             -*)
                 die "unknown option: ${1}" ;;
             *)
@@ -118,7 +121,7 @@ main() {
         shift
     done
 
-    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] <image>"
+    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] <image> [-- <qemu-args>]"
     [ -f "${image}" ] || die "image not found: ${image}"
 
     [ -n "${arch}" ] || arch="$(host_arch)"
@@ -167,6 +170,13 @@ main() {
         tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock} -tpmdev emulator,id=tpm0,chardev=chrtpm -device ${tpm_dev},tpmdev=tpm0"
     fi
 
+    # -nographic subsumes -serial mon:stdio; use it only in console mode
+    if [ "${no_gfx}" -eq 1 ]; then
+        display_flags='-nographic'
+    else
+        display_flags='-serial mon:stdio'
+    fi
+
     # shellcheck disable=SC2086
     "${qemu_bin}" \
         -smp "$(nproc)" \
@@ -179,6 +189,7 @@ main() {
         -drive "file=${image},if=none,format=raw,id=disk1" \
         -device virtio-blk-pci,drive=disk1,bootindex=1 \
         ${tpm_flags} \
-        -serial mon:stdio >&2
+        ${display_flags} \
+        "$@" >&2
 }
 main "$@"
