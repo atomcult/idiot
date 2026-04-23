@@ -36,13 +36,21 @@ main() {
         -h|--help|help)
             help_heading "Usage:" "idiot examples <repo> [options]"
             echo >&2
-            say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, or a short alias (see below)."
+            say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, or a known alias (see below)."
             echo >&2
             help_heading "Options:"
-            help_option "--dest <dir>"    "Clone destination (default: ./<repo-name>)"
-            help_option "--branch <name>" "Clone a specific branch"
-            help_option "--tag <name>"    "Clone a specific tag"
-            help_option "--bare"          "Clone files only, without git history"
+            help_option "--dest <dir>"    "Clone into <dir> (default: ./<repo-name>)"
+            help_option "--branch <name>" "Check out a specific branch"
+            help_option "--tag <name>"    "Check out a specific tag"
+            help_option "--bare"          "Extract files only — no .git directory"
+            echo >&2
+            help_heading "Subcommands:"
+            help_command "list" "List known aliases"
+            echo >&2
+            help_heading "Examples:"
+            say "  ${CYAN}idiot examples${RESET} iot-example-snaps"
+            say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--dest${RESET} ~/dev"
+            say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--tag${RESET} v1.2 ${DIM}--bare${RESET}"
             echo >&2
             help_heading "Known aliases:"
             list_known
