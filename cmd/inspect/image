@@ -17,7 +17,7 @@ sys.exit(1)
 " "${2}"
 }
 
-# Checks whether the byte at the given offset in a file is a LUKS header
+# Checks whether the bytes at the given offset in a file are a LUKS header
 is_luks() {
     python3 -c "
 import sys
@@ -44,6 +44,10 @@ main() {
     command -v debugfs > /dev/null 2>&1 || die "debugfs is required but not found — install e2fsprogs"
     command -v mcopy   > /dev/null 2>&1 || die "mcopy is required but not found — install mtools"
 
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP
+
+    # Model and seeded snap list from ubuntu-seed (always present)
     seed_pinfo=$(partition_sectors "${image}" ubuntu-seed) \
         || die "ubuntu-seed partition not found — is this an Ubuntu Core image?"
     seed_start=$(printf '%s\n' "${seed_pinfo}" | awk '{print $1}')
@@ -56,34 +60,43 @@ main() {
         "::/systems/${label}/model" - 2>/dev/null)
     model=$(parse_model "${assertion}")
 
-    # ubuntu-data only exists after first-boot initialization
-    first_boot=''
+    # ubuntu-data only exists after first-boot initialization (or pre-seeding)
+    first_boot="not yet complete"
+    preseeded="no"
+
     if data_pinfo=$(partition_sectors "${image}" ubuntu-data); then
         data_start=$(printf '%s\n' "${data_pinfo}" | awk '{print $1}')
         data_ss=$(printf '%s\n'    "${data_pinfo}" | awk '{print $3}')
         data_offset=$(( data_start * data_ss ))
 
-        modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
-            "${image}?offset=${data_offset}" 2>/dev/null)
-        mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
-
-        if [ "${mode}" = "run" ]; then
-            first_boot="${GREEN}complete${RESET}"
-        elif [ -n "${mode}" ]; then
-            first_boot="not yet complete ${DIM}(mode: ${mode})${RESET}"
-        elif is_luks "${image}" "${data_offset}"; then
+        if is_luks "${image}" "${data_offset}"; then
             first_boot="unknown ${DIM}(ubuntu-data is encrypted)${RESET}"
         else
-            first_boot="not yet complete"
+            modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
+                "${image}?offset=${data_offset}" 2>/dev/null)
+            mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
+
+            if [ "${mode}" = "run" ]; then
+                first_boot="${GREEN}complete${RESET}"
+            elif [ -n "${mode}" ]; then
+                first_boot="not yet complete ${DIM}(mode: ${mode})${RESET}"
+            fi
+
+            # Extract state.json for pre-seeded detection and detailed inspection
+            debugfs -R "dump /system-data/var/lib/snapd/state.json ${tmpdir}/state.json" \
+                "${image}?offset=${data_offset}" 2>/dev/null
+            if [ -s "${tmpdir}/state.json" ]; then
+                preseeded=$(python3 -c "
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f).get('data', {})
+print('yes' if data.get('preseed') else 'no')
+" "${tmpdir}/state.json" 2>/dev/null)
+            fi
         fi
-    else
-        first_boot="not yet complete"
     fi
 
     # Collect seeded snaps: one "name revision" per line
-    tmpdir=$(mktemp -d)
-    trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP
-
     mdir -b -i "${image}@@${seed_offset}" '::/snaps' 2>/dev/null \
         | sed 's|.*/||; s|\r||' | tr '[:upper:]' '[:lower:]' \
         | while IFS= read -r f; do
@@ -96,9 +109,9 @@ main() {
 
     # Collect optional snaps declared in the model but absent from the seed
     printf '%s\n' "${assertion}" | awk '
-        /^snaps:/          { in_snaps=1; next }
+        /^snaps:/           { in_snaps=1; next }
         in_snaps && /^[^ ]/ { in_snaps=0 }
-        in_snaps && /^  -/ {
+        in_snaps && /^  -/  {
             if (name && presence == "optional") print name
             name=""; presence=""
         }
@@ -115,6 +128,7 @@ main() {
         | awk '{if (length($1) > m) m=length($1)} END {print m+0}')
 
     say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
+    say "${BOLD}Pre-seeded:${RESET}  ${preseeded}"
     say "${BOLD}First boot:${RESET}  ${first_boot}"
     echo >&2
     say "${BOLD}Seeded snaps:${RESET}"
@@ -127,5 +141,17 @@ main() {
             pad=$(( max_len - ${#name} ))
             say "  ${CYAN}${name}${RESET}$(printf '%*s' "${pad}" '')  ${YELLOW}not seeded${RESET}"
         done < "${tmpdir}/absent_optional"
+
+    # Detailed state inspection from state.json (when readable)
+    [ -s "${tmpdir}/state.json" ] || return 0
+    command -v snap > /dev/null 2>&1 || return 0
+
+    echo >&2
+    say "${BOLD}Installed snaps:${RESET}"
+    snap debug state "${tmpdir}/state.json" >&2 2>/dev/null
+
+    echo >&2
+    say "${BOLD}Changes:${RESET}"
+    snap debug state --changes "${tmpdir}/state.json" >&2 2>/dev/null
 }
 main "$@"
