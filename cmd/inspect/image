@@ -42,20 +42,27 @@ main() {
     command -v sfdisk  > /dev/null 2>&1 || die "sfdisk is required but not found"
     command -v python3 > /dev/null 2>&1 || die "python3 is required but not found"
     command -v debugfs > /dev/null 2>&1 || die "debugfs is required but not found — install e2fsprogs"
+    command -v mcopy   > /dev/null 2>&1 || die "mcopy is required but not found — install mtools"
 
-    partition_sectors "${image}" ubuntu-seed > /dev/null \
+    seed_pinfo=$(partition_sectors "${image}" ubuntu-seed) \
         || die "ubuntu-seed partition not found — is this an Ubuntu Core image?"
+    seed_start=$(printf '%s\n' "${seed_pinfo}" | awk '{print $1}')
+    seed_ss=$(printf '%s\n'    "${seed_pinfo}" | awk '{print $3}')
+    seed_offset=$(( seed_start * seed_ss ))
 
-    model=''
-    first_boot=''
+    label=$(mdir -b -i "${image}@@${seed_offset}" '::/systems' 2>/dev/null \
+        | head -1 | sed 's|.*/||; s|\r||')
+    assertion=$(mcopy -i "${image}@@${seed_offset}" \
+        "::/systems/${label}/model" - 2>/dev/null)
+    model=$(parse_model "${assertion}")
 
     # ubuntu-data only exists after first-boot initialization
+    first_boot=''
     if data_pinfo=$(partition_sectors "${image}" ubuntu-data); then
         data_start=$(printf '%s\n' "${data_pinfo}" | awk '{print $1}')
         data_ss=$(printf '%s\n'    "${data_pinfo}" | awk '{print $3}')
         data_offset=$(( data_start * data_ss ))
 
-        # Read modeenv; debugfs accepts image?offset=N for partition access
         modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
             "${image}?offset=${data_offset}" 2>/dev/null)
         mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
@@ -69,32 +76,8 @@ main() {
         else
             first_boot="not yet complete"
         fi
-
-        assertion=$(debugfs -R 'cat /system-data/var/lib/snapd/device/model' \
-            "${image}?offset=${data_offset}" 2>/dev/null)
-        model=$(parse_model "${assertion}")
     else
         first_boot="not yet complete"
-    fi
-
-    # Fall back to ubuntu-seed (FAT32) for pre-seeding or encrypted images
-    if [ -z "${model}" ]; then
-        command -v mcopy > /dev/null 2>&1 \
-            || die "mcopy (mtools) is required to read model from an unbooted image — install mtools"
-
-        seed_pinfo=$(partition_sectors "${image}" ubuntu-seed) \
-            || die "ubuntu-seed partition not found"
-        seed_start=$(printf '%s\n' "${seed_pinfo}" | awk '{print $1}')
-        seed_ss=$(printf '%s\n'    "${seed_pinfo}" | awk '{print $3}')
-        seed_offset=$(( seed_start * seed_ss ))
-
-        label=$(mdir -b -i "${image}@@${seed_offset}" '::/systems' 2>/dev/null \
-            | head -1 | sed 's|.*/||; s|\r||')
-        if [ -n "${label}" ]; then
-            assertion=$(mcopy -i "${image}@@${seed_offset}" \
-                "::/systems/${label}/model" - 2>/dev/null)
-            model=$(parse_model "${assertion}")
-        fi
     fi
 
     say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
