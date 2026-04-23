@@ -20,6 +20,9 @@ IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/share}"
 # Per-user todo lists directory
 IDIOT_TODO_DIR="${IDIOT_TODO_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/todo}"
 
+# User-defined example repo aliases (supplements bundled share/examples/)
+IDIOT_EXAMPLES_DIR="${IDIOT_EXAMPLES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/examples}"
+
 # Use colors only when stderr is a TTY and NO_COLOR is unset
 # shellcheck disable=SC2034
 if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then

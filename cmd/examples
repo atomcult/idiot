@@ -1,21 +1,26 @@
 #!/usr/bin/env sh
 # cmd/examples - clone an example repository
-# Usage: idiot examples [list | <repo> [options]]
+# Usage: idiot examples [list | add | remove | <repo> [options]]
 
 . "$(dirname "${0}")/../lib/common.sh"
 
 list_known() {
-    ex_dir="${IDIOT_DATA_DIR}/examples"
-    [ -d "${ex_dir}" ] || { say "  ${DIM}(none)${RESET}"; return; }
     found=0
-    for f in "${ex_dir}"/*; do
-        [ -f "${f}" ] || continue
-        found=1
-        alias_name="$(basename "${f}")"
-        url="$(cat "${f}")"
-        gap=$(( 28 - ${#alias_name} ))
-        [ "${gap}" -lt 2 ] && gap=2
-        say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}${RESET}"
+    for ex_dir in "${IDIOT_DATA_DIR}/examples" "${IDIOT_EXAMPLES_DIR}"; do
+        [ -d "${ex_dir}" ] || continue
+        for f in "${ex_dir}"/*; do
+            [ -f "${f}" ] || continue
+            found=1
+            alias_name="$(basename "${f}")"
+            url="$(head -1 "${f}")"
+            gap=$(( 28 - ${#alias_name} ))
+            [ "${gap}" -lt 2 ] && gap=2
+            if [ "${ex_dir}" = "${IDIOT_EXAMPLES_DIR}" ]; then
+                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}  (user)${RESET}"
+            else
+                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}${RESET}"
+            fi
+        done
     done
     [ "${found}" -eq 1 ] || say "  ${DIM}(none)${RESET}"
 }
@@ -25,10 +30,68 @@ resolve_url() {
         */*)
             printf 'https://github.com/%s\n' "${1}" ;;
         *)
-            ex_file="${IDIOT_DATA_DIR}/examples/${1}"
-            [ -f "${ex_file}" ] || die "unknown alias '${1}' — use <user>/<repo> or run 'idiot examples list'"
-            cat "${ex_file}" ;;
+            for ex_dir in "${IDIOT_EXAMPLES_DIR}" "${IDIOT_DATA_DIR}/examples"; do
+                ex_file="${ex_dir}/${1}"
+                [ -f "${ex_file}" ] && { head -1 "${ex_file}"; return 0; }
+            done
+            die "unknown alias '${1}' — use <user>/<repo> or run 'idiot examples list'" ;;
     esac
+}
+
+do_add() {
+    name="${1:-}"
+    target="${2:-}"
+
+    { [ -n "${name}" ] && [ -n "${target}" ]; } \
+        || die "usage: idiot examples add <alias> <user>/<repo>"
+
+    case "${name}" in
+        *[!A-Za-z0-9_-]*) die "invalid alias '${name}': use only letters, digits, hyphens, underscores" ;;
+    esac
+
+    case "${target}" in
+        *://*)  url="${target}" ;;
+        */*)    url="https://github.com/${target}" ;;
+        *)      die "target must be a <user>/<repo> slug or a full URL" ;;
+    esac
+
+    mkdir -p "${IDIOT_EXAMPLES_DIR}"
+    dest="${IDIOT_EXAMPLES_DIR}/${name}"
+
+    [ -f "${dest}" ] && die "alias '${name}' already exists (use 'idiot examples remove ${name}' first)"
+
+    [ -f "${IDIOT_DATA_DIR}/examples/${name}" ] && \
+        say "${YELLOW}warning:${RESET} '${name}' shadows a built-in alias"
+
+    printf '%s\n' "${url}" > "${dest}"
+    say "Added alias '${BOLD}${name}${RESET}' → ${DIM}${url}${RESET}"
+}
+
+do_remove() {
+    name="${1:-}"
+
+    [ -n "${name}" ] || {
+        command -v fzf > /dev/null 2>&1 \
+            || die "an alias name is required (fzf not found for interactive selection)"
+        [ -d "${IDIOT_EXAMPLES_DIR}" ] || die "no user-defined aliases found"
+        files=$(find "${IDIOT_EXAMPLES_DIR}" -maxdepth 1 -type f ! -name '.*' | sort \
+            | sed "s|${IDIOT_EXAMPLES_DIR}/||")
+        [ -n "${files}" ] || die "no user-defined aliases found"
+        export IDIOT_EXAMPLES_DIR
+        preview_cmd="$(file_preview_cmd IDIOT_EXAMPLES_DIR)"
+        name=$(printf '%s\n' "${files}" | fzf --prompt="remove alias> " \
+            --preview="${preview_cmd}") || exit 0
+    }
+
+    alias_file="${IDIOT_EXAMPLES_DIR}/${name}"
+    [ -f "${alias_file}" ] || {
+        [ -f "${IDIOT_DATA_DIR}/examples/${name}" ] \
+            && die "cannot remove built-in alias '${name}'"
+        die "alias '${name}' not found"
+    }
+
+    rm "${alias_file}"
+    say "Removed alias '${BOLD}${name}${RESET}'"
 }
 
 main() {
@@ -45,18 +108,27 @@ main() {
             help_option "--bare"          "Extract files only — no .git directory"
             echo >&2
             help_heading "Subcommands:"
-            help_command "list" "List known aliases"
+            help_command "list"   "List known aliases"
+            help_command "add"    "Add a user-defined alias"
+            help_command "remove" "Remove a user-defined alias"
             echo >&2
             help_heading "Examples:"
             say "  ${CYAN}idiot examples${RESET} iot-example-snaps"
             say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--dest${RESET} ~/dev"
             say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--tag${RESET} v1.2 ${DIM}--bare${RESET}"
+            say "  ${CYAN}idiot examples add${RESET} my-alias canonical/my-snap"
             echo >&2
             help_heading "Known aliases:"
             list_known
             exit 0 ;;
         list)
             list_known
+            exit 0 ;;
+        add)
+            shift; do_add "$@"
+            exit 0 ;;
+        remove)
+            shift; do_remove "$@"
             exit 0 ;;
     esac
 
