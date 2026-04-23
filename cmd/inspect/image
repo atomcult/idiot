@@ -43,31 +43,39 @@ main() {
     command -v python3 > /dev/null 2>&1 || die "python3 is required but not found"
     command -v debugfs > /dev/null 2>&1 || die "debugfs is required but not found — install e2fsprogs"
 
-    data_pinfo=$(partition_sectors "${image}" ubuntu-data) \
-        || die "ubuntu-data partition not found — is this an Ubuntu Core image?"
-    data_start=$(printf '%s\n' "${data_pinfo}" | awk '{print $1}')
-    data_ss=$(printf '%s\n'    "${data_pinfo}" | awk '{print $3}')
-    data_offset=$(( data_start * data_ss ))
+    partition_sectors "${image}" ubuntu-seed > /dev/null \
+        || die "ubuntu-seed partition not found — is this an Ubuntu Core image?"
 
-    # Read modeenv from ubuntu-data; debugfs accepts image?offset=N for partition access
-    modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
-        "${image}?offset=${data_offset}" 2>/dev/null)
-    mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
+    model=''
+    first_boot=''
 
-    if [ "${mode}" = "run" ]; then
-        first_boot="${GREEN}complete${RESET}"
-    elif [ -n "${mode}" ]; then
-        first_boot="not yet complete ${DIM}(mode: ${mode})${RESET}"
-    elif is_luks "${image}" "${data_offset}"; then
-        first_boot="unknown ${DIM}(ubuntu-data is encrypted)${RESET}"
+    # ubuntu-data only exists after first-boot initialization
+    if data_pinfo=$(partition_sectors "${image}" ubuntu-data); then
+        data_start=$(printf '%s\n' "${data_pinfo}" | awk '{print $1}')
+        data_ss=$(printf '%s\n'    "${data_pinfo}" | awk '{print $3}')
+        data_offset=$(( data_start * data_ss ))
+
+        # Read modeenv; debugfs accepts image?offset=N for partition access
+        modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
+            "${image}?offset=${data_offset}" 2>/dev/null)
+        mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
+
+        if [ "${mode}" = "run" ]; then
+            first_boot="${GREEN}complete${RESET}"
+        elif [ -n "${mode}" ]; then
+            first_boot="not yet complete ${DIM}(mode: ${mode})${RESET}"
+        elif is_luks "${image}" "${data_offset}"; then
+            first_boot="unknown ${DIM}(ubuntu-data is encrypted)${RESET}"
+        else
+            first_boot="not yet complete"
+        fi
+
+        assertion=$(debugfs -R 'cat /system-data/var/lib/snapd/device/model' \
+            "${image}?offset=${data_offset}" 2>/dev/null)
+        model=$(parse_model "${assertion}")
     else
         first_boot="not yet complete"
     fi
-
-    # Model: try ubuntu-data first (available post-seeding)
-    assertion=$(debugfs -R 'cat /system-data/var/lib/snapd/device/model' \
-        "${image}?offset=${data_offset}" 2>/dev/null)
-    model=$(parse_model "${assertion}")
 
     # Fall back to ubuntu-seed (FAT32) for pre-seeding or encrypted images
     if [ -z "${model}" ]; then
