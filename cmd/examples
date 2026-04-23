@@ -281,6 +281,7 @@ main() {
         fi
 
         # Interactive subdir picker (also offline)
+        subdirs=""
         if [ "${pick_subdir}" -eq 1 ]; then
             require nnn "install nnn for interactive directory selection"
             _nnn_tmp=$(mktemp -d)
@@ -289,12 +290,18 @@ main() {
             git -C "${cpath}" ls-tree -r -d --name-only "${ref:-HEAD}" \
                 | while IFS= read -r dir; do mkdir -p "${_nnn_tmp}/${dir}"; done
             nnn -p "${_nnn_sel}" "${_nnn_tmp}" >&2 || exit 0
-            subdir=$(cat "${_nnn_sel}")
-            subdir="${subdir#"${_nnn_tmp}"}"
-            subdir="${subdir#/}"
+            subdirs=$(while IFS= read -r _line; do
+                _line="${_line#"${_nnn_tmp}"}"; _line="${_line#/}"
+                [ -n "${_line}" ] && printf '%s\n' "${_line}"
+            done < "${_nnn_sel}")
             rm -rf "${_nnn_tmp}"; rm -f "${_nnn_sel}"
             trap - EXIT INT TERM
-            [ -n "${subdir}" ] || exit 0
+            [ -n "${subdirs}" ] || exit 0
+            # collapse to single subdir if only one was selected
+            _nsel=$(printf '%s\n' "${subdirs}" | grep -c '.')
+            if [ "${_nsel}" -eq 1 ]; then
+                subdir="${subdirs}"; subdirs=""
+            fi
             bare=1
         fi
 
@@ -303,7 +310,20 @@ main() {
         if [ "${bare}" -eq 1 ]; then
             [ -e "${dest}" ] && die "destination '${dest}' already exists"
             mkdir -p "${dest}"
-            if [ -n "${subdir}" ]; then
+            if [ -n "${subdirs}" ]; then
+                printf '%s\n' "${subdirs}" | while IFS= read -r sd; do
+                    [ -n "${sd}" ] || continue
+                    sdbase="${sd##*/}"
+                    git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${sd}" | grep -q '^' \
+                        || die "subdirectory '${sd}' not found"
+                    strip=$(printf '%s' "${sd}" | awk -F/ '{print NF}')
+                    mkdir -p "${dest}/${sdbase}"
+                    git -C "${cpath}" archive "${ref:-HEAD}" -- "${sd}" \
+                        | tar -x --strip-components="${strip}" -C "${dest}/${sdbase}" \
+                        || die "extraction failed"
+                    say "Extracted ${DIM}${sd}${RESET} → ${BOLD}${dest}/${sdbase}${RESET} ${DIM}(no git history)${RESET}"
+                done
+            elif [ -n "${subdir}" ]; then
                 git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${subdir}" | grep -q '^' \
                     || die "subdirectory '${subdir}' not found"
                 strip=$(printf '%s' "${subdir}" | awk -F/ '{print NF}')
