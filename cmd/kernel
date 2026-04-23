@@ -1,0 +1,163 @@
+#!/usr/bin/env sh
+# cmd/kernel - clone an Ubuntu kernel from Launchpad
+
+. "$(dirname "${0}")/../lib/common.sh"
+
+KERNEL_DATA="${IDIOT_DATA_DIR}/kernels"
+
+kernel_url() {
+    _series="${1}"; _flavour="${2:-}"
+    if [ -z "${_flavour}" ] || [ "${_flavour}" = "generic" ]; then
+        printf 'https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/%s\n' \
+            "${_series}"
+    else
+        printf 'https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux-%s/+git/%s\n' \
+            "${_flavour}" "${_series}"
+    fi
+}
+
+_list_data() {
+    _ld_file="${1}"; _ld_col="${2:-20}"
+    [ -f "${_ld_file}" ] || die "data file not found: ${_ld_file}"
+    while IFS= read -r _ld_line; do
+        case "${_ld_line}" in ''|'#'*) continue ;; esac
+        _ld_name="${_ld_line%% *}"
+        _ld_rest="${_ld_line#* }"
+        _ld_gap=$(( _ld_col - ${#_ld_name} ))
+        [ "${_ld_gap}" -lt 2 ] && _ld_gap=2
+        say "  ${CYAN}${_ld_name}${RESET}$(printf '%*s' "${_ld_gap}" '')${DIM}${_ld_rest}${RESET}"
+    done < "${_ld_file}"
+}
+
+_pick_from() {
+    _pf_file="${1}"; _pf_prompt="${2:-pick> }"
+    require fzf "install fzf for interactive selection"
+    [ -f "${_pf_file}" ] || die "data file not found: ${_pf_file}"
+    grep -v '^[[:space:]]*\(#\|$\)' "${_pf_file}" \
+        | fzf --prompt="${_pf_prompt}" | awk '{print $1}'
+}
+
+main() {
+    case "${1:-}" in
+        ""|--help|-h|help)
+            help_heading "Usage:" "idiot kernel [<series>] [<flavour>] [options]"
+            echo >&2
+            say "Clones an Ubuntu kernel from Launchpad. Defaults to a shallow clone"
+            say "(${BOLD}--depth 1${RESET}) since kernel repositories are very large."
+            echo >&2
+            help_heading "Options:"
+            help_option "--series [name]"  "Ubuntu series; omit value for fzf picker"
+            help_option "--flavour [name]" "Kernel flavour (default: generic); omit value for fzf picker"
+            help_option "--dest <dir>"     "Destination directory"
+            help_option "--depth <n>"      "Clone depth (default: 1; use 0 for a full clone)"
+            help_option "--branch <name>"  "Branch to clone"
+            echo >&2
+            help_heading "Series:"
+            _list_data "${KERNEL_DATA}/series" 12
+            echo >&2
+            help_heading "Flavours:"
+            _list_data "${KERNEL_DATA}/flavours" 16
+            echo >&2
+            help_heading "Examples:"
+            say "  ${CYAN}idiot kernel${RESET} noble"
+            say "  ${CYAN}idiot kernel${RESET} noble raspi"
+            say "  ${CYAN}idiot kernel${RESET} jammy xilinx-zynqmp ${DIM}--dest${RESET} ~/src/zynqmp"
+            say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--flavour${RESET}          ${DIM}# fzf picker${RESET}"
+            say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--depth${RESET} 0          ${DIM}# full clone${RESET}"
+            exit 0 ;;
+    esac
+
+    series=""
+    pick_series=0
+    flavour=""
+    pick_flavour=0
+    dest=""
+    depth=1
+    branch=""
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            --series)
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    series="${2}"; shift 2
+                else
+                    pick_series=1; shift
+                fi ;;
+            --series=*)
+                series="${1#--series=}"; shift ;;
+            --flavour)
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    flavour="${2}"; shift 2
+                else
+                    pick_flavour=1; shift
+                fi ;;
+            --flavour=*)
+                flavour="${1#--flavour=}"; shift ;;
+            --dest)
+                [ -n "${2:-}" ] || die "--dest requires a directory argument"
+                dest="${2}"; shift 2 ;;
+            --dest=*)
+                dest="${1#--dest=}"; shift ;;
+            --depth)
+                [ -n "${2:-}" ] || die "--depth requires a value"
+                depth="${2}"; shift 2 ;;
+            --depth=*)
+                depth="${1#--depth=}"; shift ;;
+            --branch)
+                [ -n "${2:-}" ] || die "--branch requires a branch name"
+                branch="${2}"; shift 2 ;;
+            --branch=*)
+                branch="${1#--branch=}"; shift ;;
+            --*)
+                die "unknown option: ${1}" ;;
+            *)
+                if [ -z "${series}" ] && [ "${pick_series}" -eq 0 ]; then
+                    series="${1}"
+                elif [ -z "${flavour}" ] && [ "${pick_flavour}" -eq 0 ]; then
+                    flavour="${1}"
+                else
+                    die "unexpected argument: ${1}"
+                fi
+                shift ;;
+        esac
+    done
+
+    require git
+
+    if [ -z "${series}" ]; then
+        series=$(_pick_from "${KERNEL_DATA}/series" "series> ") || exit 0
+        [ -n "${series}" ] || exit 0
+    fi
+
+    if [ "${pick_flavour}" -eq 1 ]; then
+        flavour=$(_pick_from "${KERNEL_DATA}/flavours" "flavour> ") || exit 0
+        [ -n "${flavour}" ] || exit 0
+    fi
+    [ -n "${flavour}" ] || flavour="generic"
+
+    url=$(kernel_url "${series}" "${flavour}")
+
+    if [ -z "${dest}" ]; then
+        if [ "${flavour}" = "generic" ]; then
+            dest="linux-${series}"
+        else
+            dest="linux-${flavour}-${series}"
+        fi
+    fi
+
+    [ -e "${dest}" ] && die "destination '${dest}' already exists"
+
+    set -- git clone
+    [ "${depth}" = "0" ] || set -- "$@" --depth "${depth}"
+    [ -n "${branch}" ] && set -- "$@" --branch "${branch}"
+    set -- "$@" "${url}" "${dest}"
+
+    if [ "${flavour}" = "generic" ]; then
+        say "Cloning ${BOLD}linux${RESET} (${series})..."
+    else
+        say "Cloning ${BOLD}linux-${flavour}${RESET} (${series})..."
+    fi
+    "$@" >&2 || die "clone failed"
+    say "Cloned to ${BOLD}${dest}${RESET}"
+}
+main "$@"

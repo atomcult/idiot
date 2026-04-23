@@ -1,0 +1,7 @@
+# Ubuntu kernel series available on Launchpad
+# Format: <codename>  <description>
+noble    Ubuntu 24.04 LTS
+jammy    Ubuntu 22.04 LTS
+focal    Ubuntu 20.04 LTS
+oracular Ubuntu 24.10
+plucky   Ubuntu 25.04
