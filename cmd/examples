@@ -106,23 +106,39 @@ do_remove() {
 do_update() {
     name="${1:-}"
     if [ -n "${name}" ]; then
+        url=$(resolve_url "${name}")
         path="$(_cache_path "${name}")"
-        [ -d "${path}" ] || die "'${name}' is not cached — run: idiot examples ${name}"
-        say "Updating ${BOLD}${name}${RESET}..."
-        git -C "${path}" remote update --prune >&2 || die "update failed"
-        say "Updated ${BOLD}${name}${RESET}"
-    else
-        [ -d "${EXAMPLES_CACHE}" ] || die "no cached repos — clone an aliased repo first"
-        found=0
-        for path in "${EXAMPLES_CACHE}"/*/; do
-            [ -d "${path}" ] || continue
-            found=1
-            name="$(basename "${path%/}")"
+        if [ -d "${path}" ]; then
             say "Updating ${BOLD}${name}${RESET}..."
-            git -C "${path}" remote update --prune >&2 \
-                || say "${YELLOW}warning:${RESET} failed to update '${name}'"
+            git -C "${path}" remote update --prune >&2 || die "update failed"
+            say "Updated ${BOLD}${name}${RESET}"
+        else
+            say "Fetching ${BOLD}${name}${RESET} into cache..."
+            git clone --mirror "${url}" "${path}" >&2 || die "fetch failed"
+            say "Cached ${BOLD}${name}${RESET}"
+        fi
+    else
+        found=0
+        for ex_dir in "${IDIOT_DATA_DIR}/examples" "${IDIOT_EXAMPLES_DIR}"; do
+            [ -d "${ex_dir}" ] || continue
+            for f in "${ex_dir}"/*; do
+                [ -f "${f}" ] || continue
+                found=1
+                alias_name="$(basename "${f}")"
+                url="$(head -1 "${f}")"
+                path="$(_cache_path "${alias_name}")"
+                if [ -d "${path}" ]; then
+                    say "Updating ${BOLD}${alias_name}${RESET}..."
+                    git -C "${path}" remote update --prune >&2 \
+                        || say "${YELLOW}warning:${RESET} failed to update '${alias_name}'"
+                else
+                    say "Fetching ${BOLD}${alias_name}${RESET} into cache..."
+                    git clone --mirror "${url}" "${path}" >&2 \
+                        || say "${YELLOW}warning:${RESET} failed to fetch '${alias_name}'"
+                fi
+            done
         done
-        [ "${found}" -eq 1 ] || die "no cached repos — clone an aliased repo first"
+        [ "${found}" -eq 1 ] || die "no aliases found"
     fi
 }
 
