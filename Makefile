@@ -1,3 +1,5 @@
+.POSIX:
+
 PREFIX   ?= $(HOME)/.local
 BINDIR    = $(PREFIX)/bin
 LIBDIR    = $(PREFIX)/lib/idiot
@@ -15,7 +17,7 @@ install:
 	rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/lib'
 	cp -rp cmd lib '$(LIBDIR)/'
 	install -m755 idiot '$(LIBDIR)/idiot'
-	printf '#!/usr/bin/env sh\nIDIOT_ROOT=%s\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
+	printf '#!/usr/bin/env sh\n: "$${IDIOT_ROOT:=%s}"\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
 	    '$(LIBDIR)' > '$(BINDIR)/idiot'
 	chmod 755 '$(BINDIR)/idiot'
 

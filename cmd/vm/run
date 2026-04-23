@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# cmd/vm - launch a QEMU VM with the given disk image
-# Usage: idiot vm [--arch <arch>] [--sb] [--tpm] <image>
+# cmd/vm/run - launch a QEMU VM with the given disk image
+# Usage: idiot vm run [--arch <arch>] [--sb] [--tpm] <image>
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../../lib/common.sh"
 
 # Normalise uname -m output to snap arch naming
 host_arch() {
@@ -136,7 +136,7 @@ main() {
         shift
     done
 
-    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] <image> [-- <qemu-args>]"
+    [ -n "${image}" ] || die "usage: idiot vm run [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] <image> [-- <qemu-args>]"
     [ -f "${image}" ] || die "image not found: ${image}"
 
     [ -n "${arch}" ] || arch="$(host_arch)"

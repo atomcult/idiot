@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# cmd/vm/help - usage for the vm subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    say "${BOLD}${BLUE}Usage:${RESET} idiot vm <subcommand>"
+    echo >&2
+    say "${BOLD}${BLUE}Subcommands:${RESET}"
+    say "  ${CYAN}run${RESET}    Launch a QEMU VM"
+}
+main "$@"
