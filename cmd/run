@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# cmd/run - run a snap-bundled tool directly
+# Usage: idiot run <binary> [args...]
+
+. "$(dirname "${0}")/../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot run <binary> [args...]"
+            echo >&2
+            say "Run a tool bundled inside the idiot snap. When not running"
+            say "inside a snap, falls back to the system PATH."
+            echo >&2
+            help_heading "Examples:"
+            say "  idiot run sfdisk --json /dev/sda"
+            say "  idiot run debugfs -R 'ls /' /dev/sda2"
+            exit 0 ;;
+    esac
+    [ -n "${1:-}" ] || die "usage: idiot run <binary> [args...]"
+    snap_app "$@"
+}
+main "$@"

@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# cmd/process/help - show help for the process command group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+help_heading "Usage:" "idiot process <subcommand>"
+echo >&2
+help_heading "Subcommands:"
+help_command "list" "List available process checklists"
+help_command "show" "Display a process checklist"

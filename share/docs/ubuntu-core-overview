@@ -1,0 +1,51 @@
+# Ubuntu Core Overview
+Quick reference for Ubuntu Core architecture and key concepts.
+
+## What is Ubuntu Core?
+Ubuntu Core is a minimal, immutable OS for IoT and embedded devices. It is
+built entirely from snaps — every component, including the kernel, gadget,
+and base, is a snap. This makes it fully transactional and OTA-updateable.
+
+## Core snap types
+
+**kernel**    The Linux kernel and drivers. Updated as a snap.
+**gadget**    Board-specific configuration: partition layout, bootloader
+              settings, and gadget.yaml. Unique to each hardware platform.
+**base**      The root filesystem snap (e.g. core24, core22). Provides libc
+              and standard utilities.
+**app**       Regular application snaps. Strictly confined by default.
+**snapd**     The snap daemon itself. Updated as a snap on Core.
+
+## Partition layout (typical)
+ubuntu-seed    FAT32   Read-only seed partition. Holds model assertion,
+                       system label, and seeded snap files.
+ubuntu-boot    ext4    Boot assets and recovery system data.
+ubuntu-save    ext4    Persistent data that survives factory reset.
+ubuntu-data    ext4    Main data partition: /home, snap data, state.json.
+               (LUKS-encrypted on full disk encryption images)
+
+## First boot sequence
+1. Bootloader loads the kernel from ubuntu-boot.
+2. snapd (in initramfs mode) reads the model assertion from ubuntu-seed.
+3. Seeded snaps from ubuntu-seed are installed to ubuntu-data.
+4. snapd writes state.json and transitions to "run" mode.
+5. The gadget snap configures the device (interfaces, serial, etc.)
+6. modeenv records mode=run when first boot completes successfully.
+
+## Key files on a running device
+/var/lib/snapd/state.json      snapd state: installed snaps, changes, tasks
+/var/lib/snapd/modeenv         Current boot mode (run/recover/install)
+/var/lib/snapd/device/        Device identity and serial assertion
+/var/lib/snapd/snaps/          Mounted .snap files
+/var/lib/snapd/mount/          Mount namespace symlinks
+
+## Useful commands on device
+snap list                      Installed snaps
+snap changes                   Recent snap operations
+snap connections <snap>        Interface connections for a snap
+snap logs <snap> -n 50         Last 50 log lines
+sudo snap install --dangerous  Install unreviewed/unsigned snap
+
+## See also
+idiot inspect image <img>      Inspect an offline disk image
+idiot process show uc-bringup  New device bringup checklist

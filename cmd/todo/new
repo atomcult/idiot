@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+# cmd/todo/new - create a new to-do list
+# Usage: idiot todo new <name> [<template>]
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot todo new <name> [<template>]"
+            echo >&2
+            say "Create a new to-do list. If a template name is given, the list"
+            say "is pre-populated from that template with all items reset to pending."
+            exit 0 ;;
+    esac
+
+    name="${1:-}"
+    template="${2:-}"
+
+    [ -n "${name}" ] || die "usage: idiot todo new <name> [<template>]"
+
+    case "${name}" in
+        *[!A-Za-z0-9_.-]*) die "invalid list name '${name}': use only letters, digits, hyphens, underscores, dots" ;;
+    esac
+
+    mkdir -p "${IDIOT_TODO_DIR}"
+    list_file="${IDIOT_TODO_DIR}/${name}"
+
+    [ -f "${list_file}" ] && die "list '${name}' already exists (use 'idiot todo remove ${name}' first)"
+
+    if [ -n "${template}" ]; then
+        tmpl_dir="${IDIOT_DATA_DIR}/todo-templates"
+        tmpl_file="${tmpl_dir}/${template}"
+
+        [ -f "${tmpl_file}" ] || {
+            say "Available templates:"
+            for f in "${tmpl_dir}"/*; do
+                [ -f "${f}" ] && say "  $(basename "${f}")"
+            done
+            die "template '${template}' not found"
+        }
+
+        sed 's/^\[x\] /[ ] /' "${tmpl_file}" > "${list_file}"
+        say "Created '${BOLD}${name}${RESET}' from template '${BOLD}${template}${RESET}'"
+    else
+        : > "${list_file}"
+        say "Created '${BOLD}${name}${RESET}'"
+    fi
+}
+main "$@"

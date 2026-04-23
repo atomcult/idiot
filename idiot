@@ -6,6 +6,7 @@
 set -e
 
 IDIOT_ROOT="${IDIOT_ROOT:-$(cd "$(dirname "${0}")" && pwd)}"
+export IDIOT_ROOT
 IDIOT_CMD_DIR="${IDIOT_ROOT}/cmd"
 IDIOT_LIB_DIR="${IDIOT_ROOT}/lib"
 
@@ -19,10 +20,14 @@ idiot_help() {
     echo >&2
     help_heading "Commands:"
     help_command "env"     "Manage shell environment (auth, store, arch)"
-    help_command "inspect" "Inspect snap store objects"
+    help_command "inspect" "Inspect snap store objects and disk images"
     help_command "models"  "Manage model assertions"
     help_command "prune"   "Remove development leftovers"
     help_command "vm"      "Launch a QEMU VM"
+    help_command "process" "Step-by-step process checklists"
+    help_command "todo"    "Manage per-project to-do lists"
+    help_command "docs"    "Browse and search IoT reference docs"
+    help_command "run"     "Run a snap-bundled tool directly"
     help_command "init"    "Set up shell integration"
     echo >&2
     help_heading "Shell setup" "(run once, add to your shell rc):"

@@ -14,8 +14,8 @@ check:
 
 install:
 	install -d '$(LIBDIR)' '$(BINDIR)'
-	rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/lib'
-	cp -rp cmd lib '$(LIBDIR)/'
+	rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/lib' '$(LIBDIR)/share'
+	cp -rp cmd lib share '$(LIBDIR)/'
 	install -m755 idiot '$(LIBDIR)/idiot'
 	printf '#!/usr/bin/env sh\n: "$${IDIOT_ROOT:=%s}"\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
 	    '$(LIBDIR)' > '$(BINDIR)/idiot'

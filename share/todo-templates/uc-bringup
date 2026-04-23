@@ -1,0 +1,22 @@
+# Ubuntu Core device bringup
+[ ] Obtain hardware and confirm it powers on
+[ ] Identify SoC, boot ROM, and storage type
+[ ] Source or build the appropriate gadget snap
+[ ] Source or build the kernel snap with required drivers
+[ ] Create model assertion for the device
+[ ] Build test image: ubuntu-image snap <model>
+[ ] Flash image to device storage
+[ ] Boot and capture first boot console output
+[ ] Confirm first boot completes successfully
+[ ] SSH access working
+[ ] snap list matches expected seeded snaps
+[ ] All snap interfaces connected
+[ ] No errors in snap changes
+[ ] Network connectivity verified
+[ ] Serial port access verified
+[ ] Secure boot status confirmed
+[ ] TPM provisioning confirmed (if applicable)
+[ ] OTA update tested: snap refresh
+[ ] Recovery mode tested
+[ ] Factory reset tested
+[ ] Document any hardware-specific workarounds

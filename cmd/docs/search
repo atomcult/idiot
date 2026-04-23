@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+# cmd/docs/search - search across all reference docs
+# Usage: idiot docs search <terms...>
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot docs search <terms...>"
+            echo >&2
+            say "Search for terms across all bundled reference docs."
+            say "Multiple terms are passed as separate grep arguments (all must match)."
+            exit 0 ;;
+    esac
+
+    [ -n "${1:-}" ] || die "usage: idiot docs search <terms...>"
+
+    docs_dir="${IDIOT_DATA_DIR}/docs"
+    [ -d "${docs_dir}" ] || die "docs directory not found at ${docs_dir}"
+
+    pattern="${1}"; shift
+    files=$(find "${docs_dir}" -maxdepth 1 -type f | sort)
+    [ -n "${files}" ] || die "no docs found"
+
+    results=0
+    for f in ${files}; do
+        matches=$(grep -in "${pattern}" "${f}" 2>/dev/null) || continue
+        for term in "$@"; do
+            printf '%s\n' "${matches}" | grep -qi "${term}" || { matches=""; break; }
+        done
+        [ -n "${matches}" ] || continue
+        results=$(( results + 1 ))
+        say "${BOLD}${CYAN}$(basename "${f}")${RESET}"
+        printf '%s\n' "${matches}" | while IFS= read -r line; do
+            say "  ${DIM}${line}${RESET}"
+        done
+        echo >&2
+    done
+
+    [ "${results}" -gt 0 ] || say "${DIM}No results for '${pattern}'${RESET}"
+}
+main "$@"

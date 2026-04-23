@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+# cmd/docs/show - display a reference doc
+# Usage: idiot docs show [<name>]
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot docs show [<name>]"; exit 0 ;;
+    esac
+
+    docs_dir="${IDIOT_DATA_DIR}/docs"
+    [ -d "${docs_dir}" ] || die "docs directory not found at ${docs_dir}"
+
+    name="${1:-}"
+
+    [ -n "${name}" ] || {
+        command -v fzf > /dev/null 2>&1 \
+            || die "a doc name is required (fzf not found for interactive selection)"
+
+        files=$(find "${docs_dir}" -maxdepth 1 -type f | sort | sed "s|${docs_dir}/||")
+        [ -n "${files}" ] || die "no docs found"
+
+        export docs_dir
+        # shellcheck disable=SC2016
+        preview_cmd='sed -n "s/^# //p" "${docs_dir}/{}" | head -1'
+        name=$(printf '%s\n' "${files}" | fzf --prompt="docs> " --preview="${preview_cmd}") \
+            || exit 0
+    }
+
+    doc_file="${docs_dir}/${name}"
+    [ -f "${doc_file}" ] || die "doc '${name}' not found"
+
+    if command -v batcat > /dev/null 2>&1; then
+        batcat --style=plain --paging=auto --language=markdown "${doc_file}"
+    elif command -v bat > /dev/null 2>&1; then
+        bat --style=plain --paging=auto --language=markdown "${doc_file}"
+    elif command -v less > /dev/null 2>&1; then
+        less "${doc_file}"
+    else
+        cat "${doc_file}" >&2
+    fi
+}
+main "$@"

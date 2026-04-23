@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+# cmd/todo/add - append an item to a to-do list
+# Usage: idiot todo add <name> <item>
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot todo add <name> <item>"
+            exit 0 ;;
+    esac
+
+    name="${1:-}"
+    item="${2:-}"
+
+    { [ -n "${name}" ] && [ -n "${item}" ]; } || die "usage: idiot todo add <name> <item>"
+
+    list_file="${IDIOT_TODO_DIR}/${name}"
+    [ -f "${list_file}" ] || die "list '${name}' not found"
+
+    printf '[ ] %s\n' "${item}" >> "${list_file}"
+    say "Added item to '${BOLD}${name}${RESET}'"
+}
+main "$@"

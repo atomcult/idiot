@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# cmd/process/list - list available process checklists
+# Usage: idiot process list
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot process list"; exit 0 ;;
+    esac
+
+    proc_dir="${IDIOT_DATA_DIR}/processes"
+
+    [ -d "${proc_dir}" ] || die "process definitions not found at ${proc_dir}"
+
+    found=0
+    for f in "${proc_dir}"/*; do
+        [ -f "${f}" ] || continue
+        found=1
+        name="$(basename "${f}")"
+        desc="$(sed -n '2p' "${f}")"
+        gap=$(( 28 - ${#name} ))
+        [ "${gap}" -lt 2 ] && gap=2
+        say "  ${CYAN}${name}${RESET}$(printf '%*s' "${gap}" '')${desc}"
+    done
+
+    [ "${found}" -eq 1 ] || say "${DIM}No process definitions found.${RESET}"
+}
+main "$@"

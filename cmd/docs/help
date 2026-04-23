@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# cmd/docs/help - show help for the docs command group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+help_heading "Usage:" "idiot docs <subcommand>"
+echo >&2
+help_heading "Subcommands:"
+help_command "list"   "List available reference docs"
+help_command "show"   "Display a reference doc"
+help_command "search" "Search across all docs"

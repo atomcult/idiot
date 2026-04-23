@@ -216,7 +216,9 @@ STATUS = {0: "Hold", 1: "Do", 2: "Doing", 3: "Done", 4: "Abort",
           5: "Undo", 6: "Undoing", 7: "Undone", 8: "Wait", 9: "Error"}
 STATUS_COLOR = {3: GR, 9: RE}
 with open(sys.argv[1]) as f:
-    changes = json.load(f).get("changes", {})
+    state   = json.load(f)
+changes = state.get("changes", {})
+tasks   = state.get("tasks", {})
 if not changes:
     print("  (none)")
     sys.exit(0)
@@ -228,12 +230,19 @@ for cid in sorted(changes, key=lambda x: int(x)):
     sc     = STATUS_COLOR.get(code, YE)
     ts     = c.get("ready-time") or c.get("spawn-time") or ""
     ts     = ts[:19].replace("T", " ") if ts else ""
-    rows.append((cid, status, sc, ts, c.get("summary", "")))
+    rows.append((cid, status, sc, ts, c.get("summary", ""), code, c.get("task-ids", [])))
 max_id = max(len(r[0]) for r in rows)
 max_st = max(len(r[1]) for r in rows)
 max_ts = max(len(r[3]) for r in rows)
-for cid, status, sc, ts, summary in rows:
+for cid, status, sc, ts, summary, code, task_ids in rows:
     print(f"  {D}{cid:>{max_id}}{R}  {sc}{status:<{max_st}}{R}  {D}{ts:<{max_ts}}{R}  {summary}")
+    if code == 9:
+        for tid in task_ids:
+            task = tasks.get(str(tid), {})
+            for line in task.get("log", []):
+                parts = line.split(" ", 2)
+                if len(parts) >= 3 and parts[1] == "ERROR":
+                    print(f"       {' ' * max_id}  {' ' * max_st}  {' ' * max_ts}  {RE}↳ {parts[2]}{R}")
 PYEOF
 }
 

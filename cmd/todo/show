@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+# cmd/todo/show - display a to-do list
+# Usage: idiot todo show [<name>]
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot todo show [<name>]"; exit 0 ;;
+    esac
+
+    name="${1:-}"
+
+    [ -n "${name}" ] || {
+        command -v fzf > /dev/null 2>&1 \
+            || die "a list name is required (fzf not found for interactive selection)"
+
+        [ -d "${IDIOT_TODO_DIR}" ] || die "no to-do lists found — use 'idiot todo new' to create one"
+        files=$(find "${IDIOT_TODO_DIR}" -maxdepth 1 -type f ! -name '.*' | sort | sed "s|${IDIOT_TODO_DIR}/||")
+        [ -n "${files}" ] || die "no to-do lists found — use 'idiot todo new' to create one"
+
+        export IDIOT_TODO_DIR
+        preview_cmd="$(file_preview_cmd IDIOT_TODO_DIR)"
+        name=$(printf '%s\n' "${files}" | fzf --prompt="todo> " --preview="${preview_cmd}") || exit 0
+    }
+
+    list_file="${IDIOT_TODO_DIR}/${name}"
+    [ -f "${list_file}" ] || die "list '${name}' not found"
+
+    say "${BOLD}${name}${RESET}"
+    echo >&2
+
+    n=0
+    while IFS= read -r line; do
+        case "${line}" in
+            '[ ] '*)
+                n=$(( n + 1 ))
+                say "  ${YELLOW}${n}.${RESET} ${BOLD}[ ]${RESET} ${line#\[ \] }" ;;
+            '[x] '*)
+                n=$(( n + 1 ))
+                say "  ${DIM}${n}. [x] ${line#\[x\] }${RESET}" ;;
+            '#'*)
+                say "${BOLD}${BLUE}${line#\# }${RESET}" ;;
+            '')
+                echo >&2 ;;
+            *)
+                say "  ${DIM}${line}${RESET}" ;;
+        esac
+    done < "${list_file}"
+}
+main "$@"

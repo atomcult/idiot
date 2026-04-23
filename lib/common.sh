@@ -14,6 +14,12 @@ IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idi
 # Cache directory
 IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 
+# Bundled data directory (process definitions, templates, docs)
+IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/share}"
+
+# Per-user todo lists directory
+IDIOT_TODO_DIR="${IDIOT_TODO_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/todo}"
+
 # Use colors only when stderr is a TTY and NO_COLOR is unset
 # shellcheck disable=SC2034
 if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -151,6 +157,25 @@ dispatch_subcmd() {
             fi
             ;;
     esac
+}
+
+# Run a binary that may be bundled inside the snap.
+# When $SNAP is set, resolves to $SNAP/usr/bin/<cmd> or $SNAP/bin/<cmd>.
+# Falls back to the system PATH when not running inside a snap.
+snap_app() {
+    _sa_cmd="${1}"; shift
+    if [ -n "${SNAP:-}" ]; then
+        if [ -x "${SNAP}/usr/bin/${_sa_cmd}" ]; then
+            "${SNAP}/usr/bin/${_sa_cmd}" "$@"
+        elif [ -x "${SNAP}/bin/${_sa_cmd}" ]; then
+            "${SNAP}/bin/${_sa_cmd}" "$@"
+        else
+            die "${_sa_cmd}: not found in snap (install the core component: snap install idiot+core)"
+        fi
+    else
+        command -v "${_sa_cmd}" > /dev/null 2>&1 || die "${_sa_cmd} is required but not found"
+        "${_sa_cmd}" "$@"
+    fi
 }
 
 # Return an fzf --preview command string for files inside a directory.

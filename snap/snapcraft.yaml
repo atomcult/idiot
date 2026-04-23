@@ -1,0 +1,50 @@
+name: idiot
+base: core24
+version: '0.1'
+summary: Shell environment manager for Ubuntu Core / IoT snap development
+description: |
+  idiot is a CLI for Ubuntu Core and snap store development workflows.
+  It manages store credentials, dedicated snap stores, and target
+  architectures; inspects disk images and snap packages; launches QEMU
+  VMs; manages model assertions; and provides process checklists and
+  to-do lists for common IoT development tasks.
+
+grade: devel
+confinement: strict
+
+components:
+  core:
+    type: app
+    summary: Core device inspection tools
+    description: |
+      Additional tools for running idiot directly on an Ubuntu Core device,
+      including filesystem inspection utilities (e2fsprogs, mtools) and
+      partition tools (util-linux, dosfstools).
+      Install with: snap install idiot+core
+
+apps:
+  idiot:
+    command: bin/idiot
+    environment:
+      IDIOT_ROOT: ${SNAP}/lib/idiot
+
+parts:
+  idiot:
+    plugin: nil
+    source: .
+    override-build: |
+      craftctl default
+      make PREFIX="${CRAFT_PART_INSTALL}" install
+  packages:
+    plugin: nil
+    stage-packages:
+      - fzf
+  core-packages:
+    plugin: nil
+    stage-packages:
+      - e2fsprogs
+      - mtools
+      - python3-minimal
+      - util-linux
+      - dosfstools
+      - tpm2-tools
