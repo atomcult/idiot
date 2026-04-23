@@ -14,12 +14,12 @@ main() {
 
     case "${shell}" in
         ""|-h|--help|help)
-            say "${BOLD}${BLUE}Usage:${RESET} idiot init <shell>"
+            help_heading "Usage:" "idiot init <shell>"
             echo >&2
-            say "${BOLD}${BLUE}Shells:${RESET}"
-            say "  ${CYAN}bash${RESET}    Bash shell integration"
-            say "  ${CYAN}zsh${RESET}     Zsh shell integration"
-            say "  ${CYAN}fish${RESET}    Fish shell integration"
+            help_heading "Shells:"
+            help_command "bash" "Bash shell integration"
+            help_command "zsh"  "Zsh shell integration"
+            help_command "fish" "Fish shell integration"
             exit 0
             ;;
 

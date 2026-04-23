@@ -5,6 +5,9 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot env store status"; exit 0 ;;
+    esac
     if [ -n "${UBUNTU_STORE_ID:-}" ]; then
         say "${BOLD}${UBUNTU_STORE_ID}${RESET}"
     else

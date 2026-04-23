@@ -7,6 +7,12 @@ main() {
     dry_run=0
     while [ $# -gt 0 ]; do
         case "${1}" in
+            -h|--help|help)
+                help_heading "Usage:" "idiot prune snaps [-n]"
+                echo >&2
+                help_heading "Options:"
+                help_option "-n, --dry-run" "Print what would be removed without deleting"
+                exit 0 ;;
             -n|--dry-run) dry_run=1 ;;
             *) die "unknown option: ${1}" ;;
         esac

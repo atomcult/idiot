@@ -5,6 +5,9 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot env store list"; exit 0 ;;
+    esac
     mkdir -p "${IDIOT_STORES_DIR}"
 
     max_len=0

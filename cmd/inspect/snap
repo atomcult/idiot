@@ -4,7 +4,11 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    [ $# -ge 1 ] || die "usage: idiot dev yaml <snap-file>"
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot inspect snap <snap-file>"; exit 0 ;;
+    esac
+
+    [ $# -ge 1 ] || die "usage: idiot inspect snap <snap-file>"
 
     snap_file="${1}"
 

@@ -6,6 +6,9 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot env arch set [<arch>]"; exit 0 ;;
+    esac
     arch="${1:-}"
 
     [ -n "${arch}" ] || {

@@ -5,6 +5,9 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot env arch status"; exit 0 ;;
+    esac
     [ -n "${UBUNTU_STORE_ARCH:-}" ] && { say "${BOLD}${UBUNTU_STORE_ARCH}${RESET}"; exit 0; }
 
     # Fall back to host architecture

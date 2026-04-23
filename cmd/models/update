@@ -5,6 +5,9 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot models update"; exit 0 ;;
+    esac
     MODELS_REPO_URL="https://github.com/canonical/models.git"
 
     if [ -d "${IDIOT_MODELS_DIR}/.git" ]; then

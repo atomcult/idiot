@@ -8,6 +8,12 @@ main() {
 
     while [ $# -gt 0 ]; do
         case "${1}" in
+            -h|--help|help)
+                help_heading "Usage:" "idiot vm scp [--port <port>] <src> <dst>"
+                echo >&2
+                help_heading "Options:"
+                help_option "--port <port>" "SCP port on the host (default: 8022)"
+                exit 0 ;;
             --) shift; break ;;
             --port)
                 [ -n "${2:-}" ] || die "--port requires an argument"

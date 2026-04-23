@@ -5,6 +5,9 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot env store add <name> <store-id>"; exit 0 ;;
+    esac
     name="${1:-}"
     store_id="${2:-}"
 

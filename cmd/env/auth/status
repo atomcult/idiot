@@ -23,6 +23,9 @@ map_permission() {
 }
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot env auth status"; exit 0 ;;
+    esac
     [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || { say "${DIM}Not logged in${RESET}"; exit 0; }
 
     if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then

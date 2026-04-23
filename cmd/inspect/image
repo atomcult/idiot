@@ -238,6 +238,9 @@ PYEOF
 }
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot inspect image <disk.img>"; exit 0 ;;
+    esac
     [ $# -eq 1 ] || die "usage: idiot inspect image <disk.img>"
     image="${1}"
     [ -f "${image}" ] || die "image not found: ${image}"

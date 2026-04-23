@@ -10,6 +10,12 @@ main() {
 
     while [ $# -gt 0 ]; do
         case "${1}" in
+            -h|--help|help)
+                help_heading "Usage:" "idiot env auth export [<name>] [-f <file>]"
+                echo >&2
+                help_heading "Options:"
+                help_option "-f, --file <file>" "Write to file instead of stdout"
+                exit 0 ;;
             -f|--file)
                 [ -n "${2:-}" ] || die "option '${1}' requires an argument"
                 outfile="${2}"

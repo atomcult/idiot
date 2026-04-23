@@ -6,6 +6,9 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot env auth login [<name>]"; exit 0 ;;
+    esac
     name="${1:-}"
 
     [ -n "${name}" ] || {
