@@ -34,69 +34,62 @@ parse_model() {
     [ -n "${brand}" ] && [ -n "${name}" ] && printf '%s/%s' "${brand}" "${name}"
 }
 
-main() {
-    [ $# -eq 1 ] || die "usage: idiot inspect image <disk.img>"
-    image="${1}"
-    [ -f "${image}" ] || die "image not found: ${image}"
-
-    command -v sfdisk  > /dev/null 2>&1 || die "sfdisk is required but not found"
-    command -v python3 > /dev/null 2>&1 || die "python3 is required but not found"
-    command -v debugfs > /dev/null 2>&1 || die "debugfs is required but not found — install e2fsprogs"
-    command -v mcopy   > /dev/null 2>&1 || die "mcopy is required but not found — install mtools"
-
-    tmpdir=$(mktemp -d)
-    trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP
-
-    # Model and seeded snap list from ubuntu-seed (always present)
-    seed_pinfo=$(partition_sectors "${image}" ubuntu-seed) \
+# Sets global: seed_offset
+find_seed_offset() {
+    pinfo=$(partition_sectors "${image}" ubuntu-seed) \
         || die "ubuntu-seed partition not found — is this an Ubuntu Core image?"
-    seed_start=$(printf '%s\n' "${seed_pinfo}" | awk '{print $1}')
-    seed_ss=$(printf '%s\n'    "${seed_pinfo}" | awk '{print $3}')
+    seed_start=$(printf '%s\n' "${pinfo}" | awk '{print $1}')
+    seed_ss=$(printf '%s\n'    "${pinfo}" | awk '{print $3}')
     seed_offset=$(( seed_start * seed_ss ))
+}
 
+# Sets globals: assertion, model
+read_model_assertion() {
     label=$(mdir -b -i "${image}@@${seed_offset}" '::/systems' 2>/dev/null \
         | head -1 | sed 's|.*/\(.*\)/$|\1|; s|\r||')
     assertion=$(mcopy -i "${image}@@${seed_offset}" \
         "::/systems/${label}/model" - 2>/dev/null)
     model=$(parse_model "${assertion}")
+}
 
-    # ubuntu-data only exists after first-boot initialization (or pre-seeding)
+# Sets globals: first_boot, preseeded; extracts state.json to tmpdir
+inspect_ubuntu_data() {
     first_boot="not yet complete"
     preseeded="no"
 
-    if data_pinfo=$(partition_sectors "${image}" ubuntu-data); then
-        data_start=$(printf '%s\n' "${data_pinfo}" | awk '{print $1}')
-        data_ss=$(printf '%s\n'    "${data_pinfo}" | awk '{print $3}')
-        data_offset=$(( data_start * data_ss ))
+    data_pinfo=$(partition_sectors "${image}" ubuntu-data) || return 0
+    data_start=$(printf '%s\n' "${data_pinfo}" | awk '{print $1}')
+    data_ss=$(printf '%s\n'    "${data_pinfo}" | awk '{print $3}')
+    data_offset=$(( data_start * data_ss ))
 
-        if is_luks "${image}" "${data_offset}"; then
-            first_boot="unknown ${DIM}(ubuntu-data is encrypted)${RESET}"
-        else
-            modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
-                "${image}?offset=${data_offset}" 2>/dev/null)
-            mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
+    if is_luks "${image}" "${data_offset}"; then
+        first_boot="unknown ${DIM}(ubuntu-data is encrypted)${RESET}"
+        return 0
+    fi
 
-            if [ "${mode}" = "run" ]; then
-                first_boot="${GREEN}complete${RESET}"
-            elif [ -n "${mode}" ]; then
-                first_boot="not yet complete ${DIM}(mode: ${mode})${RESET}"
-            fi
+    modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
+        "${image}?offset=${data_offset}" 2>/dev/null)
+    mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
 
-            # Extract state.json for pre-seeded detection and detailed inspection
-            debugfs -R "dump /system-data/var/lib/snapd/state.json ${tmpdir}/state.json" \
-                "${image}?offset=${data_offset}" 2>/dev/null
-            if [ -s "${tmpdir}/state.json" ]; then
-                preseeded=$(python3 -c "
+    if [ "${mode}" = "run" ]; then
+        first_boot="${GREEN}complete${RESET}"
+    elif [ -n "${mode}" ]; then
+        first_boot="not yet complete ${DIM}(mode: ${mode})${RESET}"
+    fi
+
+    debugfs -R "dump /system-data/var/lib/snapd/state.json ${tmpdir}/state.json" \
+        "${image}?offset=${data_offset}" 2>/dev/null
+    [ -s "${tmpdir}/state.json" ] && \
+        preseeded=$(python3 -c "
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f).get('data', {})
 print('yes' if data.get('preseed') else 'no')
 " "${tmpdir}/state.json" 2>/dev/null)
-            fi
-        fi
-    fi
+}
 
-    # Collect seeded snaps: one "name revision" per line
+# Writes tmpdir/seeded: one "name revision" per line
+collect_seeded_snaps() {
     mdir -b -i "${image}@@${seed_offset}" '::/snaps' 2>/dev/null \
         | sed 's|.*/||; s|\r||' | tr '[:upper:]' '[:lower:]' \
         | while IFS= read -r f; do
@@ -106,8 +99,10 @@ print('yes' if data.get('preseed') else 'no')
                     printf '%s %s\n' "${b%_*}" "${b##*_}" ;;
             esac
         done > "${tmpdir}/seeded"
+}
 
-    # Parse model assertion snaps: extract channels and find absent optionals
+# Writes tmpdir/channels and tmpdir/absent_optional from model assertion
+parse_assertion_snaps() {
     printf '%s\n' "${assertion}" | awk -v d="${tmpdir}" '
         /^snaps:/           { in_snaps=1; next }
         in_snaps && /^[^ ]/ { in_snaps=0 }
@@ -133,8 +128,10 @@ print('yes' if data.get('preseed') else 'no')
             grep -q "^${name} " "${tmpdir}/seeded" \
                 || printf '%s\n' "${name}" >> "${tmpdir}/absent_optional"
         done < "${tmpdir}/optional_names"
+}
 
-    # Column widths for snap listing
+# Prints the seeded snaps listing with aligned name/revision/channel columns
+print_seeded_snaps() {
     max_len=$(cat "${tmpdir}/seeded" "${tmpdir}/absent_optional" 2>/dev/null \
         | awk '{if (length($1) > m) m=length($1)} END {print m+0}')
     max_rev=$(awk '{if (length($2) > m) m=length($2)} END {print m+0}' \
@@ -142,10 +139,6 @@ print('yes' if data.get('preseed') else 'no')
     max_rev="${max_rev:-0}"
     [ -f "${tmpdir}/absent_optional" ] && [ "${max_rev}" -lt 10 ] && max_rev=10
 
-    say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
-    say "${BOLD}Pre-seeded:${RESET}  ${preseeded}"
-    say "${BOLD}First boot:${RESET}  ${first_boot}"
-    echo >&2
     say "${BOLD}Seeded snaps:${RESET}"
     while IFS=' ' read -r name rev; do
         name_pad=$(( max_len - ${#name} ))
@@ -160,11 +153,10 @@ print('yes' if data.get('preseed') else 'no')
             chan=$(awk -v n="${name}" '$1==n{print $2; exit}' "${tmpdir}/channels" 2>/dev/null)
             say "  ${CYAN}${name}${RESET}$(printf '%*s' "${name_pad}" '')  ${YELLOW}not seeded${RESET}$(printf '%*s' "${not_seeded_pad}" '')${chan:+  ${DIM}${chan}${RESET}}"
         done < "${tmpdir}/absent_optional"
+}
 
-    # Detailed state inspection from state.json (when readable)
-    [ -s "${tmpdir}/state.json" ] || return 0
-
-    echo >&2
+# Prints installed snaps from state.json
+print_installed_snaps() {
     say "${BOLD}Installed snaps:${RESET}"
     CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" python3 - "${tmpdir}/state.json" >&2 <<'PYEOF'
 import json, os, sys
@@ -185,8 +177,10 @@ for name in sorted(snaps):
     suffix = f"  {chan}" if chan else ""
     print(f"  {C}{name:<{max_name}}{R}  {D}{rev:>{max_rev}}{suffix}{R}")
 PYEOF
+}
 
-    echo >&2
+# Prints interface connections from state.json
+print_connections() {
     say "${BOLD}Connections:${RESET}"
     CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" python3 - "${tmpdir}/state.json" >&2 <<'PYEOF'
 import json, os, sys
@@ -205,8 +199,10 @@ for key in sorted(conns):
     plug_side, _, slot_side = key.partition(" ")
     print(f"  {fmt_side(plug_side)}  {fmt_side(slot_side)}")
 PYEOF
+}
 
-    echo >&2
+# Prints snap changes from state.json
+print_changes() {
     say "${BOLD}Changes:${RESET}"
     DIM="${DIM}" RESET="${RESET}" GREEN="${GREEN}" YELLOW="${YELLOW}" RED="${RED}" \
         python3 - "${tmpdir}/state.json" >&2 <<'PYEOF'
@@ -239,5 +235,40 @@ max_ts = max(len(r[3]) for r in rows)
 for cid, status, sc, ts, summary in rows:
     print(f"  {D}{cid:>{max_id}}{R}  {sc}{status:<{max_st}}{R}  {D}{ts:<{max_ts}}{R}  {summary}")
 PYEOF
+}
+
+main() {
+    [ $# -eq 1 ] || die "usage: idiot inspect image <disk.img>"
+    image="${1}"
+    [ -f "${image}" ] || die "image not found: ${image}"
+
+    command -v sfdisk  > /dev/null 2>&1 || die "sfdisk is required but not found"
+    command -v python3 > /dev/null 2>&1 || die "python3 is required but not found"
+    command -v debugfs > /dev/null 2>&1 || die "debugfs is required but not found — install e2fsprogs"
+    command -v mcopy   > /dev/null 2>&1 || die "mcopy is required but not found — install mtools"
+
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP
+
+    find_seed_offset
+    read_model_assertion
+    inspect_ubuntu_data
+    collect_seeded_snaps
+    parse_assertion_snaps
+
+    say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
+    say "${BOLD}Pre-seeded:${RESET}  ${preseeded}"
+    say "${BOLD}First boot:${RESET}  ${first_boot}"
+    echo >&2
+    print_seeded_snaps
+
+    [ -s "${tmpdir}/state.json" ] || return 0
+
+    echo >&2
+    print_installed_snaps
+    echo >&2
+    print_connections
+    echo >&2
+    print_changes
 }
 main "$@"
