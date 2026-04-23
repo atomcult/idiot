@@ -82,5 +82,17 @@ main() {
 
     say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
     say "${BOLD}First boot:${RESET}  ${first_boot}"
+    echo >&2
+    say "${BOLD}Seeded snaps:${RESET}"
+    mdir -b -i "${image}@@${seed_offset}" '::/snaps' 2>/dev/null \
+        | sed 's|.*/||; s|\r||' \
+        | tr '[:upper:]' '[:lower:]' \
+        | while IFS= read -r filename; do
+            case "${filename}" in
+                *.snap)
+                    base="${filename%.snap}"
+                    say "  ${CYAN}${base%_*}${RESET}  ${DIM}r${base##*_}${RESET}" ;;
+            esac
+        done
 }
 main "$@"
