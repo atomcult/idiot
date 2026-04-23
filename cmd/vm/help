@@ -8,5 +8,7 @@ main() {
     echo >&2
     say "${BOLD}${BLUE}Subcommands:${RESET}"
     say "  ${CYAN}run${RESET}    Launch a QEMU VM"
+    say "  ${CYAN}ssh${RESET}    SSH into the running VM"
+    say "  ${CYAN}scp${RESET}    Copy files to/from the running VM"
 }
 main "$@"

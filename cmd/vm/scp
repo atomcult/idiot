@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# cmd/vm/scp - copy files to/from the running VM
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    port=8022
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            --) shift; break ;;
+            --port)
+                [ -n "${2:-}" ] || die "--port requires an argument"
+                port="${2}"; shift ;;
+            -*) die "unknown option: ${1}" ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    [ $# -ge 2 ] || die "usage: idiot vm scp [--port <port>] <src> <dst>"
+
+    exec scp \
+        -P "${port}" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        "$@" >&2
+}
+main "$@"

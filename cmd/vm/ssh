@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+# cmd/vm/ssh - SSH into the running VM
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    port=8022
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            --) shift; break ;;
+            --port)
+                [ -n "${2:-}" ] || die "--port requires an argument"
+                port="${2}"; shift ;;
+            -*) die "unknown option: ${1}" ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    exec ssh \
+        -p "${port}" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        localhost "$@" >&2
+}
+main "$@"
