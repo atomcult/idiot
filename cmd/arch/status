@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+# cmd/env/arch/status - show the current target architecture
+# Usage: idiot arch status
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot arch status"; exit 0 ;;
+    esac
+    [ -n "${UBUNTU_STORE_ARCH:-}" ] && { say "${BOLD}${UBUNTU_STORE_ARCH}${RESET}"; exit 0; }
+
+    # Fall back to host architecture
+    case "$(uname -m)" in
+        x86_64)        say "${DIM}amd64${RESET}" ;;
+        aarch64)       say "${DIM}arm64${RESET}" ;;
+        armv7l|armv6l) say "${DIM}armhf${RESET}" ;;
+        i686|i386)     say "${DIM}i386${RESET}" ;;
+        ppc64le)       say "${DIM}ppc64el${RESET}" ;;
+        riscv64)       say "${DIM}riscv64${RESET}" ;;
+        s390x)         say "${DIM}s390x${RESET}" ;;
+        *)             say "${DIM}$(uname -m)${RESET}" ;;
+    esac
+}
+main "$@"

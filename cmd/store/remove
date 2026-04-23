@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# cmd/env/store/remove - remove a saved store
+# Usage: idiot store remove <name>
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot store remove <name>"; exit 0 ;;
+    esac
+    name="${1:-}"
+
+    [ -n "${name}" ] || die "usage: idiot store remove <name>"
+
+    mkdir -p "${IDIOT_STORES_DIR}"
+    store_file="${IDIOT_STORES_DIR}/${name}"
+
+    [ -f "${store_file}" ] || die "store '${name}' not found"
+
+    rm "${store_file}"
+    say "Removed store '${BOLD}${name}${RESET}'"
+}
+main "$@"

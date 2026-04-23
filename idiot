@@ -14,23 +14,33 @@ IDIOT_LIB_DIR="${IDIOT_ROOT}/lib"
 . "${IDIOT_LIB_DIR}/common.sh"
 
 idiot_help() {
-    say "${BOLD}idiot${RESET} - shell environment manager"
+    say "${BOLD}idiot${RESET} - Ubuntu Core IoT development tool"
     echo >&2
     help_heading "Usage:" "idiot <command> [args...]"
     echo >&2
-    help_heading "Commands:"
-    help_command "env"     "Manage shell environment (auth, store, arch)"
-    help_command "inspect" "Inspect snap store objects and disk images"
-    help_command "models"  "Manage model assertions"
-    help_command "prune"   "Remove development leftovers"
-    help_command "vm"      "Launch a QEMU VM"
+    help_heading "Store & environment:"
+    help_command "auth"    "Manage snap store credentials"
+    help_command "store"   "Select which snap store to use"
+    help_command "arch"    "Set the target build architecture"
+    echo >&2
+    help_heading "Development:"
+    help_command "kernel"  "Clone an Ubuntu kernel from Launchpad"
+    help_command "example" "Clone an example repository"
+    help_command "inspect" "Inspect snaps, images, and snapd changes"
+    help_command "model"   "Manage model assertions"
+    echo >&2
+    help_heading "VM & device:"
+    help_command "vm"      "Launch and connect to a QEMU VM"
+    echo >&2
+    help_heading "Reference:"
+    help_command "docs"    "Browse and search IoT reference docs"
     help_command "process" "Step-by-step process checklists"
     help_command "todo"    "Manage per-project to-do lists"
-    help_command "docs"     "Browse and search IoT reference docs"
-    help_command "example"  "Clone an example repository"
-    help_command "kernel"  "Clone an Ubuntu kernel from Launchpad"
-    help_command "run"      "Run a snap-bundled tool directly"
-    help_command "init"     "Set up shell integration"
+    echo >&2
+    help_heading "Shell:"
+    help_command "init"    "Set up shell integration"
+    help_command "run"     "Run a snap-bundled tool directly"
+    help_command "clean"   "Remove development leftovers"
     echo >&2
     help_heading "Shell setup" "(run once, add to your shell rc):"
     # shellcheck disable=SC2016

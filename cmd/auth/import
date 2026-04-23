@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+# cmd/env/auth/import - import a credential file into IDIOT_AUTH_DIR
+# Usage: idiot auth import <file> [<name>]
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot auth import <name> <file>"; exit 0 ;;
+    esac
+    name="${1:-}"
+    src="${2:-}"
+
+    { [ -n "${name}" ] || [ -n "${src}"  ]; } ||
+        die "usage: idiot auth import <name> <file>"
+
+    [ -f "${src}"  ] || die "file not found: ${src}"
+
+    mkdir -p "${IDIOT_AUTH_DIR}"
+    dest="${IDIOT_AUTH_DIR}/${name}"
+
+    ! [ -f "${dest}" ] ||
+        die "credentials '${name}' already exist (remove it first)"
+
+    cp "${src}" "${dest}"
+    say "Imported '${BOLD}${src}${RESET}' as '${BOLD}${name}${RESET}'"
+}
+main "$@"

@@ -1,0 +1,93 @@
+#!/usr/bin/env sh
+# cmd/models/pick - interactively select a model assertion and copy it
+# Usage: idiot model pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]
+#
+# Signed model assertions:   *.model
+# Unsigned model assertions: *.json
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    filter=""
+    dest="."
+    output=""
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            help|-h|--help)
+                help_heading "Usage:" "idiot model pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]"
+                echo >&2
+                help_heading "Options:"
+                help_option "--signed"   "Only show signed model assertions (*.model)"
+                help_option "--unsigned" "Only show unsigned model assertions (*.json)"
+                help_option "-o <file>"  "Write to file; use - for stdout"
+                exit 0
+                ;;
+            --signed)    filter="signed" ;;
+            --unsigned)  filter="unsigned" ;;
+            -o|--output)
+                [ -n "${2:-}" ] || die "option '${1}' requires an argument"
+                output="${2}"
+                shift
+                ;;
+            -*)          die "unknown option: ${1}" ;;
+            *)
+                [ -n "${output}" ] && die "cannot combine -o/--output with a destination directory"
+                dest="${1}"
+                ;;
+        esac
+        shift
+    done
+
+    require fzf "https://github.com/junegunn/fzf"
+    [ -d "${IDIOT_MODELS_DIR}/.git" ] || die "models repository not found — run 'idiot model update' first"
+    [ -n "${output}" ] || [ -d "${dest}" ] || die "destination directory does not exist: ${dest}"
+
+    files=$(
+        find "${IDIOT_MODELS_DIR}" -type f ! -path '*/.git/*' ! -name '.*' \
+        | sort \
+        | sed "s|${IDIOT_MODELS_DIR}/||" \
+        | case "${filter}" in
+            signed)   grep '\.model$' ;;
+            unsigned) grep '\.json$' ;;
+            *)        grep '\.\(model\|json\)$';;
+          esac
+    )
+
+    [ -n "${files}" ] || {
+        case "${filter}" in
+            signed)   die "no signed model assertions (*.model) found in ${IDIOT_MODELS_DIR}" ;;
+            unsigned) die "no unsigned model assertions (*.json) found in ${IDIOT_MODELS_DIR}" ;;
+            *)        die "no model assertions found in ${IDIOT_MODELS_DIR}" ;;
+        esac
+    }
+
+    case "${filter}" in
+        signed)   prompt="signed model> " ;;
+        unsigned) prompt="unsigned model> " ;;
+        *)        prompt="model> " ;;
+    esac
+
+    export IDIOT_MODELS_DIR
+    preview_cmd="$(file_preview_cmd IDIOT_MODELS_DIR)"
+
+    selection=$(
+        printf '%s\n' "${files}" \
+        | fzf --prompt="${prompt}" \
+              --preview="${preview_cmd}"
+    ) || exit 0
+
+    src="${IDIOT_MODELS_DIR}/${selection}"
+
+    if [ "${output}" = "-" ]; then
+        say "$(cat "${src}")"
+    elif [ -n "${output}" ]; then
+        cp "${src}" "${output}"
+        say "Saved '${BOLD}${selection}${RESET}' → '${BOLD}${output}${RESET}'"
+    else
+        dest_file="${dest}/$(basename "${selection}")"
+        cp "${src}" "${dest_file}"
+        say "Copied '${BOLD}${selection}${RESET}' → '${BOLD}${dest_file}${RESET}'"
+    fi
+}
+main "$@"

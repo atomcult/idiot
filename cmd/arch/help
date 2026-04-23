@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+# cmd/env/arch/help - usage for the arch subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    help_heading "Usage:" "idiot arch <subcommand>"
+    echo >&2
+    help_heading "Subcommands:"
+    help_command "set"    "Set the target architecture"
+    help_command "unset"  "Clear the target architecture"
+    help_command "status" "Show the active architecture"
+    echo >&2
+    help_heading "Environment:"
+    help_env "UBUNTU_STORE_ARCH" "Target architecture override"
+}
+main "$@"

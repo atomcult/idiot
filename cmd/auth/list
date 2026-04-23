@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# cmd/env/auth/list - list credential files in IDIOT_AUTH_DIR
+# Usage: idiot auth list
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot auth list"; exit 0 ;;
+    esac
+    [ -d "${IDIOT_AUTH_DIR}" ] ||
+        exit 0
+
+    for f in "${IDIOT_AUTH_DIR}"/*; do
+        [ -f "${f}" ] || continue
+        say "$(basename "${f}")"
+    done
+}
+main "$@"

@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# cmd/env/auth/help - usage for the creds subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    help_heading "Usage:" "idiot auth <subcommand>"
+    echo >&2
+    help_heading "Subcommands:"
+    help_command "login"  "Activate a credential"
+    help_command "logout" "Log out"
+    help_command "status" "Show login status"
+    echo >&2
+    help_command "add"    "Create a new credential"
+    help_command "remove" "Remove a saved credential"
+    help_command "list"   "List saved credentials"
+    help_command "import" "Import a credential from a file"
+    help_command "export" "Output a credential"
+    echo >&2
+    help_heading "Environment:"
+    help_env "IDIOT_AUTH_DIR" "Credentials directory"
+}
+main "$@"

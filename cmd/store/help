@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+# cmd/env/store/help - usage for the store subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    help_heading "Usage:" "idiot store <subcommand>"
+    echo >&2
+    help_heading "Subcommands:"
+    help_command "use"    "Activate a store"
+    help_command "unset"  "Clear the active store"
+    help_command "status" "Show the active store"
+    echo >&2
+    help_command "add"    "Save a store"
+    help_command "remove" "Remove a saved store"
+    help_command "list"   "List saved stores"
+    echo >&2
+    help_heading "Environment:"
+    help_env "IDIOT_STORES_DIR" "Stores directory"
+}
+main "$@"

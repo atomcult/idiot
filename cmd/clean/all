@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+# cmd/prune/all - remove all LXD containers and dangerously-installed snaps
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    dry_run=0
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            -h|--help|help)
+                help_heading "Usage:" "idiot clean all [-n]"
+                echo >&2
+                help_heading "Options:"
+                help_option "-n, --dry-run" "Print what would be removed without deleting"
+                exit 0 ;;
+            -n|--dry-run) dry_run=1 ;;
+            *) die "unknown option: ${1}" ;;
+        esac
+        shift
+    done
+
+    dir="$(dirname "${0}")"
+    if [ "${dry_run}" -eq 1 ]; then
+        "${dir}/containers" --dry-run
+        "${dir}/snaps" --dry-run
+    else
+        "${dir}/containers"
+        "${dir}/snaps"
+    fi
+}
+main "$@"

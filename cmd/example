@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # cmd/examples - clone an example repository
-# Usage: idiot examples [list | add | remove | update | <repo> [options]]
+# Usage: idiot example [list | add | remove | update | <repo> [options]]
 
 . "$(dirname "${0}")/../lib/common.sh"
 
@@ -57,14 +57,14 @@ resolve_url() {
                 ex_file="${ex_dir}/${1}"
                 [ -f "${ex_file}" ] && { head -1 "${ex_file}"; return 0; }
             done
-            die "unknown example '${1}' — use <user>/<repo> or run 'idiot examples list'" ;;
+            die "unknown example '${1}' — use <user>/<repo> or run 'idiot example list'" ;;
     esac
 }
 
 do_add() {
     name="${1:-}"; target="${2:-}"
     { [ -n "${name}" ] && [ -n "${target}" ]; } \
-        || die "usage: idiot examples add <name> <user>/<repo>"
+        || die "usage: idiot example add <name> <user>/<repo>"
     case "${name}" in
         *[!A-Za-z0-9_-]*) die "invalid name '${name}': use only letters, digits, hyphens, underscores" ;;
     esac
@@ -75,7 +75,7 @@ do_add() {
     esac
     mkdir -p "${IDIOT_EXAMPLES_DIR}"
     dest="${IDIOT_EXAMPLES_DIR}/${name}"
-    [ -f "${dest}" ] && die "'${name}' is already saved (use 'idiot examples remove ${name}' first)"
+    [ -f "${dest}" ] && die "'${name}' is already saved (use 'idiot example remove ${name}' first)"
     [ -f "${IDIOT_DATA_DIR}/examples/${name}" ] && \
         say "${YELLOW}warning:${RESET} '${name}' shadows a built-in example"
     printf '%s\n' "${url}" > "${dest}"
@@ -167,7 +167,7 @@ do_update() {
 main() {
     case "${1:-}" in
         ""|--help|-h|help)
-            help_heading "Usage:" "idiot examples <repo> [options]"
+            help_heading "Usage:" "idiot example <repo> [options]"
             echo >&2
             say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, or a saved example name (see below)."
             say "Saved examples are kept as a local mirror; use ${BOLD}update${RESET} to refresh."
@@ -187,13 +187,13 @@ main() {
             help_command "update" "Refresh cached example(s) from remote"
             echo >&2
             help_heading "Examples:"
-            say "  ${CYAN}idiot examples${RESET} iot-example-snaps"
-            say "  ${CYAN}idiot examples${RESET} iot-example-snaps ${DIM}--subdir${RESET}          ${DIM}# nnn picker${RESET}"
-            say "  ${CYAN}idiot examples${RESET} iot-example-snaps ${DIM}--branch${RESET}          ${DIM}# fzf picker${RESET}"
-            say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--dest${RESET} ~/dev"
-            say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--tag${RESET} v1.2 ${DIM}--bare${RESET}"
-            say "  ${CYAN}idiot examples add${RESET} my-example canonical/my-snap"
-            say "  ${CYAN}idiot examples update${RESET}"
+            say "  ${CYAN}idiot example${RESET} iot-example-snaps"
+            say "  ${CYAN}idiot example${RESET} iot-example-snaps ${DIM}--subdir${RESET}          ${DIM}# nnn picker${RESET}"
+            say "  ${CYAN}idiot example${RESET} iot-example-snaps ${DIM}--branch${RESET}          ${DIM}# fzf picker${RESET}"
+            say "  ${CYAN}idiot example${RESET} canonical/my-snap ${DIM}--dest${RESET} ~/dev"
+            say "  ${CYAN}idiot example${RESET} canonical/my-snap ${DIM}--tag${RESET} v1.2 ${DIM}--bare${RESET}"
+            say "  ${CYAN}idiot example add${RESET} my-example canonical/my-snap"
+            say "  ${CYAN}idiot example update${RESET}"
             echo >&2
             help_heading "Saved examples:"
             list_known
@@ -250,7 +250,7 @@ main() {
         esac
     done
 
-    [ -n "${repo}" ] || die "usage: idiot examples <repo> [options]"
+    [ -n "${repo}" ] || die "usage: idiot example <repo> [options]"
 
     require git
 
