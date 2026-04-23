@@ -31,14 +31,17 @@ list_known() {
             found=1
             alias_name="$(basename "${f}")"
             url="$(head -1 "${f}")"
-            cached=""
-            [ -d "$(_cache_path "${alias_name}")" ] && cached="  ${GREEN}✓${RESET}"
+            if [ -d "$(_cache_path "${alias_name}")" ]; then
+                cached_prefix="${GREEN}✓${RESET} "
+            else
+                cached_prefix="  "
+            fi
             gap=$(( 28 - ${#alias_name} ))
             [ "${gap}" -lt 2 ] && gap=2
             if [ "${ex_dir}" = "${IDIOT_EXAMPLES_DIR}" ]; then
-                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}  (saved)${RESET}${cached}"
+                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${cached_prefix}${DIM}${url}  (saved)${RESET}"
             else
-                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}${RESET}${cached}"
+                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${cached_prefix}${DIM}${url}${RESET}"
             fi
         done
     done
@@ -177,7 +180,7 @@ main() {
             help_option "--bare"          "Extract files only — no .git directory"
             echo >&2
             help_heading "Subcommands:"
-            help_command "list"   "List examples  (✓ = locally cached)"
+            help_command "list"   "List examples  (✓ before URL = locally cached)"
             help_command "add"    "Save a new example"
             help_command "remove" "Remove a saved example"
             help_command "drop"   "Delete a cached example mirror"
