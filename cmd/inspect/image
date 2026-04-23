@@ -80,19 +80,52 @@ main() {
         first_boot="not yet complete"
     fi
 
+    # Collect seeded snaps: one "name revision" per line
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP
+
+    mdir -b -i "${image}@@${seed_offset}" '::/snaps' 2>/dev/null \
+        | sed 's|.*/||; s|\r||' | tr '[:upper:]' '[:lower:]' \
+        | while IFS= read -r f; do
+            case "${f}" in
+                *.snap)
+                    b="${f%.snap}"
+                    printf '%s %s\n' "${b%_*}" "${b##*_}" ;;
+            esac
+        done > "${tmpdir}/seeded"
+
+    # Collect optional snaps declared in the model but absent from the seed
+    printf '%s\n' "${assertion}" | awk '
+        /^snaps:/          { in_snaps=1; next }
+        in_snaps && /^[^ ]/ { in_snaps=0 }
+        in_snaps && /^  -/ {
+            if (name && presence == "optional") print name
+            name=""; presence=""
+        }
+        in_snaps && /name:/     { name=$2 }
+        in_snaps && /presence:/ { presence=$2 }
+        END { if (name && presence == "optional") print name }
+    ' | while IFS= read -r name; do
+        grep -q "^${name} " "${tmpdir}/seeded" \
+            || printf '%s\n' "${name}" >> "${tmpdir}/absent_optional"
+    done
+
+    # Max name length across all displayed snaps for column alignment
+    max_len=$(cat "${tmpdir}/seeded" "${tmpdir}/absent_optional" 2>/dev/null \
+        | awk '{if (length($1) > m) m=length($1)} END {print m+0}')
+
     say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
     say "${BOLD}First boot:${RESET}  ${first_boot}"
     echo >&2
     say "${BOLD}Seeded snaps:${RESET}"
-    mdir -b -i "${image}@@${seed_offset}" '::/snaps' 2>/dev/null \
-        | sed 's|.*/||; s|\r||' \
-        | tr '[:upper:]' '[:lower:]' \
-        | while IFS= read -r filename; do
-            case "${filename}" in
-                *.snap)
-                    base="${filename%.snap}"
-                    say "  ${CYAN}${base%_*}${RESET}  ${DIM}r${base##*_}${RESET}" ;;
-            esac
-        done
+    while IFS=' ' read -r name rev; do
+        pad=$(( max_len - ${#name} ))
+        say "  ${CYAN}${name}${RESET}$(printf '%*s' "${pad}" '')  ${DIM}${rev}${RESET}"
+    done < "${tmpdir}/seeded"
+    [ -f "${tmpdir}/absent_optional" ] && \
+        while IFS= read -r name; do
+            pad=$(( max_len - ${#name} ))
+            say "  ${CYAN}${name}${RESET}$(printf '%*s' "${pad}" '')  ${YELLOW}not seeded${RESET}"
+        done < "${tmpdir}/absent_optional"
 }
 main "$@"
