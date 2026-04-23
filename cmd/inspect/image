@@ -107,25 +107,40 @@ print('yes' if data.get('preseed') else 'no')
             esac
         done > "${tmpdir}/seeded"
 
-    # Collect optional snaps declared in the model but absent from the seed
-    printf '%s\n' "${assertion}" | awk '
+    # Parse model assertion snaps: extract channels and find absent optionals
+    printf '%s\n' "${assertion}" | awk -v d="${tmpdir}" '
         /^snaps:/           { in_snaps=1; next }
         in_snaps && /^[^ ]/ { in_snaps=0 }
         in_snaps && /^  -/  {
-            if (name && presence == "optional") print name
-            name=""; presence=""
+            if (name) {
+                print name " " channel > (d "/channels")
+                if (presence == "optional") print name > (d "/optional_names")
+            }
+            name=""; channel=""; presence=""
         }
-        in_snaps && /name:/     { name=$2 }
-        in_snaps && /presence:/ { presence=$2 }
-        END { if (name && presence == "optional") print name }
-    ' | while IFS= read -r name; do
-        grep -q "^${name} " "${tmpdir}/seeded" \
-            || printf '%s\n' "${name}" >> "${tmpdir}/absent_optional"
-    done
+        in_snaps && /name:/            { name=$2 }
+        in_snaps && /default-channel:/ { channel=$2 }
+        in_snaps && /presence:/        { presence=$2 }
+        END {
+            if (name) {
+                print name " " channel > (d "/channels")
+                if (presence == "optional") print name > (d "/optional_names")
+            }
+        }
+    '
+    [ -f "${tmpdir}/optional_names" ] && \
+        while IFS= read -r name; do
+            grep -q "^${name} " "${tmpdir}/seeded" \
+                || printf '%s\n' "${name}" >> "${tmpdir}/absent_optional"
+        done < "${tmpdir}/optional_names"
 
-    # Max name length across all displayed snaps for column alignment
+    # Column widths for snap listing
     max_len=$(cat "${tmpdir}/seeded" "${tmpdir}/absent_optional" 2>/dev/null \
         | awk '{if (length($1) > m) m=length($1)} END {print m+0}')
+    max_rev=$(awk '{if (length($2) > m) m=length($2)} END {print m+0}' \
+        "${tmpdir}/seeded" 2>/dev/null)
+    max_rev="${max_rev:-0}"
+    [ -f "${tmpdir}/absent_optional" ] && [ "${max_rev}" -lt 10 ] && max_rev=10
 
     say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
     say "${BOLD}Pre-seeded:${RESET}  ${preseeded}"
@@ -133,25 +148,96 @@ print('yes' if data.get('preseed') else 'no')
     echo >&2
     say "${BOLD}Seeded snaps:${RESET}"
     while IFS=' ' read -r name rev; do
-        pad=$(( max_len - ${#name} ))
-        say "  ${CYAN}${name}${RESET}$(printf '%*s' "${pad}" '')  ${DIM}${rev}${RESET}"
+        name_pad=$(( max_len - ${#name} ))
+        rev_pad=$(( max_rev - ${#rev} ))
+        chan=$(awk -v n="${name}" '$1==n{print $2; exit}' "${tmpdir}/channels" 2>/dev/null)
+        say "  ${CYAN}${name}${RESET}$(printf '%*s' "${name_pad}" '')  ${DIM}${rev}$(printf '%*s' "${rev_pad}" '')${chan:+  ${chan}}${RESET}"
     done < "${tmpdir}/seeded"
     [ -f "${tmpdir}/absent_optional" ] && \
         while IFS= read -r name; do
-            pad=$(( max_len - ${#name} ))
-            say "  ${CYAN}${name}${RESET}$(printf '%*s' "${pad}" '')  ${YELLOW}not seeded${RESET}"
+            name_pad=$(( max_len - ${#name} ))
+            not_seeded_pad=$(( max_rev - 10 ))
+            chan=$(awk -v n="${name}" '$1==n{print $2; exit}' "${tmpdir}/channels" 2>/dev/null)
+            say "  ${CYAN}${name}${RESET}$(printf '%*s' "${name_pad}" '')  ${YELLOW}not seeded${RESET}$(printf '%*s' "${not_seeded_pad}" '')${chan:+  ${DIM}${chan}${RESET}}"
         done < "${tmpdir}/absent_optional"
 
     # Detailed state inspection from state.json (when readable)
     [ -s "${tmpdir}/state.json" ] || return 0
-    command -v snap > /dev/null 2>&1 || return 0
 
     echo >&2
     say "${BOLD}Installed snaps:${RESET}"
-    snap debug state "${tmpdir}/state.json" >&2 2>/dev/null
+    CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" python3 - "${tmpdir}/state.json" >&2 <<'PYEOF'
+import json, os, sys
+C = os.environ.get("CYAN", "")
+D = os.environ.get("DIM", "")
+R = os.environ.get("RESET", "")
+with open(sys.argv[1]) as f:
+    snaps = json.load(f).get("data", {}).get("snaps", {})
+if not snaps:
+    print("  (none)")
+    sys.exit(0)
+max_name = max(len(n) for n in snaps)
+max_rev  = max(len(str(v.get("current", ""))) for v in snaps.values())
+for name in sorted(snaps):
+    s    = snaps[name]
+    rev  = str(s.get("current", "?"))
+    chan = s.get("tracking-channel") or s.get("channel", "")
+    suffix = f"  {chan}" if chan else ""
+    print(f"  {C}{name:<{max_name}}{R}  {D}{rev:>{max_rev}}{suffix}{R}")
+PYEOF
+
+    echo >&2
+    say "${BOLD}Connections:${RESET}"
+    CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" python3 - "${tmpdir}/state.json" >&2 <<'PYEOF'
+import json, os, sys
+C = os.environ.get("CYAN", "")
+D = os.environ.get("DIM", "")
+R = os.environ.get("RESET", "")
+with open(sys.argv[1]) as f:
+    conns = json.load(f).get("data", {}).get("conns", {})
+if not conns:
+    print("  (none)")
+    sys.exit(0)
+def fmt_side(side):
+    snap, _, plug = side.partition(":")
+    return f"{C}{snap}{R}{D}:{plug}{R}"
+for key in sorted(conns):
+    plug_side, _, slot_side = key.partition(" ")
+    print(f"  {fmt_side(plug_side)}  {fmt_side(slot_side)}")
+PYEOF
 
     echo >&2
     say "${BOLD}Changes:${RESET}"
-    snap debug state --changes "${tmpdir}/state.json" >&2 2>/dev/null
+    DIM="${DIM}" RESET="${RESET}" GREEN="${GREEN}" YELLOW="${YELLOW}" RED="${RED}" \
+        python3 - "${tmpdir}/state.json" >&2 <<'PYEOF'
+import json, os, sys
+D  = os.environ.get("DIM", "")
+R  = os.environ.get("RESET", "")
+GR = os.environ.get("GREEN", "")
+YE = os.environ.get("YELLOW", "")
+RE = os.environ.get("RED", "")
+STATUS = {0: "Hold", 1: "Do", 2: "Doing", 3: "Done", 4: "Abort",
+          5: "Undo", 6: "Undoing", 7: "Undone", 8: "Wait", 9: "Error"}
+STATUS_COLOR = {3: GR, 9: RE}
+with open(sys.argv[1]) as f:
+    changes = json.load(f).get("changes", {})
+if not changes:
+    print("  (none)")
+    sys.exit(0)
+rows = []
+for cid in sorted(changes, key=lambda x: int(x)):
+    c      = changes[cid]
+    code   = c.get("status", -1)
+    status = STATUS.get(code, str(code))
+    sc     = STATUS_COLOR.get(code, YE)
+    ts     = c.get("ready-time") or c.get("spawn-time") or ""
+    ts     = ts[:19].replace("T", " ") if ts else ""
+    rows.append((cid, status, sc, ts, c.get("summary", "")))
+max_id = max(len(r[0]) for r in rows)
+max_st = max(len(r[1]) for r in rows)
+max_ts = max(len(r[3]) for r in rows)
+for cid, status, sc, ts, summary in rows:
+    print(f"  {D}{cid:>{max_id}}{R}  {sc}{status:<{max_st}}{R}  {D}{ts:<{max_ts}}{R}  {summary}")
+PYEOF
 }
 main "$@"
