@@ -4,14 +4,14 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot env arch <subcommand>"
+    help_heading "Usage:" "idiot env arch <subcommand>"
     echo >&2
-    say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${CYAN}set${RESET}       Set the target architecture"
-    say "  ${CYAN}unset${RESET}     Clear the target architecture"
-    say "  ${CYAN}status${RESET}    Show the active architecture"
+    help_heading "Subcommands:"
+    help_command "set"    "Set the target architecture"
+    help_command "unset"  "Clear the target architecture"
+    help_command "status" "Show the active architecture"
     echo >&2
-    say "${BOLD}${BLUE}Environment:${RESET}"
-    say "  ${BOLD}UBUNTU_STORE_ARCH${RESET}    Target architecture override"
+    help_heading "Environment:"
+    help_env "UBUNTU_STORE_ARCH" "Target architecture override"
 }
 main "$@"

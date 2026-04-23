@@ -142,7 +142,7 @@ main() {
     [ -n "${arch}" ] || arch="$(host_arch)"
 
     qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
-    command -v "${qemu_bin}" > /dev/null 2>&1 || die "${qemu_bin} is required but not found"
+    require "${qemu_bin}"
 
     # Machine type and chipset flags
     case "${arch}" in
@@ -175,7 +175,7 @@ main() {
     fi
 
     if [ "${tpm}" -eq 1 ]; then
-        command -v swtpm > /dev/null 2>&1 || die "swtpm is required for TPM emulation — install the swtpm package"
+        require swtpm "install the swtpm package"
         tpm_sock="${tmpdir}/swtpm.sock"
         swtpm socket \
             --tpmstate "dir=${tmpdir}" \

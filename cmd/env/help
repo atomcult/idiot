@@ -4,12 +4,12 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot env <subcommand> [args...]"
+    help_heading "Usage:" "idiot env <subcommand> [args...]"
     echo >&2
-    say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${CYAN}auth${RESET}      Manage credentials"
-    say "  ${CYAN}store${RESET}     Manage Dedicated Snap Stores"
-    say "  ${CYAN}arch${RESET}      Manage target architecture"
+    help_heading "Subcommands:"
+    help_command "auth"  "Manage credentials"
+    help_command "store" "Manage Dedicated Snap Stores"
+    help_command "arch"  "Manage target architecture"
     echo >&2
     say "Run ${DIM}idiot env <subcommand> help${RESET} for subcommand details."
 }

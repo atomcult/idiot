@@ -242,10 +242,10 @@ main() {
     image="${1}"
     [ -f "${image}" ] || die "image not found: ${image}"
 
-    command -v sfdisk  > /dev/null 2>&1 || die "sfdisk is required but not found"
-    command -v python3 > /dev/null 2>&1 || die "python3 is required but not found"
-    command -v debugfs > /dev/null 2>&1 || die "debugfs is required but not found — install e2fsprogs"
-    command -v mcopy   > /dev/null 2>&1 || die "mcopy is required but not found — install mtools"
+    require sfdisk
+    require python3
+    require debugfs "install e2fsprogs"
+    require mcopy   "install mtools"
 
     tmpdir=$(mktemp -d)
     trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP

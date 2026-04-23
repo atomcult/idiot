@@ -4,11 +4,11 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot vm <subcommand>"
+    help_heading "Usage:" "idiot vm <subcommand>"
     echo >&2
-    say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${CYAN}run${RESET}    Launch a QEMU VM"
-    say "  ${CYAN}ssh${RESET}    SSH into the running VM"
-    say "  ${CYAN}scp${RESET}    Copy files to/from the running VM"
+    help_heading "Subcommands:"
+    help_command "run" "Launch a QEMU VM"
+    help_command "ssh" "SSH into the running VM"
+    help_command "scp" "Copy files to/from the running VM"
 }
 main "$@"

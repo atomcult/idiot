@@ -4,13 +4,13 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot models <subcommand>"
+    help_heading "Usage:" "idiot models <subcommand>"
     echo >&2
-    say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${CYAN}pick${RESET}      Interactively select a model assertion"
-    say "  ${CYAN}update${RESET}    Fetch the latest model assertions"
+    help_heading "Subcommands:"
+    help_command "pick"   "Interactively select a model assertion"
+    help_command "update" "Fetch the latest model assertions"
     echo >&2
-    say "${BOLD}${BLUE}Environment:${RESET}"
-    say "  ${BOLD}IDIOT_MODELS_DIR${RESET}    Models repository"
+    help_heading "Environment:"
+    help_env "IDIOT_MODELS_DIR" "Models repository"
 }
 main "$@"

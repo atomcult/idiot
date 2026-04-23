@@ -57,11 +57,52 @@ die() {
     exit 1
 }
 
+# Die unless the given command is found in PATH.
+# $1: command name, $2: optional install hint appended after " — "
+require() {
+    command -v "${1}" > /dev/null 2>&1 \
+        || die "${1} is required but not found${2:+ — ${2}}"
+}
+
 # POSIX-safe single-quote escaping
 shell_quote() {
     printf "'"
     printf '%s' "${1}" | sed "s/'/'\\\\''/g"
     printf "'"
+}
+
+# Help formatting helpers — produce consistent output across all help scripts.
+#
+# help_heading "Subcommands:"
+# help_heading "Usage:" "idiot env auth <subcommand>"
+# help_command "login"           "Activate a credential"
+# help_option  "--dry-run"       "Print what would be removed"
+# help_env     "IDIOT_AUTH_DIR"  "Credentials directory"
+
+# Print a bold/blue section heading with optional inline text.
+help_heading() {
+    say "${BOLD}${BLUE}${1}${RESET}${2:+ ${2}}"
+}
+
+# Print a subcommand/command row: cyan name padded to 12 chars, then description.
+help_command() {
+    gap=$(( 12 - ${#1} ))
+    [ "${gap}" -lt 2 ] && gap=2
+    say "  ${CYAN}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
+}
+
+# Print an option row: bold name padded to 14 chars, then description.
+help_option() {
+    gap=$(( 14 - ${#1} ))
+    [ "${gap}" -lt 2 ] && gap=2
+    say "  ${BOLD}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
+}
+
+# Print an environment variable row: bold name padded to 20 chars, then description.
+help_env() {
+    gap=$(( 20 - ${#1} ))
+    [ "${gap}" -lt 2 ] && gap=2
+    say "  ${BOLD}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
 
 # Dispatch to a subcommand within a command group directory.

@@ -15,17 +15,17 @@ IDIOT_LIB_DIR="${IDIOT_ROOT}/lib"
 idiot_help() {
     say "${BOLD}idiot${RESET} - shell environment manager"
     echo >&2
-    say "${BOLD}${BLUE}Usage:${RESET} idiot <command> [args...]"
+    help_heading "Usage:" "idiot <command> [args...]"
     echo >&2
-    say "${BOLD}${BLUE}Commands:${RESET}"
-    say "  ${CYAN}env${RESET}       Manage shell environment (auth, store, arch)"
-    say "  ${CYAN}inspect${RESET}   Inspect snap store objects"
-    say "  ${CYAN}models${RESET}    Manage model assertions"
-    say "  ${CYAN}prune${RESET}     Remove development leftovers"
-    say "  ${CYAN}vm${RESET}        Launch a QEMU VM"
-    say "  ${CYAN}init${RESET}      Set up shell integration"
+    help_heading "Commands:"
+    help_command "env"     "Manage shell environment (auth, store, arch)"
+    help_command "inspect" "Inspect snap store objects"
+    help_command "models"  "Manage model assertions"
+    help_command "prune"   "Remove development leftovers"
+    help_command "vm"      "Launch a QEMU VM"
+    help_command "init"    "Set up shell integration"
     echo >&2
-    say "${BOLD}${BLUE}Shell setup${RESET} (run once, add to your shell rc):"
+    help_heading "Shell setup" "(run once, add to your shell rc):"
     # shellcheck disable=SC2016
     {
         say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init bash)"'"${RESET}    ${DIM}# bash${RESET}"

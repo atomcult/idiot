@@ -4,18 +4,18 @@
 . "$(dirname "${0}")/../../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot env store <subcommand>"
+    help_heading "Usage:" "idiot env store <subcommand>"
     echo >&2
-    say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${CYAN}use${RESET}       Activate a store"
-    say "  ${CYAN}unset${RESET}     Clear the active store"
-    say "  ${CYAN}status${RESET}    Show the active store"
+    help_heading "Subcommands:"
+    help_command "use"    "Activate a store"
+    help_command "unset"  "Clear the active store"
+    help_command "status" "Show the active store"
     echo >&2
-    say "  ${CYAN}add${RESET}       Save a store"
-    say "  ${CYAN}remove${RESET}    Remove a saved store"
-    say "  ${CYAN}list${RESET}      List saved stores"
+    help_command "add"    "Save a store"
+    help_command "remove" "Remove a saved store"
+    help_command "list"   "List saved stores"
     echo >&2
-    say "${BOLD}${BLUE}Environment:${RESET}"
-    say "  ${BOLD}IDIOT_STORES_DIR${RESET}    Stores directory"
+    help_heading "Environment:"
+    help_env "IDIOT_STORES_DIR" "Stores directory"
 }
 main "$@"

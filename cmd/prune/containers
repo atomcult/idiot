@@ -13,7 +13,7 @@ main() {
         shift
     done
 
-    command -v lxc > /dev/null 2>&1 || die "lxc is required but not found"
+    require lxc
 
     containers=$(lxc list --project snapcraft --format csv --columns n 2>/dev/null)
     [ -n "${containers}" ] || { say "No containers in snapcraft project."; exit 0; }

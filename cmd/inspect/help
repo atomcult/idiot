@@ -4,11 +4,11 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot inspect <subcommand> [args...]"
+    help_heading "Usage:" "idiot inspect <subcommand> [args...]"
     echo >&2
-    say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${CYAN}changes${RESET}   Browse recent snap changes"
-    say "  ${CYAN}snap${RESET}      Print the snapcraft.yaml or snap.yaml from a snap file"
-    say "  ${CYAN}image${RESET}     Inspect an Ubuntu Core disk image"
+    help_heading "Subcommands:"
+    help_command "changes" "Browse recent snap changes"
+    help_command "snap"    "Print the snapcraft.yaml or snap.yaml from a snap file"
+    help_command "image"   "Inspect an Ubuntu Core disk image"
 }
 main "$@"

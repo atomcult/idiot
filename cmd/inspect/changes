@@ -5,8 +5,8 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    command -v fzf > /dev/null 2>&1 || die "fzf is required but not found (https://github.com/junegunn/fzf)"
-    command -v snap > /dev/null 2>&1 || die "snap is required but not found"
+    require fzf "https://github.com/junegunn/fzf"
+    require snap
 
     snap changes \
         | fzf \

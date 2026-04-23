@@ -13,7 +13,7 @@ main() {
         shift
     done
 
-    command -v snap > /dev/null 2>&1 || die "snap is required but not found"
+    require snap
 
     # Dangerously-installed snaps have sideloaded revisions (x<N>)
     snaps=$(snap list 2>/dev/null | awk 'NR>1 && $3 ~ /^x[0-9]+$/ {print $1}')

@@ -15,12 +15,12 @@ main() {
     while [ $# -gt 0 ]; do
         case "${1}" in
             help|-h|--help)
-                say "${BOLD}${BLUE}Usage:${RESET} idiot models pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]"
+                help_heading "Usage:" "idiot models pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]"
                 echo >&2
-                say "${BOLD}${BLUE}Options:${RESET}"
-                say "  ${BOLD}--signed${RESET}      Only show signed model assertions (*.model)"
-                say "  ${BOLD}--unsigned${RESET}    Only show unsigned model assertions (*.json)"
-                say "  ${BOLD}-o${RESET} ${BOLD}<file>${RESET}      Write to file; use ${BOLD}-${RESET} for stdout"
+                help_heading "Options:"
+                help_option "--signed"   "Only show signed model assertions (*.model)"
+                help_option "--unsigned" "Only show unsigned model assertions (*.json)"
+                help_option "-o <file>"  "Write to file; use - for stdout"
                 exit 0
                 ;;
             --signed)    filter="signed" ;;
@@ -39,7 +39,7 @@ main() {
         shift
     done
 
-    command -v fzf > /dev/null 2>&1 || die "fzf is required but not found (https://github.com/junegunn/fzf)"
+    require fzf "https://github.com/junegunn/fzf"
     [ -d "${IDIOT_MODELS_DIR}/.git" ] || die "models repository not found — run 'idiot models update' first"
     [ -n "${output}" ] || [ -d "${dest}" ] || die "destination directory does not exist: ${dest}"
 

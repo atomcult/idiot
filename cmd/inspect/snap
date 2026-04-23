@@ -11,8 +11,7 @@ main() {
     [ -f "${snap_file}" ] ||
         die "file not found: ${snap_file}"
 
-    command -v unsquashfs > /dev/null 2>&1 ||
-        die "unsquashfs is required but not found"
+    require unsquashfs
 
     ! unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >&2 ||
         exit 0

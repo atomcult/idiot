@@ -4,11 +4,11 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    say "${BOLD}${BLUE}Usage:${RESET} idiot prune <subcommand>"
+    help_heading "Usage:" "idiot prune <subcommand>"
     echo >&2
-    say "${BOLD}${BLUE}Subcommands:${RESET}"
-    say "  ${CYAN}all${RESET}          Remove all snapcraft build containers and unasserted snaps"
-    say "  ${CYAN}containers${RESET}   Remove all snapcraft build containers"
-    say "  ${CYAN}snaps${RESET}        Remove all unasserted snaps"
+    help_heading "Subcommands:"
+    help_command "all"        "Remove all snapcraft build containers and unasserted snaps"
+    help_command "containers" "Remove all snapcraft build containers"
+    help_command "snaps"      "Remove all unasserted snaps"
 }
 main "$@"
