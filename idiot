@@ -27,7 +27,7 @@ idiot_help() {
     help_command "process" "Step-by-step process checklists"
     help_command "todo"    "Manage per-project to-do lists"
     help_command "docs"     "Browse and search IoT reference docs"
-    help_command "examples" "Clone an example repository"
+    help_command "example"  "Clone an example repository"
     help_command "kernel"  "Clone an Ubuntu kernel from Launchpad"
     help_command "run"      "Run a snap-bundled tool directly"
     help_command "init"     "Set up shell integration"
