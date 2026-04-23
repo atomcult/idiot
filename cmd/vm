@@ -100,6 +100,8 @@ main() {
     sb=0
     tpm=0
     no_gfx=0
+    ssh_port=8022
+    extra_fwds=''
 
     while [ $# -gt 0 ]; do
         case "${1}" in
@@ -112,6 +114,19 @@ main() {
             --tpm)     tpm=1 ;;
             --no-tpm)  tpm=0 ;;
             --no-gfx)  no_gfx=1 ;;
+            --ssh-port)
+                [ -n "${2:-}" ] || die "--ssh-port requires an argument"
+                ssh_port="${2}"; shift ;;
+            --port)
+                [ -n "${2:-}" ] || die "--port requires a host:guest mapping"
+                case "${2}" in
+                    *:*) ;;
+                    *) die "--port: expected host:guest, got '${2}'" ;;
+                esac
+                host_p="${2%%:*}"
+                guest_p="${2##*:}"
+                extra_fwds="${extra_fwds},hostfwd=tcp::${host_p}-:${guest_p}"
+                shift ;;
             -*)
                 die "unknown option: ${1}" ;;
             *)
@@ -121,7 +136,7 @@ main() {
         shift
     done
 
-    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] <image> [-- <qemu-args>]"
+    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] <image> [-- <qemu-args>]"
     [ -f "${image}" ] || die "image not found: ${image}"
 
     [ -n "${arch}" ] || arch="$(host_arch)"
@@ -177,6 +192,8 @@ main() {
         display_flags='-serial mon:stdio'
     fi
 
+    net_user="user,hostfwd=tcp::${ssh_port}-:22${extra_fwds}"
+
     # shellcheck disable=SC2086
     "${qemu_bin}" \
         -smp "$(nproc)" \
@@ -184,7 +201,7 @@ main() {
         ${machine_flags} \
         ${kvm_flags} \
         -net nic,model=virtio \
-        -net user,hostfwd=tcp::8022-:22 \
+        -net "${net_user}" \
         ${fw_flags} \
         -drive "file=${image},if=none,format=raw,id=disk1" \
         -device virtio-blk-pci,drive=disk1,bootindex=1 \
