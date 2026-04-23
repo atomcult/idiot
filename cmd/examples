@@ -1,8 +1,26 @@
 #!/usr/bin/env sh
 # cmd/examples - clone an example repository
-# Usage: idiot examples [list | add | remove | <repo> [options]]
+# Usage: idiot examples [list | add | remove | update | <repo> [options]]
 
 . "$(dirname "${0}")/../lib/common.sh"
+
+EXAMPLES_CACHE="${IDIOT_CACHE_DIR}/examples"
+
+# --- cache helpers ---
+
+_cache_path() { printf '%s/%s\n' "${EXAMPLES_CACHE}" "${1}"; }
+
+ensure_cached() {
+    name="${1}"; url="${2}"
+    path="$(_cache_path "${name}")"
+    if [ ! -d "${path}" ]; then
+        say "Fetching ${BOLD}${name}${RESET} into cache..."
+        git clone --mirror "${url}" "${path}" >&2 || die "fetch failed"
+    fi
+    printf '%s\n' "${path}"
+}
+
+# --- subcommand helpers ---
 
 list_known() {
     found=0
@@ -13,12 +31,14 @@ list_known() {
             found=1
             alias_name="$(basename "${f}")"
             url="$(head -1 "${f}")"
+            cached=""
+            [ -d "$(_cache_path "${alias_name}")" ] && cached="  ${GREEN}✓${RESET}"
             gap=$(( 28 - ${#alias_name} ))
             [ "${gap}" -lt 2 ] && gap=2
             if [ "${ex_dir}" = "${IDIOT_EXAMPLES_DIR}" ]; then
-                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}  (user)${RESET}"
+                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}  (user)${RESET}${cached}"
             else
-                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}${RESET}"
+                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}${RESET}${cached}"
             fi
         done
     done
@@ -39,37 +59,28 @@ resolve_url() {
 }
 
 do_add() {
-    name="${1:-}"
-    target="${2:-}"
-
+    name="${1:-}"; target="${2:-}"
     { [ -n "${name}" ] && [ -n "${target}" ]; } \
         || die "usage: idiot examples add <alias> <user>/<repo>"
-
     case "${name}" in
         *[!A-Za-z0-9_-]*) die "invalid alias '${name}': use only letters, digits, hyphens, underscores" ;;
     esac
-
     case "${target}" in
         *://*)  url="${target}" ;;
         */*)    url="https://github.com/${target}" ;;
         *)      die "target must be a <user>/<repo> slug or a full URL" ;;
     esac
-
     mkdir -p "${IDIOT_EXAMPLES_DIR}"
     dest="${IDIOT_EXAMPLES_DIR}/${name}"
-
     [ -f "${dest}" ] && die "alias '${name}' already exists (use 'idiot examples remove ${name}' first)"
-
     [ -f "${IDIOT_DATA_DIR}/examples/${name}" ] && \
         say "${YELLOW}warning:${RESET} '${name}' shadows a built-in alias"
-
     printf '%s\n' "${url}" > "${dest}"
     say "Added alias '${BOLD}${name}${RESET}' → ${DIM}${url}${RESET}"
 }
 
 do_remove() {
     name="${1:-}"
-
     [ -n "${name}" ] || {
         command -v fzf > /dev/null 2>&1 \
             || die "an alias name is required (fzf not found for interactive selection)"
@@ -82,17 +93,40 @@ do_remove() {
         name=$(printf '%s\n' "${files}" | fzf --prompt="remove alias> " \
             --preview="${preview_cmd}") || exit 0
     }
-
     alias_file="${IDIOT_EXAMPLES_DIR}/${name}"
     [ -f "${alias_file}" ] || {
         [ -f "${IDIOT_DATA_DIR}/examples/${name}" ] \
             && die "cannot remove built-in alias '${name}'"
         die "alias '${name}' not found"
     }
-
     rm "${alias_file}"
     say "Removed alias '${BOLD}${name}${RESET}'"
 }
+
+do_update() {
+    name="${1:-}"
+    if [ -n "${name}" ]; then
+        path="$(_cache_path "${name}")"
+        [ -d "${path}" ] || die "'${name}' is not cached — run: idiot examples ${name}"
+        say "Updating ${BOLD}${name}${RESET}..."
+        git -C "${path}" remote update --prune >&2 || die "update failed"
+        say "Updated ${BOLD}${name}${RESET}"
+    else
+        [ -d "${EXAMPLES_CACHE}" ] || die "no cached repos — clone an aliased repo first"
+        found=0
+        for path in "${EXAMPLES_CACHE}"/*/; do
+            [ -d "${path}" ] || continue
+            found=1
+            name="$(basename "${path%/}")"
+            say "Updating ${BOLD}${name}${RESET}..."
+            git -C "${path}" remote update --prune >&2 \
+                || say "${YELLOW}warning:${RESET} failed to update '${name}'"
+        done
+        [ "${found}" -eq 1 ] || die "no cached repos — clone an aliased repo first"
+    fi
+}
+
+# --- main ---
 
 main() {
     case "${1:-}" in
@@ -100,41 +134,45 @@ main() {
             help_heading "Usage:" "idiot examples <repo> [options]"
             echo >&2
             say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, or a known alias (see below)."
+            say "Known aliases are kept as a local mirror; use ${BOLD}update${RESET} to refresh."
             echo >&2
             help_heading "Options:"
             help_option "--dest <dir>"    "Clone into <dir> (default: ./<repo-name>)"
-            help_option "--branch <name>" "Check out a specific branch"
-            help_option "--tag <name>"    "Check out a specific tag"
+            help_option "--branch [name]" "Branch to use; omit value for fzf picker"
+            help_option "--tag [name]"    "Tag to use; omit value for fzf picker"
+            help_option "--subdir [path]" "Extract a subdirectory; omit value for fzf picker"
             help_option "--bare"          "Extract files only — no .git directory"
             echo >&2
             help_heading "Subcommands:"
-            help_command "list"   "List known aliases"
+            help_command "list"   "List known aliases  (✓ = locally cached)"
             help_command "add"    "Add a user-defined alias"
             help_command "remove" "Remove a user-defined alias"
+            help_command "update" "Refresh cached alias(es) from remote"
             echo >&2
             help_heading "Examples:"
             say "  ${CYAN}idiot examples${RESET} iot-example-snaps"
+            say "  ${CYAN}idiot examples${RESET} iot-example-snaps ${DIM}--subdir${RESET}          ${DIM}# fzf picker${RESET}"
+            say "  ${CYAN}idiot examples${RESET} iot-example-snaps ${DIM}--branch${RESET}          ${DIM}# fzf picker${RESET}"
             say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--dest${RESET} ~/dev"
             say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--tag${RESET} v1.2 ${DIM}--bare${RESET}"
             say "  ${CYAN}idiot examples add${RESET} my-alias canonical/my-snap"
+            say "  ${CYAN}idiot examples update${RESET}"
             echo >&2
             help_heading "Known aliases:"
             list_known
             exit 0 ;;
-        list)
-            list_known
-            exit 0 ;;
-        add)
-            shift; do_add "$@"
-            exit 0 ;;
-        remove)
-            shift; do_remove "$@"
-            exit 0 ;;
+        list)   list_known;           exit 0 ;;
+        add)    shift; do_add "$@";   exit 0 ;;
+        remove) shift; do_remove "$@"; exit 0 ;;
+        update) shift; do_update "$@"; exit 0 ;;
     esac
 
     bare=0
     dest=""
     ref=""
+    subdir=""
+    pick_ref=""
+    pick_subdir=0
     repo=""
 
     while [ $# -gt 0 ]; do
@@ -146,14 +184,26 @@ main() {
                 dest="${2}"; shift 2 ;;
             --dest=*)
                 dest="${1#--dest=}"; shift ;;
-            --tag)
-                [ -n "${2:-}" ] || die "--tag requires a value"
-                [ -z "${ref}" ] || die "--tag and --branch are mutually exclusive"
-                ref="${2}"; shift 2 ;;
             --branch)
-                [ -n "${2:-}" ] || die "--branch requires a value"
-                [ -z "${ref}" ] || die "--tag and --branch are mutually exclusive"
-                ref="${2}"; shift 2 ;;
+                [ -z "${ref}" ] && [ -z "${pick_ref}" ] || die "--branch and --tag are mutually exclusive"
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    ref="${2}"; shift 2
+                else
+                    pick_ref="branch"; shift
+                fi ;;
+            --tag)
+                [ -z "${ref}" ] && [ -z "${pick_ref}" ] || die "--branch and --tag are mutually exclusive"
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    ref="${2}"; shift 2
+                else
+                    pick_ref="tag"; shift
+                fi ;;
+            --subdir)
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    subdir="${2}"; shift 2
+                else
+                    pick_subdir=1; shift
+                fi ;;
             --*)
                 die "unknown option: ${1}" ;;
             *)
@@ -170,31 +220,116 @@ main() {
     repo_name="${repo##*/}"
     [ -n "${dest}" ] || dest="${repo_name}"
 
-    if [ "${bare}" -eq 1 ]; then
-        tmpdir=$(mktemp -d)
-        trap '[ -d "${tmpdir}" ] && rm -rf "${tmpdir}"' EXIT INT TERM
+    # --subdir always produces a file-only extraction
+    [ -n "${subdir}" ] && bare=1
 
-        set -- git clone --depth 1
-        [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
-        set -- "$@" "${url}" "${tmpdir}"
+    case "${repo}" in
+        */*) is_alias=0 ;;
+        *)   is_alias=1 ;;
+    esac
 
-        say "Cloning ${BOLD}${repo}${RESET}..."
-        "$@" >&2 || die "clone failed"
+    if [ "${is_alias}" -eq 1 ]; then
+        # ----------------------------------------------------------------
+        # Aliased repo: use local mirror cache
+        # ----------------------------------------------------------------
+        cpath=$(ensure_cached "${repo}" "${url}")
 
-        rm -rf "${tmpdir}/.git"
-        [ -e "${dest}" ] && die "destination '${dest}' already exists"
-        mv "${tmpdir}" "${dest}"
+        # Interactive ref picker (works offline from local mirror)
+        if [ -n "${pick_ref}" ]; then
+            require fzf "install fzf for interactive selection"
+            if [ "${pick_ref}" = "branch" ]; then
+                ref=$(git -C "${cpath}" branch | sed 's/^..//' | sort \
+                    | fzf --prompt="branch> ") || exit 0
+            else
+                ref=$(git -C "${cpath}" tag | sort -V \
+                    | fzf --prompt="tag> ") || exit 0
+            fi
+        fi
 
-        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+        # Interactive subdir picker (also offline)
+        if [ "${pick_subdir}" -eq 1 ]; then
+            require fzf "install fzf for interactive selection"
+            subdir=$(git -C "${cpath}" ls-tree -r -d --name-only "${ref:-HEAD}" \
+                | fzf --prompt="subdir> ") || exit 0
+            bare=1
+        fi
+
+        if [ "${bare}" -eq 1 ]; then
+            [ -e "${dest}" ] && die "destination '${dest}' already exists"
+            mkdir -p "${dest}"
+            if [ -n "${subdir}" ]; then
+                git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${subdir}" | grep -q '^' \
+                    || die "subdirectory '${subdir}' not found"
+                strip=$(printf '%s' "${subdir}" | awk -F/ '{print NF}')
+                git -C "${cpath}" archive "${ref:-HEAD}" -- "${subdir}" \
+                    | tar -x --strip-components="${strip}" -C "${dest}" \
+                    || die "extraction failed"
+                say "Extracted ${DIM}${subdir}${RESET} → ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+            else
+                git -C "${cpath}" archive "${ref:-HEAD}" \
+                    | tar -x -C "${dest}" \
+                    || die "extraction failed"
+                say "Extracted to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+            fi
+        else
+            # Local clone from mirror — fast, no network
+            set -- git clone
+            [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+            set -- "$@" "${cpath}" "${dest}"
+            say "Cloning ${BOLD}${repo}${RESET} from cache..."
+            "$@" >&2 || die "clone failed"
+            say "Cloned to ${BOLD}${dest}${RESET}"
+        fi
+
     else
-        set -- git clone
-        [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
-        set -- "$@" "${url}" "${dest}"
+        # ----------------------------------------------------------------
+        # Direct <user>/<repo> slug: one-time clone, no caching
+        # ----------------------------------------------------------------
+        [ "${pick_subdir}" -eq 1 ] && die "--subdir without a value requires a known alias"
 
-        say "Cloning ${BOLD}${repo}${RESET}..."
-        "$@" >&2 || die "clone failed"
+        # Branch/tag pickers fall back to ls-remote (needs network)
+        if [ -n "${pick_ref}" ]; then
+            require fzf "install fzf for interactive selection"
+            say "Fetching refs from ${BOLD}${repo}${RESET}..."
+            if [ "${pick_ref}" = "branch" ]; then
+                ref=$(git ls-remote --heads "${url}" \
+                    | sed 's|.*refs/heads/||' | sort \
+                    | fzf --prompt="branch> ") || exit 0
+            else
+                ref=$(git ls-remote --tags "${url}" \
+                    | sed 's|.*refs/tags/||' | grep -v '\^{}' | sort -V \
+                    | fzf --prompt="tag> ") || exit 0
+            fi
+        fi
 
-        say "Cloned to ${BOLD}${dest}${RESET}"
+        if [ "${bare}" -eq 1 ]; then
+            tmpdir=$(mktemp -d)
+            trap '[ -d "${tmpdir}" ] && rm -rf "${tmpdir}"' EXIT INT TERM
+            set -- git clone --depth 1
+            [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+            set -- "$@" "${url}" "${tmpdir}"
+            say "Cloning ${BOLD}${repo}${RESET}..."
+            "$@" >&2 || die "clone failed"
+            rm -rf "${tmpdir}/.git"
+            if [ -n "${subdir}" ]; then
+                src="${tmpdir}/${subdir}"
+                [ -d "${src}" ] || die "subdirectory '${subdir}' not found"
+                [ -e "${dest}" ] && die "destination '${dest}' already exists"
+                mv "${src}" "${dest}"
+                say "Extracted ${DIM}${subdir}${RESET} → ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+            else
+                [ -e "${dest}" ] && die "destination '${dest}' already exists"
+                mv "${tmpdir}" "${dest}"
+                say "Extracted to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+            fi
+        else
+            set -- git clone
+            [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+            set -- "$@" "${url}" "${dest}"
+            say "Cloning ${BOLD}${repo}${RESET}..."
+            "$@" >&2 || die "clone failed"
+            say "Cloned to ${BOLD}${dest}${RESET}"
+        fi
     fi
 }
 main "$@"
