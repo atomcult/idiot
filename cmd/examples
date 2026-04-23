@@ -290,6 +290,7 @@ main() {
             git -C "${cpath}" ls-tree -r -d --name-only "${ref:-HEAD}" \
                 | while IFS= read -r dir; do mkdir -p "${_nnn_tmp}/${dir}"; done
             nnn -p "${_nnn_sel}" "${_nnn_tmp}" >&2 || exit 0
+            [ -f "${_nnn_sel}" ] || exit 0
             subdirs=$(while IFS= read -r _line; do
                 _line="${_line#"${_nnn_tmp}"}"; _line="${_line#/}"
                 [ -n "${_line}" ] && printf '%s\n' "${_line}"
