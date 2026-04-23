@@ -146,7 +146,7 @@ do_update() {
 
 main() {
     case "${1:-}" in
-        -h|--help|help)
+        ""|--help|-h|help)
             help_heading "Usage:" "idiot examples <repo> [options]"
             echo >&2
             say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, or a known alias (see below)."
