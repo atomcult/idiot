@@ -1,0 +1,95 @@
+#!/usr/bin/env sh
+# cmd/inspect/image - inspect an Ubuntu Core disk image
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+# Outputs: start_sector size_sectors sector_size for a named GPT partition
+partition_sectors() {
+    sfdisk --json "${1}" 2>/dev/null | python3 -c "
+import json, sys
+pt = json.load(sys.stdin)['partitiontable']
+ss = pt.get('sectorsize', 512)
+for p in pt['partitions']:
+    if p.get('name') == sys.argv[1]:
+        print(p['start'], p['size'], ss)
+        sys.exit(0)
+sys.exit(1)
+" "${2}"
+}
+
+# Checks whether the byte at the given offset in a file is a LUKS header
+is_luks() {
+    python3 -c "
+import sys
+with open(sys.argv[1], 'rb') as f:
+    f.seek(int(sys.argv[2]))
+    sys.exit(0 if f.read(6) == b'LUKS\xba\xbe' else 1)
+" "${1}" "${2}" 2>/dev/null
+}
+
+# Extracts brand-id/model from a model assertion
+parse_model() {
+    brand=$(printf '%s\n' "${1}" | awk '/^brand-id:/{print $2; exit}')
+    name=$(printf '%s\n'  "${1}" | awk '/^model:/{print $2; exit}')
+    [ -n "${brand}" ] && [ -n "${name}" ] && printf '%s/%s' "${brand}" "${name}"
+}
+
+main() {
+    [ $# -eq 1 ] || die "usage: idiot inspect image <disk.img>"
+    image="${1}"
+    [ -f "${image}" ] || die "image not found: ${image}"
+
+    command -v sfdisk  > /dev/null 2>&1 || die "sfdisk is required but not found"
+    command -v python3 > /dev/null 2>&1 || die "python3 is required but not found"
+    command -v debugfs > /dev/null 2>&1 || die "debugfs is required but not found — install e2fsprogs"
+
+    data_pinfo=$(partition_sectors "${image}" ubuntu-data) \
+        || die "ubuntu-data partition not found — is this an Ubuntu Core image?"
+    data_start=$(printf '%s\n' "${data_pinfo}" | awk '{print $1}')
+    data_ss=$(printf '%s\n'    "${data_pinfo}" | awk '{print $3}')
+    data_offset=$(( data_start * data_ss ))
+
+    # Read modeenv from ubuntu-data; debugfs accepts image?offset=N for partition access
+    modeenv=$(debugfs -R 'cat /system-data/var/lib/snapd/modeenv' \
+        "${image}?offset=${data_offset}" 2>/dev/null)
+    mode=$(printf '%s\n' "${modeenv}" | awk -F= '/^mode=/{print $2; exit}')
+
+    if [ "${mode}" = "run" ]; then
+        first_boot="${GREEN}complete${RESET}"
+    elif [ -n "${mode}" ]; then
+        first_boot="not yet complete ${DIM}(mode: ${mode})${RESET}"
+    elif is_luks "${image}" "${data_offset}"; then
+        first_boot="unknown ${DIM}(ubuntu-data is encrypted)${RESET}"
+    else
+        first_boot="not yet complete"
+    fi
+
+    # Model: try ubuntu-data first (available post-seeding)
+    assertion=$(debugfs -R 'cat /system-data/var/lib/snapd/device/model' \
+        "${image}?offset=${data_offset}" 2>/dev/null)
+    model=$(parse_model "${assertion}")
+
+    # Fall back to ubuntu-seed (FAT32) for pre-seeding or encrypted images
+    if [ -z "${model}" ]; then
+        command -v mcopy > /dev/null 2>&1 \
+            || die "mcopy (mtools) is required to read model from an unbooted image — install mtools"
+
+        seed_pinfo=$(partition_sectors "${image}" ubuntu-seed) \
+            || die "ubuntu-seed partition not found"
+        seed_start=$(printf '%s\n' "${seed_pinfo}" | awk '{print $1}')
+        seed_ss=$(printf '%s\n'    "${seed_pinfo}" | awk '{print $3}')
+        seed_offset=$(( seed_start * seed_ss ))
+
+        label=$(mdir -b -i "${image}@@${seed_offset}" '::/systems' 2>/dev/null \
+            | head -1 | sed 's|.*/||; s|\r||')
+        if [ -n "${label}" ]; then
+            assertion=$(mcopy -i "${image}@@${seed_offset}" \
+                "::/systems/${label}/model" - 2>/dev/null)
+            model=$(parse_model "${assertion}")
+        fi
+    fi
+
+    say "${BOLD}Model:${RESET}       ${model:-${YELLOW}unknown${RESET}}"
+    say "${BOLD}First boot:${RESET}  ${first_boot}"
+}
+main "$@"
