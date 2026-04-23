@@ -156,7 +156,7 @@ main() {
             help_option "--dest <dir>"    "Clone into <dir> (default: ./<repo-name>)"
             help_option "--branch [name]" "Branch to use; omit value for fzf picker"
             help_option "--tag [name]"    "Tag to use; omit value for fzf picker"
-            help_option "--subdir [path]" "Extract a subdirectory; omit value for fzf picker"
+            help_option "--subdir [path]" "Extract a subdirectory; omit value for nnn picker"
             help_option "--bare"          "Extract files only — no .git directory"
             echo >&2
             help_heading "Subcommands:"
@@ -167,7 +167,7 @@ main() {
             echo >&2
             help_heading "Examples:"
             say "  ${CYAN}idiot examples${RESET} iot-example-snaps"
-            say "  ${CYAN}idiot examples${RESET} iot-example-snaps ${DIM}--subdir${RESET}          ${DIM}# fzf picker${RESET}"
+            say "  ${CYAN}idiot examples${RESET} iot-example-snaps ${DIM}--subdir${RESET}          ${DIM}# nnn picker${RESET}"
             say "  ${CYAN}idiot examples${RESET} iot-example-snaps ${DIM}--branch${RESET}          ${DIM}# fzf picker${RESET}"
             say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--dest${RESET} ~/dev"
             say "  ${CYAN}idiot examples${RESET} canonical/my-snap ${DIM}--tag${RESET} v1.2 ${DIM}--bare${RESET}"
@@ -264,9 +264,19 @@ main() {
 
         # Interactive subdir picker (also offline)
         if [ "${pick_subdir}" -eq 1 ]; then
-            require fzf "install fzf for interactive selection"
-            subdir=$(git -C "${cpath}" ls-tree -r -d --name-only "${ref:-HEAD}" \
-                | fzf --prompt="subdir> ") || exit 0
+            require nnn "install nnn for interactive directory selection"
+            _nnn_tmp=$(mktemp -d)
+            _nnn_sel=$(mktemp)
+            trap '[ -d "${_nnn_tmp}" ] && rm -rf "${_nnn_tmp}"; rm -f "${_nnn_sel}"' EXIT INT TERM
+            git -C "${cpath}" ls-tree -r -d --name-only "${ref:-HEAD}" \
+                | while IFS= read -r dir; do mkdir -p "${_nnn_tmp}/${dir}"; done
+            nnn -p "${_nnn_sel}" "${_nnn_tmp}" >&2 || exit 0
+            subdir=$(cat "${_nnn_sel}")
+            subdir="${subdir#"${_nnn_tmp}"}"
+            subdir="${subdir#/}"
+            rm -rf "${_nnn_tmp}"; rm -f "${_nnn_sel}"
+            trap - EXIT INT TERM
+            [ -n "${subdir}" ] || exit 0
             bare=1
         fi
 
