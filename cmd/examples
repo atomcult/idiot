@@ -234,7 +234,6 @@ main() {
 
     url=$(resolve_url "${repo}")
     repo_name="${repo##*/}"
-    [ -n "${dest}" ] || dest="${repo_name}"
 
     # --subdir always produces a file-only extraction
     [ -n "${subdir}" ] && bare=1
@@ -279,6 +278,8 @@ main() {
             [ -n "${subdir}" ] || exit 0
             bare=1
         fi
+
+        [ -n "${dest}" ] || dest="${subdir:+${subdir##*/}}"; [ -n "${dest}" ] || dest="${repo_name}"
 
         if [ "${bare}" -eq 1 ]; then
             [ -e "${dest}" ] && die "destination '${dest}' already exists"
@@ -327,6 +328,8 @@ main() {
                     | fzf --prompt="tag> ") || exit 0
             fi
         fi
+
+        [ -n "${dest}" ] || dest="${subdir:+${subdir##*/}}"; [ -n "${dest}" ] || dest="${repo_name}"
 
         if [ "${bare}" -eq 1 ]; then
             tmpdir=$(mktemp -d)
