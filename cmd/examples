@@ -1,0 +1,120 @@
+#!/usr/bin/env sh
+# cmd/examples - clone an example repository
+# Usage: idiot examples [list | <repo> [options]]
+
+. "$(dirname "${0}")/../lib/common.sh"
+
+list_known() {
+    ex_dir="${IDIOT_DATA_DIR}/examples"
+    [ -d "${ex_dir}" ] || { say "  ${DIM}(none)${RESET}"; return; }
+    found=0
+    for f in "${ex_dir}"/*; do
+        [ -f "${f}" ] || continue
+        found=1
+        alias_name="$(basename "${f}")"
+        url="$(cat "${f}")"
+        gap=$(( 28 - ${#alias_name} ))
+        [ "${gap}" -lt 2 ] && gap=2
+        say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${DIM}${url}${RESET}"
+    done
+    [ "${found}" -eq 1 ] || say "  ${DIM}(none)${RESET}"
+}
+
+resolve_url() {
+    case "${1}" in
+        */*)
+            printf 'https://github.com/%s\n' "${1}" ;;
+        *)
+            ex_file="${IDIOT_DATA_DIR}/examples/${1}"
+            [ -f "${ex_file}" ] || die "unknown alias '${1}' — use <user>/<repo> or run 'idiot examples list'"
+            cat "${ex_file}" ;;
+    esac
+}
+
+main() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot examples <repo> [options]"
+            echo >&2
+            say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, or a short alias (see below)."
+            echo >&2
+            help_heading "Options:"
+            help_option "--dest <dir>"    "Clone destination (default: ./<repo-name>)"
+            help_option "--branch <name>" "Clone a specific branch"
+            help_option "--tag <name>"    "Clone a specific tag"
+            help_option "--bare"          "Clone files only, without git history"
+            echo >&2
+            help_heading "Known aliases:"
+            list_known
+            exit 0 ;;
+        list)
+            list_known
+            exit 0 ;;
+    esac
+
+    bare=0
+    dest=""
+    ref=""
+    repo=""
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            --bare)
+                bare=1; shift ;;
+            --dest)
+                [ -n "${2:-}" ] || die "--dest requires a directory argument"
+                dest="${2}"; shift 2 ;;
+            --dest=*)
+                dest="${1#--dest=}"; shift ;;
+            --tag)
+                [ -n "${2:-}" ] || die "--tag requires a value"
+                [ -z "${ref}" ] || die "--tag and --branch are mutually exclusive"
+                ref="${2}"; shift 2 ;;
+            --branch)
+                [ -n "${2:-}" ] || die "--branch requires a value"
+                [ -z "${ref}" ] || die "--tag and --branch are mutually exclusive"
+                ref="${2}"; shift 2 ;;
+            --*)
+                die "unknown option: ${1}" ;;
+            *)
+                [ -z "${repo}" ] || die "unexpected argument: ${1}"
+                repo="${1}"; shift ;;
+        esac
+    done
+
+    [ -n "${repo}" ] || die "usage: idiot examples <repo> [options]"
+
+    require git
+
+    url=$(resolve_url "${repo}")
+    repo_name="${repo##*/}"
+    [ -n "${dest}" ] || dest="${repo_name}"
+
+    if [ "${bare}" -eq 1 ]; then
+        tmpdir=$(mktemp -d)
+        trap '[ -d "${tmpdir}" ] && rm -rf "${tmpdir}"' EXIT INT TERM
+
+        set -- git clone --depth 1
+        [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+        set -- "$@" "${url}" "${tmpdir}"
+
+        say "Cloning ${BOLD}${repo}${RESET}..."
+        "$@" >&2 || die "clone failed"
+
+        rm -rf "${tmpdir}/.git"
+        [ -e "${dest}" ] && die "destination '${dest}' already exists"
+        mv "${tmpdir}" "${dest}"
+
+        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+    else
+        set -- git clone
+        [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+        set -- "$@" "${url}" "${dest}"
+
+        say "Cloning ${BOLD}${repo}${RESET}..."
+        "$@" >&2 || die "clone failed"
+
+        say "Cloned to ${BOLD}${dest}${RESET}"
+    fi
+}
+main "$@"
