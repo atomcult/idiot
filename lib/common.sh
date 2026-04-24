@@ -93,23 +93,23 @@ help_heading() {
     say "${BOLD}${BLUE}${1}${RESET}${2:+ ${2}}"
 }
 
-# Print a subcommand/command row: cyan name padded to 12 chars, then description.
+# Print a subcommand/command row: cyan name padded to 14 chars, then description.
 help_command() {
-    gap=$(( 12 - ${#1} ))
+    gap=$(( 14 - ${#1} ))
     [ "${gap}" -lt 2 ] && gap=2
     say "  ${CYAN}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
 
-# Print an option row: bold name padded to 14 chars, then description.
+# Print an option row: bold name padded to 22 chars, then description.
 help_option() {
-    gap=$(( 14 - ${#1} ))
+    gap=$(( 22 - ${#1} ))
     [ "${gap}" -lt 2 ] && gap=2
     say "  ${BOLD}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
 
-# Print an environment variable row: bold name padded to 20 chars, then description.
+# Print an environment variable row: bold name padded to 22 chars, then description.
 help_env() {
-    gap=$(( 20 - ${#1} ))
+    gap=$(( 22 - ${#1} ))
     [ "${gap}" -lt 2 ] && gap=2
     say "  ${BOLD}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
