@@ -95,6 +95,20 @@ do_add() {
 }
 
 do_remove() {
+    case "${1:-}" in
+        --all)
+            [ -d "${IDIOT_EXAMPLES_DIR}" ] || die "no saved examples found"
+            files=$(find "${IDIOT_EXAMPLES_DIR}" -maxdepth 1 -type f ! -name '.*' | sort)
+            [ -n "${files}" ] || die "no saved examples found"
+            printf '%s\n' "${files}" | while IFS= read -r alias_file; do
+                name="$(basename "${alias_file}")"
+                rm "${alias_file}"
+                cache="$(_cache_path "${name}")"
+                [ -d "${cache}" ] && rm -rf "${cache}"
+                say "Removed ${BOLD}${name}${RESET}"
+            done
+            return ;;
+    esac
     name="${1:-}"
     [ -n "${name}" ] || {
         command -v fzf > /dev/null 2>&1 \
@@ -115,6 +129,8 @@ do_remove() {
         die "saved example '${name}' not found"
     }
     rm "${alias_file}"
+    cache="$(_cache_path "${name}")"
+    [ -d "${cache}" ] && rm -rf "${cache}"
     say "Removed ${BOLD}${name}${RESET}"
 }
 
@@ -206,7 +222,7 @@ main() {
             help_heading "Subcommands:"
             help_command "list"   "List examples  (✓ before URL = locally cached)"
             help_command "add"    "Save a new example"
-            help_command "remove" "Remove a saved example"
+            help_command "remove" "Remove a saved example (--all to remove all)"
             help_command "drop"   "Delete a cached example mirror (--all to clear cache)"
             help_command "update" "Refresh cached example(s) from remote"
             echo >&2
