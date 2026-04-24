@@ -12,33 +12,48 @@ VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf '
 
 SHELL_FILES := idiot lib/common.sh $(shell find cmd -type f)
 
+LOG := printf '  \033[1;36m%-12s\033[0m %s\n'
+
 .PHONY: check fmt fmt-check install uninstall purge
 
 check: fmt-check
+	@$(LOG) "SHELLCHECK" "idiot lib/common.sh cmd/**"
 	@rc=0; \
 	shellcheck idiot lib/common.sh || rc=1; \
 	find cmd -type f | xargs shellcheck -x || rc=1; \
 	exit $$rc
 
 fmt:
-	shfmt -w $(SHELL_FILES)
+	@$(LOG) "SHFMT" "(writing)"
+	@shfmt -w $(SHELL_FILES)
 
 fmt-check:
-	@shfmt -d $(SHELL_FILES) || { echo 'Run: make fmt'; exit 1; }
+	@$(LOG) "SHFMT" "(checking)"
+	@shfmt -d $(SHELL_FILES) || { printf '  \033[1;33m%-12s\033[0m %s\n' "HINT" "run: make fmt"; exit 1; }
 
 install:
-	install -d '$(LIBDIR)' '$(BINDIR)'
-	rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/lib'
-	cp -rp cmd lib '$(LIBDIR)/'
-	printf '%s\n' '$(VERSION)' > '$(LIBDIR)/lib/version'
-	install -m755 idiot '$(LIBDIR)/idiot'
-	printf '#!/usr/bin/env sh\n: "$${IDIOT_ROOT:=%s}"\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
+	@$(LOG) "MKDIR" "$(LIBDIR)"
+	@install -d '$(LIBDIR)' '$(BINDIR)'
+	@$(LOG) "COPY" "cmd lib -> $(LIBDIR)/"
+	@rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/lib'
+	@cp -rp cmd lib '$(LIBDIR)/'
+	@$(LOG) "VERSION" "$(VERSION)"
+	@printf '%s\n' '$(VERSION)' > '$(LIBDIR)/lib/version'
+	@$(LOG) "INSTALL" "$(LIBDIR)/idiot"
+	@install -m755 idiot '$(LIBDIR)/idiot'
+	@$(LOG) "WRITE" "$(BINDIR)/idiot"
+	@printf '#!/usr/bin/env sh\n: "$${IDIOT_ROOT:=%s}"\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
 	    '$(LIBDIR)' > '$(BINDIR)/idiot'
-	chmod 755 '$(BINDIR)/idiot'
+	@chmod 755 '$(BINDIR)/idiot'
 
 uninstall:
-	rm -rf '$(LIBDIR)'
-	rm -f '$(BINDIR)/idiot'
+	@$(LOG) "RM" "$(LIBDIR)"
+	@rm -rf '$(LIBDIR)'
+	@$(LOG) "RM" "$(BINDIR)/idiot"
+	@rm -f '$(BINDIR)/idiot'
 
 purge: uninstall
-	rm -rf '$(USER_DIR)' '$(CACHE_DIR)'
+	@$(LOG) "RM" "$(USER_DIR)"
+	@rm -rf '$(USER_DIR)'
+	@$(LOG) "RM" "$(CACHE_DIR)"
+	@rm -rf '$(CACHE_DIR)'
