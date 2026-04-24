@@ -25,7 +25,7 @@ main() {
         status_cmd="$(dirname "${0}")/status"
         export IDIOT_AUTH_DIR
         # shellcheck disable=SC2016
-        preview_cmd='export SNAPCRAFT_STORE_CREDENTIALS="$(cat "$IDIOT_AUTH_DIR/{}")"; export IDIOT_ACTIVE_CRED="lauren-brock"; '"${status_cmd}"' 2>&1'
+        preview_cmd='export SNAPCRAFT_STORE_CREDENTIALS="$(cat "$IDIOT_AUTH_DIR/{}")"; export IDIOT_ACTIVE_CRED="{}"; '"${status_cmd}"' 2>&1'
 
         name=$(printf '%s\n' "${files}" | fzf --prompt="auth> " --preview="sh -c '${preview_cmd}'") || exit 0
     }
