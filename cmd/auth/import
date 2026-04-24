@@ -20,10 +20,8 @@ main() {
 	[ -f "${src}" ] || die "file not found: ${src}"
 
 	mkdir -p "${IDIOT_AUTH_DIR}"
+	require_no_cred "${name}"
 	dest="${IDIOT_AUTH_DIR}/${name}"
-
-	! [ -f "${dest}" ] ||
-		die "credentials '${name}' already exist (remove it first)"
 
 	cp "${src}" "${dest}"
 	say "Imported '${BOLD}${src}${RESET}' as '${BOLD}${name}${RESET}'"

@@ -34,9 +34,8 @@ main() {
 				--preview="sh -c '${preview_cmd}'") || exit 0
 	}
 
+	require_cred "${name}"
 	cred_file="${IDIOT_AUTH_DIR}/${name}"
-
-	[ -f "${cred_file}" ] || die "credentials '${name}' not found"
 
 	rm "${cred_file}"
 	rm -f "${IDIOT_CACHE_DIR}/whoami/${name}"

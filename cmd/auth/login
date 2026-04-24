@@ -22,7 +22,7 @@ main() {
 		files=$(find "${IDIOT_AUTH_DIR}" -maxdepth 1 -type f ! -name '.*' |
 			sort | sed "s|${IDIOT_AUTH_DIR}/||")
 
-		[ -n "${files}" ] || die "no credentials found — use 'idiot auth import' to add credentials"
+		[ -n "${files}" ] || die "no credentials found"
 
 		status_cmd="$(dirname "${0}")/status"
 		export IDIOT_AUTH_DIR
@@ -35,10 +35,8 @@ main() {
 				--preview="sh -c '${preview_cmd}'") || exit 0
 	}
 
+	require_cred "${name}"
 	cred_file="${IDIOT_AUTH_DIR}/${name}"
-
-	[ -f "${cred_file}" ] || die "credentials '${name}' not found"
-
 	contents="$(cat "${cred_file}")"
 	printf 'export UBUNTU_STORE_AUTH=%s\n' "$(shell_quote "${contents}")"
 	printf 'export SNAPCRAFT_STORE_CREDENTIALS=%s\n' "$(shell_quote "${contents}")"

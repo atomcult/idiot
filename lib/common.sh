@@ -73,6 +73,21 @@ require() {
         die "${1} is required but not found${2:+ — ${2}}"
 }
 
+# Die unless a credential named $1 exists.
+require_cred() {
+    [ -f "${IDIOT_AUTH_DIR}/${1}" ] || die "credentials '${1}' not found"
+}
+
+# Die if a credential named $1 already exists.
+require_no_cred() {
+    [ -f "${IDIOT_AUTH_DIR}/${1}" ] && die "credentials '${1}' already exist — remove it first"
+}
+
+# Die unless a store named $1 exists.
+require_store() {
+    [ -f "${IDIOT_STORES_DIR}/${1}" ] || die "store '${1}' not found"
+}
+
 # POSIX-safe single-quote escaping
 shell_quote() {
     printf "'"

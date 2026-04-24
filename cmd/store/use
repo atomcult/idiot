@@ -34,9 +34,8 @@ main() {
 	}
 
 	mkdir -p "${IDIOT_STORES_DIR}"
+	require_store "${name}"
 	store_file="${IDIOT_STORES_DIR}/${name}"
-
-	[ -f "${store_file}" ] || die "store '${name}' not found"
 
 	store_id="$(cat "${store_file}")"
 	printf 'export UBUNTU_STORE_ID=%s\n' "$(shell_quote "${store_id}")"

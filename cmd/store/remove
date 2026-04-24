@@ -16,9 +16,8 @@ main() {
 	[ -n "${name}" ] || die "usage: idiot store remove <name>"
 
 	mkdir -p "${IDIOT_STORES_DIR}"
+	require_store "${name}"
 	store_file="${IDIOT_STORES_DIR}/${name}"
-
-	[ -f "${store_file}" ] || die "store '${name}' not found"
 
 	rm "${store_file}"
 	say "Removed store '${BOLD}${name}${RESET}'"
