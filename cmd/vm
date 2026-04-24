@@ -180,7 +180,7 @@ for v in data.get('variables', []):
     print(f'  {name}  ({guid})  {size} bytes')
 " >&2
     elif command -v efi-readvar > /dev/null 2>&1; then
-        efi-readvar -f "${vars_file}" >&2
+        efi-readvar <"${vars_file}" >&2
     else
         die "no suitable tool found — install python3-virt-firmware or efitools"
     fi
