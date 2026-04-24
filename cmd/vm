@@ -2,10 +2,8 @@
 # cmd/vm - launch and connect to a QEMU VM
 
 . "$(dirname "${0}")/../share/common.sh"
-# shellcheck source=share/arch.sh
-. "$(dirname "${0}")/../share/arch.sh"
-# shellcheck source=share/lp.sh
-. "$(dirname "${0}")/../share/lp.sh"
+include arch.sh
+include lp.sh
 
 # Return the first path from the argument list that exists as a regular file
 find_first() {

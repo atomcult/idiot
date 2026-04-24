@@ -3,10 +3,8 @@
 # Usage: idiot auth remove [<name>]
 
 . "$(dirname "${0}")/../../share/common.sh"
-# shellcheck source=share/creds.sh
-. "$(dirname "${0}")/../../share/creds.sh"
-# shellcheck source=share/fzf.sh
-. "$(dirname "${0}")/../../share/fzf.sh"
+include creds.sh
+include fzf.sh
 
 main() {
 	case "${1:-}" in

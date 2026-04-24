@@ -3,8 +3,7 @@
 # Usage: idiot auth list
 
 . "$(dirname "${0}")/../../share/common.sh"
-# shellcheck source=share/creds.sh
-. "$(dirname "${0}")/../../share/creds.sh"
+include creds.sh
 
 main() {
 	case "${1:-}" in

@@ -4,10 +4,8 @@
 # Outputs: eval-able export statement
 
 . "$(dirname "${0}")/../../share/common.sh"
-# shellcheck source=share/stores.sh
-. "$(dirname "${0}")/../../share/stores.sh"
-# shellcheck source=share/fzf.sh
-. "$(dirname "${0}")/../../share/fzf.sh"
+include stores.sh
+include fzf.sh
 
 main() {
 	case "${1:-}" in

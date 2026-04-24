@@ -3,8 +3,7 @@
 # Usage: idiot auth status [--refresh]
 
 . "$(dirname "${0}")/../../share/common.sh"
-# shellcheck source=share/creds.sh
-. "$(dirname "${0}")/../../share/creds.sh"
+include creds.sh
 
 map_permission() {
 	case "${1}" in

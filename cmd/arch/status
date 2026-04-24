@@ -3,8 +3,7 @@
 # Usage: idiot arch status
 
 . "$(dirname "${0}")/../../share/common.sh"
-# shellcheck source=share/arch.sh
-. "$(dirname "${0}")/../../share/arch.sh"
+include arch.sh
 
 main() {
 	case "${1:-}" in

@@ -6,10 +6,8 @@
 # Unsigned model assertions: *.json
 
 . "$(dirname "${0}")/../../share/common.sh"
-# shellcheck source=share/models.sh
-. "$(dirname "${0}")/../../share/models.sh"
-# shellcheck source=share/fzf.sh
-. "$(dirname "${0}")/../../share/fzf.sh"
+include models.sh
+include fzf.sh
 
 main() {
 	filter=""

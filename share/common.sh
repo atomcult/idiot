@@ -184,3 +184,9 @@ git() {
     command git "$@"
     printf '%s' "${RESET}"
 }
+
+# Source a share/ module by name.
+include() {
+    # shellcheck disable=SC1090
+    . "${IDIOT_ROOT}/share/${1}"
+}

@@ -2,14 +2,10 @@
 # cmd/status - show current idiot environment at a glance
 
 . "$(dirname "${0}")/../share/common.sh"
-# shellcheck source=share/arch.sh
-. "$(dirname "${0}")/../share/arch.sh"
-# shellcheck source=share/creds.sh
-. "$(dirname "${0}")/../share/creds.sh"
-# shellcheck source=share/stores.sh
-. "$(dirname "${0}")/../share/stores.sh"
-# shellcheck source=share/lp.sh
-. "$(dirname "${0}")/../share/lp.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+include lp.sh
 
 _row() {
 	_r_label="${1}"

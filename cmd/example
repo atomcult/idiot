@@ -3,10 +3,8 @@
 # Usage: idiot example [list | add | remove | update | <repo> [options]]
 
 . "$(dirname "${0}")/../share/common.sh"
-# shellcheck source=share/examples.sh
-. "$(dirname "${0}")/../share/examples.sh"
-# shellcheck source=share/fzf.sh
-. "$(dirname "${0}")/../share/fzf.sh"
+include examples.sh
+include fzf.sh
 
 EXAMPLES_CACHE="${IDIOT_CACHE_DIR}/examples"
 

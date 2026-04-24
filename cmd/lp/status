@@ -3,8 +3,7 @@
 # Usage: idiot lp status
 
 . "$(dirname "${0}")/../../share/common.sh"
-# shellcheck source=share/lp.sh
-. "$(dirname "${0}")/../../share/lp.sh"
+include lp.sh
 
 main() {
 	case "${1:-}" in
