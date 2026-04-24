@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+# cmd/version - show version and authorship information
+
+. "$(dirname "${0}")/../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot version [--short]"
+            echo >&2
+            help_heading "Options:"
+            help_option "--short" "Print version string only (stdout)"
+            exit 0 ;;
+    esac
+
+    version_file="${IDIOT_ROOT}/lib/version"
+    if [ -f "${version_file}" ]; then
+        version="$(cat "${version_file}")"
+    else
+        version="dev"
+    fi
+
+    case "${1:-}" in
+        --short)
+            printf '%s\n' "${version}"
+            exit 0 ;;
+    esac
+
+    say "${BOLD}idiot${RESET} ${version}"
+    echo >&2
+    say "${CYAN}Authors${RESET}"
+    say "  Canonical Ltd."
+    echo >&2
+    say "${CYAN}License${RESET}"
+    say "  GPL-3.0-or-later"
+    say "  ${DIM}https://www.gnu.org/licenses/gpl-3.0.html${RESET}"
+}
+main "$@"

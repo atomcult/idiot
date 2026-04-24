@@ -80,8 +80,7 @@ main() {
             exit 0
             ;;
         -V|--version|version)
-            printf 'idiot v2.0.0\n' >&2
-            exit 0
+            exec "${IDIOT_CMD_DIR}/version" "$@"
             ;;
         *)
             cmd_file="${IDIOT_CMD_DIR}/${cmd}"

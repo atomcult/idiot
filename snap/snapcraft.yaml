@@ -1,6 +1,6 @@
 name: idiot
 base: core24
-version: '0.1'
+version: git
 summary: Shell environment manager for Ubuntu Core / IoT snap development
 description: |
   idiot is a CLI for Ubuntu Core and snap store development workflows.
@@ -33,8 +33,9 @@ parts:
     plugin: nil
     source: .
     override-build: |
-      craftctl default
-      make PREFIX="${CRAFT_PART_INSTALL}" install
+      VERSION=$(git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
+      craftctl set-version "$VERSION"
+      make VERSION="$VERSION" PREFIX="${CRAFT_PART_INSTALL}" install
   packages:
     plugin: nil
     stage-packages:
