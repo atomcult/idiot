@@ -67,18 +67,19 @@ _xp_bar() {
 		_empty=0
 		_ann="max level"
 	else
-		_filled=$(((_xp - _start) * _bw / (_next - _start)))
+		_span=$((_next - _start))
+		_filled=$(((_xp - _start) * _bw / _span))
 		[ "${_filled}" -gt "${_bw}" ] && _filled="${_bw}"
 		_empty=$((_bw - _filled))
-		_ann="$((_next - _xp)) to go"
+		_ann="$((_xp - _start))/${_span}"
 	fi
 
-	_bar="$(_repeat "${_filled}" '█')$(_repeat "${_empty}" '░')"
+	_bar="${GREEN}$(_repeat "${_filled}" '█')${RESET}${DIM}$(_repeat "${_empty}" '▒')${RESET}"
 
 	if [ -z "${_nxt}" ]; then
-		_row "xp" "${_cur} [${BOLD}${_bar}${RESET}]" "${_ann}"
+		_row "xp" "${_cur} [${_bar}]" "${_ann}"
 	else
-		_row "xp" "${_cur} [${BOLD}${_bar}${RESET}] ${_nxt}" "${_ann}"
+		_row "xp" "${_cur} [${_bar}] ${_nxt}" "${_ann}"
 	fi
 }
 
