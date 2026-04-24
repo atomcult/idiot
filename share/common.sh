@@ -37,7 +37,7 @@ else
 fi
 
 if [ -n "${IDIOT_NERD:-}" ]; then
-    IDIOT_LOGO="${GREEN}$(printf '\xee\xb6\xa7')${RESET}"
+    IDIOT_LOGO="${GREEN}$(printf '\0356\0266\0247')${RESET}"
 else
     IDIOT_LOGO='🌱'
 fi
