@@ -9,7 +9,7 @@ main() {
 	help_heading "Subcommands:"
 	help_command "list" "List configured model repos"
 	help_command "add" "Register a user model repo"
-	help_command "remove" "Remove a registered user model repo"
+	help_command "remove" "Remove a user model repo and its clone"
 	help_command "pick" "Interactively select a model assertion"
 	help_command "update" "Clone or pull model repositories"
 	echo >&2

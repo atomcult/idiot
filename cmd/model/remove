@@ -1,31 +1,25 @@
 #!/usr/bin/env sh
-# cmd/model/remove - remove a registered user model repo
-# Usage: idiot model remove [--purge] <name>
+# cmd/model/remove - remove a registered user model repo and its local clone
+# Usage: idiot model remove [<name>]
 
 . "$(dirname "${0}")/../../share/common.sh"
 include models.sh
+include fzf.sh
 
 main() {
-	purge=0
-	while [ $# -gt 0 ]; do
-		case "${1}" in
-		-h | --help | help)
-			help_heading "Usage:" "idiot model remove [--purge] <name>"
-			help_option "--purge" "Also delete the local clone"
-			exit 0
-			;;
-		--purge)
-			purge=1
-			shift
-			;;
-		*)
-			break
-			;;
-		esac
-	done
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot model remove [<name>]"
+		exit 0
+		;;
+	esac
 
-	name="${1:-}"
-	[ -n "${name}" ] || die "usage: idiot model remove [--purge] <name>"
+	if [ -n "${1:-}" ]; then
+		name="${1}"
+	else
+		name="$(fzf_pick_from_dir "${IDIOT_MODEL_REPOS_DIR}" "remove model repo> " \
+			"no user model repos configured")" || exit 0
+	fi
 
 	[ -f "${IDIOT_DATA_DIR}/models/${name}" ] && die "cannot remove built-in repo '${name}'"
 	[ -f "${IDIOT_MODEL_REPOS_DIR}/${name}" ] || die "unknown user model repo '${name}'"
@@ -33,12 +27,10 @@ main() {
 	rm "${IDIOT_MODEL_REPOS_DIR}/${name}"
 	say "Removed model repo '${BOLD}${name}${RESET}'"
 
-	if [ "${purge}" -eq 1 ]; then
-		clone="${IDIOT_MODELS_DIR}/${name}"
-		if [ -d "${clone}" ]; then
-			rm -rf "${clone}"
-			say "Deleted clone at ${DIM}${clone}${RESET}"
-		fi
+	clone="${IDIOT_MODELS_DIR}/${name}"
+	if [ -d "${clone}" ]; then
+		rm -rf "${clone}"
+		say "Deleted clone at ${DIM}${clone}${RESET}"
 	fi
 }
 main "$@"
