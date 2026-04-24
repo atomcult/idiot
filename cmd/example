@@ -475,7 +475,7 @@ main() {
 
 	_parse_clone_args "$@"
 	require git
-	url=$(resolve_url "${repo}")
+	url=$(resolve_example_url "${repo}")
 	repo_name="${repo##*/}"
 	[ -n "${subdir}" ] && bare=1
 
