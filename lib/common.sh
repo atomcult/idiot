@@ -17,6 +17,9 @@ IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 # Bundled data directory (process definitions, templates, docs)
 IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/share}"
 
+# Launchpad username file
+IDIOT_LP_USER_FILE="${IDIOT_LP_USER_FILE:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/lp-user}"
+
 # Per-user todo lists directory
 IDIOT_TODO_DIR="${IDIOT_TODO_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/todo}"
 

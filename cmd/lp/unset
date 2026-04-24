@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# cmd/lp/unset - clear the saved Launchpad username
+# Usage: idiot lp unset
+# Outputs: eval-able unset statement
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot lp unset"; exit 0 ;;
+    esac
+    rm -f "${IDIOT_LP_USER_FILE}"
+    printf 'unset IDIOT_LP_USER\n'
+}
+main "$@"

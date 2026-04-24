@@ -103,6 +103,9 @@ do_ssh() {
                 echo >&2
                 help_heading "Options:"
                 help_option "--port <port>" "SSH port on the host (default: 8022)"
+                echo >&2
+                say "The Launchpad username is used as the SSH user."
+                say "Set it with: ${CYAN}eval \"\$(idiot lp set <username>)\"${RESET}"
                 exit 0 ;;
             --) shift; break ;;
             --port)
@@ -114,8 +117,12 @@ do_ssh() {
         shift
     done
 
+    lp_user="${IDIOT_LP_USER:-$(cat "${IDIOT_LP_USER_FILE}" 2>/dev/null || true)}"
+    [ -n "${lp_user}" ] || die "no Launchpad username set — run: eval \"\$(idiot lp set <username>)\""
+
     exec ssh \
         -p "${port}" \
+        -l "${lp_user}" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
         localhost "$@" >&2
@@ -131,6 +138,9 @@ do_scp() {
                 echo >&2
                 help_heading "Options:"
                 help_option "--port <port>" "SCP port on the host (default: 8022)"
+                echo >&2
+                say "The Launchpad username is used as the SSH user."
+                say "Set it with: ${CYAN}eval \"\$(idiot lp set <username>)\"${RESET}"
                 exit 0 ;;
             --) shift; break ;;
             --port)
@@ -144,10 +154,14 @@ do_scp() {
 
     [ $# -ge 2 ] || die "usage: idiot vm scp [--port <port>] <src> <dst>"
 
+    lp_user="${IDIOT_LP_USER:-$(cat "${IDIOT_LP_USER_FILE}" 2>/dev/null || true)}"
+    [ -n "${lp_user}" ] || die "no Launchpad username set — run: eval \"\$(idiot lp set <username>)\""
+
     exec scp \
         -P "${port}" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
+        -o "User=${lp_user}" \
         "$@" >&2
 }
 

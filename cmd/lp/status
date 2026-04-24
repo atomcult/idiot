@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+# cmd/lp/status - show the active Launchpad username
+# Usage: idiot lp status
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    case "${1:-}" in
+        -h|--help|help) help_heading "Usage:" "idiot lp status"; exit 0 ;;
+    esac
+
+    if [ -n "${IDIOT_LP_USER:-}" ]; then
+        say "${BOLD}${IDIOT_LP_USER}${RESET}"
+    elif [ -f "${IDIOT_LP_USER_FILE}" ]; then
+        say "$(cat "${IDIOT_LP_USER_FILE}")"
+    else
+        say "${DIM}Not set — run: eval \"\$(idiot lp set <username>)\"${RESET}"
+    fi
+}
+main "$@"

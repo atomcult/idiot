@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+# cmd/lp/help - usage for the lp subcommand group
+
+. "$(dirname "${0}")/../../lib/common.sh"
+
+main() {
+    help_heading "Usage:" "idiot lp <subcommand>"
+    echo >&2
+    help_heading "Subcommands:"
+    help_command "set"    "Save your Launchpad username"
+    help_command "unset"  "Clear the saved Launchpad username"
+    help_command "status" "Show the active Launchpad username"
+    echo >&2
+    help_heading "Environment:"
+    help_env "IDIOT_LP_USER" "Launchpad username override"
+}
+main "$@"

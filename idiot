@@ -31,6 +31,7 @@ idiot_help() {
     help_command "auth"    "Manage snap store credentials"
     help_command "store"   "Select which snap store to use"
     help_command "arch"    "Set the target build architecture"
+    help_command "lp"      "Manage Launchpad identity"
     echo >&2
     help_heading "Development:"
     help_command "kernel"  "Clone an Ubuntu kernel from Launchpad"
