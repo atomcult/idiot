@@ -14,13 +14,13 @@ IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idi
 # Cache directory
 IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 
-# Bundled data directory (process definitions, templates, docs)
-IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/share}"
+# Bundled data directory (examples, kernels, etc.)
+IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/lib}"
 
 # Launchpad username file
 IDIOT_LP_USER_FILE="${IDIOT_LP_USER_FILE:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/lp-user}"
 
-# User-defined example repo aliases (supplements bundled share/examples/)
+# User-defined example repo aliases (supplements bundled lib/examples/)
 IDIOT_EXAMPLES_DIR="${IDIOT_EXAMPLES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/examples}"
 
 # Use colors only when stderr is a TTY and NO_COLOR is unset
