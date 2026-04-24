@@ -20,6 +20,68 @@ _row() {
 	fi
 }
 
+_repeat() {
+	_rn="${1}" _rc="${2}" _rs=''
+	while [ "${_rn}" -gt 0 ]; do
+		_rs="${_rs}${_rc}"
+		_rn=$((_rn - 1))
+	done
+	printf '%s' "${_rs}"
+}
+
+_xp_bar() {
+	_xp=0
+	_xp_file="${IDIOT_CACHE_DIR}/invoke-count"
+	if [ -f "${_xp_file}" ]; then
+		_xp="$(cat "${_xp_file}" 2>/dev/null || :)"
+		case "${_xp}" in
+		'' | *[!0-9]*) _xp=0 ;;
+		esac
+	fi
+
+	if [ "${_xp}" -ge 10000 ]; then
+		_cur='🌌' _start=10000 _next=0 _nxt=''
+	elif [ "${_xp}" -ge 5000 ]; then
+		_cur='🪐' _start=5000 _next=10000 _nxt='🌌'
+	elif [ "${_xp}" -ge 2500 ]; then
+		_cur='☀️' _start=2500 _next=5000 _nxt='🪐'
+	elif [ "${_xp}" -ge 1000 ]; then
+		_cur='🌍' _start=1000 _next=2500 _nxt='☀️'
+	elif [ "${_xp}" -ge 500 ]; then
+		_cur='🌲' _start=500 _next=1000 _nxt='🌍'
+	elif [ "${_xp}" -ge 200 ]; then
+		_cur='🌳' _start=200 _next=500 _nxt='🌲'
+	elif [ "${_xp}" -ge 75 ]; then
+		_cur='🌿' _start=75 _next=200 _nxt='🌳'
+	elif [ "${_xp}" -ge 25 ]; then
+		_cur='🌱' _start=25 _next=75 _nxt='🌿'
+	elif [ "${_xp}" -ge 10 ]; then
+		_cur='🥚' _start=10 _next=25 _nxt='🌱'
+	else
+		_cur='💀' _start=0 _next=10 _nxt='🥚'
+	fi
+
+	_bw=10
+	if [ -z "${_nxt}" ]; then
+		_filled="${_bw}"
+		_empty=0
+		_ann="max level"
+	else
+		_filled=$(((_xp - _start) * _bw / (_next - _start)))
+		[ "${_filled}" -gt "${_bw}" ] && _filled="${_bw}"
+		_empty=$((_bw - _filled))
+		_ann="$((_next - _xp)) to go"
+	fi
+
+	_bar="$(_repeat "${_filled}" '█')$(_repeat "${_empty}" '░')"
+
+	if [ -z "${_nxt}" ]; then
+		_row "xp" "${_cur} [${BOLD}${_bar}${RESET}]" "${_ann}"
+	else
+		_row "xp" "${_cur} [${BOLD}${_bar}${RESET}] ${_nxt}" "${_ann}"
+	fi
+}
+
 main() {
 	case "${1:-}" in
 	-h | --help | help)
@@ -85,5 +147,9 @@ main() {
 	else
 		_row "lp" "${DIM}not set${RESET}"
 	fi
+
+	# XP
+	echo >&2
+	_xp_bar
 }
 main "$@"
