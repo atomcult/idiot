@@ -199,7 +199,7 @@ file_preview_cmd() {
 # Fish uses "set -e VAR"; bash/zsh use "unset VAR".
 emit_unset() {
     if [ "${IDIOT_SHELL:-}" = "fish" ]; then
-        printf 'set -e %s\n' "${1}"
+        printf 'set --erase %s\n' "${1}"
     else
         printf 'unset %s\n' "${1}"
     fi
