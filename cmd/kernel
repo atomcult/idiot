@@ -18,14 +18,20 @@ kernel_url() {
 }
 
 _list_data() {
-    _ld_file="${1}"; _ld_col="${2:-20}"
+    _ld_file="${1}"; _ld_col="${2:-20}"; _ld_limit="${3:-0}"
     [ -f "${_ld_file}" ] || die "data file not found: ${_ld_file}"
+    _ld_shown=0; _ld_total=0
     while read -r _ld_name _ld_rest; do
         case "${_ld_name}" in ''|'#'*) continue ;; esac
+        _ld_total=$(( _ld_total + 1 ))
+        [ "${_ld_limit}" -gt 0 ] && [ "${_ld_shown}" -ge "${_ld_limit}" ] && continue
         _ld_gap=$(( _ld_col - ${#_ld_name} ))
         [ "${_ld_gap}" -lt 2 ] && _ld_gap=2
         say "  ${CYAN}${_ld_name}${RESET}$(printf '%*s' "${_ld_gap}" '')${DIM}${_ld_rest}${RESET}"
+        _ld_shown=$(( _ld_shown + 1 ))
     done < "${_ld_file}"
+    [ "${_ld_limit}" -gt 0 ] && [ "${_ld_total}" -gt "${_ld_limit}" ] && \
+        say "  ${DIM}… and $(( _ld_total - _ld_limit )) more  (use fzf picker to see all)${RESET}"
 }
 
 _pick_from() {
@@ -50,7 +56,7 @@ main() {
             help_option "--dest <dir>"     "Destination directory"
             echo >&2
             help_heading "Series:"
-            _list_data "${KERNEL_DATA}/series" 12
+            _list_data "${KERNEL_DATA}/series" 12 6
             echo >&2
             help_heading "Flavours:"
             _list_data "${KERNEL_DATA}/flavours" 16
