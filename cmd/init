@@ -45,7 +45,9 @@ set -gx IDIOT_SHELL fish
 function idiot
     set -l _out (${IDIOT_BIN} \$argv)
     set -l _rc \$status
-    eval (string join \n -- \$_out)
+    for _line in \$_out
+        eval \$_line
+    end
     return \$_rc
 end
 EOF
