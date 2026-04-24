@@ -249,10 +249,33 @@ PYEOF
 }
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot inspect image <disk.img>"; exit 0 ;;
-    esac
-    [ $# -eq 1 ] || die "usage: idiot inspect image <disk.img>"
+    extract_state=''
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            -h|--help|help)
+                help_heading "Usage:" "idiot inspect image [options] <disk.img>"
+                echo >&2
+                help_heading "Options:"
+                help_option "--extract-state [<file>]" "Save state.json (default: ./state.json)"
+                exit 0 ;;
+            --extract-state)
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    extract_state="${2}"; shift
+                else
+                    extract_state="state.json"
+                fi
+                shift ;;
+            --extract-state=*)
+                extract_state="${1#--extract-state=}"; shift ;;
+            --*)
+                die "unknown option: ${1}" ;;
+            *)
+                break ;;
+        esac
+    done
+
+    [ $# -eq 1 ] || die "usage: idiot inspect image [options] <disk.img>"
     image="${1}"
     [ -f "${image}" ] || die "image not found: ${image}"
 
@@ -284,5 +307,11 @@ main() {
     print_connections
     echo >&2
     print_changes
+
+    if [ -n "${extract_state}" ]; then
+        cp "${tmpdir}/state.json" "${extract_state}"
+        say ""
+        say "State saved to ${BOLD}${extract_state}${RESET}"
+    fi
 }
 main "$@"
