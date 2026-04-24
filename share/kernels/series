@@ -1,7 +1,46 @@
 # Ubuntu kernel series available on Launchpad
 # Format: <codename>  <description>
-noble    Ubuntu 24.04 LTS
-jammy    Ubuntu 22.04 LTS
-focal    Ubuntu 20.04 LTS
-oracular Ubuntu 24.10
+resolute Ubuntu 26.04 LTS
+questing Ubuntu 25.10
 plucky   Ubuntu 25.04
+oracular Ubuntu 24.10
+noble    Ubuntu 24.04 LTS
+mantic   Ubuntu 23.10
+lunar    Ubuntu 23.04
+kinetic  Ubuntu 22.10
+jammy    Ubuntu 22.04 LTS
+impish   Ubuntu 21.10
+hirsute  Ubuntu 21.04
+groovy   Ubuntu 20.10
+focal    Ubuntu 20.04 LTS
+eoan     Ubuntu 19.10
+disco    Ubuntu 19.04
+cosmic   Ubuntu 18.10
+bionic   Ubuntu 18.04 LTS
+artful   Ubuntu 17.10
+zesty    Ubuntu 17.04
+yakkety  Ubuntu 16.10
+xenial   Ubuntu 16.04 LTS
+wily     Ubuntu 15.10
+vivid    Ubuntu 15.04
+utopic   Ubuntu 14.10
+trusty   Ubuntu 14.04 LTS
+saucy    Ubuntu 13.10
+raring   Ubuntu 13.04
+quantal  Ubuntu 12.10
+precise  Ubuntu 12.04 LTS
+oneiric  Ubuntu 11.10
+natty    Ubuntu 11.04
+maverick Ubuntu 10.10
+jaunty   Ubuntu 10.04 LTS
+karmic   Ubuntu 9.10
+jaunty   Ubuntu 9.04
+intrepid Ubuntu 8.10
+hardy    Ubuntu 8.04 LTS
+gutsy    Ubuntu 7.10
+feisty   Ubuntu 7.04
+edgy     Ubuntu 6.10
+dapper   Ubuntu 6.06 LTS
+breezy   Ubuntu 5.10
+hoary    Ubuntu 5.04
+warty    Ubuntu 4.10
