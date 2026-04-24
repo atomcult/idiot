@@ -36,6 +36,12 @@ else
     RESET=''
 fi
 
+if [ -n "${IDIOT_NERD:-}" ]; then
+    IDIOT_LOGO="$(printf '\xee\xb6\xa7')"
+else
+    IDIOT_LOGO='🌱'
+fi
+
 # Display output goes to stderr — it bypasses eval in the shell wrapper and
 # reaches the terminal directly in all shells. Only env-modifying output
 # (export / unset statements) goes to stdout to be eval'd by the wrapper.
