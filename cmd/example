@@ -62,6 +62,8 @@ list_known() {
 
 resolve_url() {
     case "${1}" in
+        *://*)
+            printf '%s\n' "${1}" ;;
         */*)
             printf 'https://github.com/%s\n' "${1}" ;;
         *)
@@ -69,14 +71,14 @@ resolve_url() {
                 ex_file="${ex_dir}/${1}"
                 [ -f "${ex_file}" ] && { head -1 "${ex_file}"; return 0; }
             done
-            die "unknown example '${1}' — use <user>/<repo> or run 'idiot example list'" ;;
+            die "unknown example '${1}' — use <user>/<repo>, a full URI, or run 'idiot example list'" ;;
     esac
 }
 
 do_add() {
     name="${1:-}"; target="${2:-}"
     { [ -n "${name}" ] && [ -n "${target}" ]; } \
-        || die "usage: idiot example add <name> <user>/<repo>"
+        || die "usage: idiot example add <name> <user>/<repo>|<uri>"
     case "${name}" in
         *[!A-Za-z0-9_-]*) die "invalid name '${name}': use only letters, digits, hyphens, underscores" ;;
     esac
@@ -209,7 +211,7 @@ main() {
         ""|--help|-h|help)
             help_heading "Usage:" "idiot example <repo> [options]"
             echo >&2
-            say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, or a saved example name (see below)."
+            say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, a full git URI, or a saved example name."
             say "Saved examples are kept as a local mirror; use ${BOLD}update${RESET} to refresh."
             echo >&2
             help_heading "Options:"
@@ -221,7 +223,7 @@ main() {
             echo >&2
             help_heading "Subcommands:"
             help_command "list"   "List examples  (✓ before URL = locally cached)"
-            help_command "add"    "Save a new example"
+            help_command "add"    "Save a new example (<user>/<repo> or full URI)"
             help_command "remove" "Remove a saved example (--all to remove all)"
             help_command "drop"   "Delete a cached example mirror (--all to clear cache)"
             help_command "update" "Refresh cached example(s) from remote"
@@ -300,8 +302,9 @@ main() {
     [ -n "${subdir}" ] && bare=1
 
     case "${repo}" in
-        */*) is_alias=0 ;;
-        *)   is_alias=1 ;;
+        *://*) is_alias=0 ;;
+        */*)   is_alias=0 ;;
+        *)     is_alias=1 ;;
     esac
 
     if [ "${is_alias}" -eq 1 ]; then
