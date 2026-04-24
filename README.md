@@ -1,106 +1,118 @@
-# idiot
+# 🌱 idiot
 
-A shell environment manager for working with the Snap Store. Manages credentials, store overrides, target architecture, and model assertions across shell sessions.
+**Interactive Devtools for IoT** — a shell environment manager for Snap Store
+development. Switch credentials, stores, and architectures with a single
+command; everything takes effect in your current shell session.
 
-## How it works
+```
+$ eval "$(idiot init bash)"   # or zsh / fish — do this once in your rc
 
-`idiot` outputs eval-able shell code to stdout. A shell wrapper function evals that output, so environment changes (exports, unsets) take effect directly in your current shell.
+$ idiot status
+  auth    logged in  my-cred · you@example.com
+  store   my-store   abc123xyz
+  arch    arm64
+  lp      yourname
+```
 
-## Installation
+---
+
+## Install
 
 ```sh
+git clone <this repo>
+cd idiot
 make install          # installs to ~/.local by default
 make install PREFIX=/usr/local
 ```
 
-Add shell integration to your rc file (run once):
+Add shell integration to your rc file:
 
 ```sh
-# bash
-eval "$(idiot init bash)"
-
-# zsh
-eval "$(idiot init zsh)"
+# bash / zsh
+eval "$(idiot init bash)"    # or zsh
 
 # fish
 idiot init fish | source
 ```
 
+The `iot` shorthand is included — `iot status` works just as well as `idiot status`.
+
+---
+
 ## Commands
 
-### `idiot env auth` — credentials
+### Store & environment
 
-```
-login     Activate a credential
-logout    Log out
-status    Show login status
+| Command | Description |
+|---|---|
+| `idiot status` | Show active credential, store, architecture, and LP identity at a glance |
+| `idiot auth` | Manage snap store credentials (add, remove, login, logout, import, export) |
+| `idiot store` | Save and activate snap store environments |
+| `idiot arch` | Set the target build architecture |
+| `idiot lp` | Configure your Launchpad username |
 
-add       Create a new credential
-remove    Remove a saved credential
-list      List saved credentials
-import    Import a credential from a file
-export    Output a credential
-```
+### Development
 
-### `idiot env store` — Dedicated Snap Stores
+| Command | Description |
+|---|---|
+| `idiot model` | Register, clone, update, and interactively pick model assertions |
+| `idiot kernel` | Clone Ubuntu kernel trees from Launchpad |
+| `idiot example` | Manage bundled snap example repositories |
+| `idiot inspect` | Inspect snaps, UC images, and snapd change logs |
 
-```
-use       Activate a store
-unset     Clear the active store
-status    Show the active store
+### VM & device
 
-add       Save a store
-remove    Remove a saved store
-list      List saved stores
-```
+| Command | Description |
+|---|---|
+| `idiot vm <image>` | Launch a QEMU VM with UEFI secure boot (amd64, arm64, armhf, riscv64) |
+| `idiot vm ssh` | SSH into the running VM |
+| `idiot vm scp` | Copy files to/from the running VM (`vm:` is the guest alias) |
+| `idiot vm vars` | Inspect UEFI secure boot variables from a saved state directory |
+| `idiot vm tpm` | Attach swtpm to a saved TPM state for offline inspection |
 
-### `idiot env arch` — target architecture
+### Shell utilities
 
-```
-set       Set the target architecture
-unset     Clear the target architecture
-status    Show the active architecture
-```
+| Command | Description |
+|---|---|
+| `idiot run <tool>` | Run a snap-bundled tool, falling back to PATH when not in a snap |
+| `idiot run --shell` | Open a shell with snap tools on PATH |
+| `idiot clean` | Remove development leftovers |
+| `idiot init <shell>` | Print shell integration code for bash, zsh, or fish |
+| `idiot version` | Show version and authorship |
 
-### `idiot models` — model assertions
+---
 
-```
-pick      Interactively select a model assertion
-update    Fetch the latest model assertions
-```
+## How it works
 
-### `idiot inspect` — inspect snap store objects
+`idiot` commands print `export`/`unset` statements to stdout. The shell
+wrapper installed by `idiot init` captures that output and `eval`s it, so
+environment changes land in your current shell rather than a subprocess.
+User-visible output (progress, errors) always goes to stderr and is never
+eval'd.
 
-```
-changes   Browse recent snap changes
-snap      Print the snapcraft.yaml or snap.yaml from a snap file
-```
+---
 
-### `idiot prune` — remove development leftovers
+## Nerd Fonts logo
 
-```
-all         Remove all snapcraft build containers and unasserted snaps
-containers  Remove all snapcraft build containers
-snaps       Remove all unasserted snaps
-```
+If you use a [Nerd Fonts](https://www.nerdfonts.com/)-patched terminal font,
+set `IDIOT_NERD=1` for a fancier logo with the sprout icon in green.
 
-All `prune` subcommands accept `-n` / `--dry-run` to preview what would be removed.
-
-## Environment variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `IDIOT_AUTH_DIR` | `$XDG_DATA_HOME/idiot/auth` | Credentials directory |
-| `IDIOT_STORES_DIR` | `$XDG_DATA_HOME/idiot/stores` | Stores directory |
-| `IDIOT_MODELS_DIR` | `$XDG_DATA_HOME/idiot/models` | Models repository |
-| `IDIOT_CACHE_DIR` | `$XDG_CACHE_HOME/idiot` | Cache directory |
-| `UBUNTU_STORE_ARCH` | — | Target architecture override |
+---
 
 ## Development
 
 ```sh
-make check    # run shellcheck on all scripts
-make install  # install to $PREFIX (default: ~/.local)
+make check     # shfmt format-check + shellcheck
+make fmt       # auto-format all shell files
+make uninstall
+make purge     # uninstall + delete all user data
 ```
 
-Requires: `shellcheck`, `fzf`, `snapcraft`, `lxd`.
+All shell code is POSIX `sh` — no bashisms. `shfmt` and `shellcheck` are the
+only dev dependencies.
+
+---
+
+## License
+
+MIT © Lauren Brock
