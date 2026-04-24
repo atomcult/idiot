@@ -193,11 +193,13 @@ if not conns:
     print("  (none)")
     sys.exit(0)
 def fmt_side(side):
-    snap, _, plug = side.partition(":")
-    return f"{C}{snap}{R}{D}:{plug}{R}"
-for key in sorted(conns):
-    plug_side, _, slot_side = key.partition(" ")
-    print(f"  {fmt_side(plug_side)}  {fmt_side(slot_side)}")
+    snap, _, iface = side.partition(":")
+    return f"{C}{snap}{R}{D}:{iface}{R}"
+pairs = [(k.split(" ", 1)[0], k.split(" ", 1)[1]) for k in sorted(conns)]
+max_plug = max(len(plug) for plug, _ in pairs)
+for plug_side, slot_side in pairs:
+    pad = max_plug - len(plug_side)
+    print(f"  {fmt_side(plug_side)}{' ' * pad}  {fmt_side(slot_side)}")
 PYEOF
 }
 
