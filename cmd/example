@@ -22,13 +22,13 @@ ensure_cached() {
 
 # --- subcommand helpers ---
 
-list_known() {
-    found=0
-    for ex_dir in "${IDIOT_DATA_DIR}/examples" "${IDIOT_EXAMPLES_DIR}"; do
-        [ -d "${ex_dir}" ] || continue
-        for f in "${ex_dir}"/*; do
+_list_section() {
+    _ls_dir="${1}"
+    _ls_found=0
+    if [ -d "${_ls_dir}" ]; then
+        for f in "${_ls_dir}"/*; do
             [ -f "${f}" ] || continue
-            found=1
+            _ls_found=1
             alias_name="$(basename "${f}")"
             url="$(head -1 "${f}")"
             if [ -d "$(_cache_path "${alias_name}")" ]; then
@@ -38,14 +38,18 @@ list_known() {
             fi
             gap=$(( 28 - ${#alias_name} ))
             [ "${gap}" -lt 2 ] && gap=2
-            if [ "${ex_dir}" = "${IDIOT_EXAMPLES_DIR}" ]; then
-                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${cached_prefix}${DIM}${url}  (saved)${RESET}"
-            else
-                say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${cached_prefix}${DIM}${url}${RESET}"
-            fi
+            say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${cached_prefix}${DIM}${url}${RESET}"
         done
-    done
-    [ "${found}" -eq 1 ] || say "  ${DIM}(none)${RESET}"
+    fi
+    [ "${_ls_found}" -eq 1 ] || say "  ${DIM}(none)${RESET}"
+}
+
+list_known() {
+    say "${BOLD}Built-in:${RESET}"
+    _list_section "${IDIOT_DATA_DIR}/examples"
+    echo >&2
+    say "${BOLD}Saved:${RESET}"
+    _list_section "${IDIOT_EXAMPLES_DIR}"
 }
 
 resolve_url() {
@@ -195,7 +199,6 @@ main() {
             say "  ${CYAN}idiot example add${RESET} my-example canonical/my-snap"
             say "  ${CYAN}idiot example update${RESET}"
             echo >&2
-            help_heading "Saved examples:"
             list_known
             exit 0 ;;
         list)   list_known;            exit 0 ;;
