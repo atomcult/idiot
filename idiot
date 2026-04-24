@@ -23,7 +23,7 @@ unset _arg
 . "${IDIOT_LIB_DIR}/common.sh"
 
 idiot_help() {
-	say "${BOLD}idiot${RESET} — Interactive Devtools for IoT"
+	say " ${BOLD}idiot${RESET} — Interactive Devtools for IoT"
 	echo >&2
 	help_heading "Usage:" "idiot <command> [args...]"
 	echo >&2
