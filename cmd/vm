@@ -1,8 +1,7 @@
 #!/usr/bin/env sh
-# cmd/vm/run - launch a QEMU VM with the given disk image
-# Usage: idiot vm run [--arch <arch>] [--sb] [--tpm] <image>
+# cmd/vm - launch and connect to a QEMU VM
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../lib/common.sh"
 
 # Normalise uname -m output to snap arch naming
 host_arch() {
@@ -94,7 +93,65 @@ tpm_device_for_arch() {
     esac
 }
 
-main() {
+do_ssh() {
+    port=8022
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            -h|--help|help)
+                help_heading "Usage:" "idiot vm ssh [--port <port>] [ssh-args...]"
+                echo >&2
+                help_heading "Options:"
+                help_option "--port <port>" "SSH port on the host (default: 8022)"
+                exit 0 ;;
+            --) shift; break ;;
+            --port)
+                [ -n "${2:-}" ] || die "--port requires an argument"
+                port="${2}"; shift ;;
+            -*) die "unknown option: ${1}" ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    exec ssh \
+        -p "${port}" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        localhost "$@" >&2
+}
+
+do_scp() {
+    port=8022
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            -h|--help|help)
+                help_heading "Usage:" "idiot vm scp [--port <port>] <src> <dst>"
+                echo >&2
+                help_heading "Options:"
+                help_option "--port <port>" "SCP port on the host (default: 8022)"
+                exit 0 ;;
+            --) shift; break ;;
+            --port)
+                [ -n "${2:-}" ] || die "--port requires an argument"
+                port="${2}"; shift ;;
+            -*) die "unknown option: ${1}" ;;
+            *) break ;;
+        esac
+        shift
+    done
+
+    [ $# -ge 2 ] || die "usage: idiot vm scp [--port <port>] <src> <dst>"
+
+    exec scp \
+        -P "${port}" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        "$@" >&2
+}
+
+do_run() {
     arch=''
     image=''
     sb=0
@@ -106,7 +163,11 @@ main() {
     while [ $# -gt 0 ]; do
         case "${1}" in
             -h|--help|help)
-                help_heading "Usage:" "idiot vm run [options] <image> [-- <qemu-args>]"
+                help_heading "Usage:" "idiot vm [options] <image> [-- <qemu-args>]"
+                echo >&2
+                help_heading "Subcommands:"
+                help_command "ssh" "SSH into the running VM"
+                help_command "scp" "Copy files to/from the running VM"
                 echo >&2
                 help_heading "Options:"
                 help_option "--arch <arch>"       "Target architecture (default: host)"
@@ -147,7 +208,7 @@ main() {
         shift
     done
 
-    [ -n "${image}" ] || die "usage: idiot vm run [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] <image> [-- <qemu-args>]"
+    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] <image> [-- <qemu-args>]"
     [ -f "${image}" ] || die "image not found: ${image}"
 
     [ -n "${arch}" ] || arch="$(host_arch)"
@@ -155,7 +216,6 @@ main() {
     qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
     require "${qemu_bin}"
 
-    # Machine type and chipset flags
     case "${arch}" in
         amd64|i386)
             machine_flags='-machine q35 -global ICH9-LPC.disable_s3=1' ;;
@@ -196,7 +256,6 @@ main() {
         tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock} -tpmdev emulator,id=tpm0,chardev=chrtpm -device ${tpm_dev},tpmdev=tpm0"
     fi
 
-    # -nographic subsumes -serial mon:stdio; use it only in console mode
     if [ "${no_gfx}" -eq 1 ]; then
         display_flags='-nographic'
     else
@@ -219,5 +278,13 @@ main() {
         ${tpm_flags} \
         ${display_flags} \
         "$@" >&2
+}
+
+main() {
+    case "${1:-}" in
+        ssh)  shift; do_ssh "$@" ;;
+        scp)  shift; do_scp "$@" ;;
+        *)    do_run "$@" ;;
+    esac
 }
 main "$@"
