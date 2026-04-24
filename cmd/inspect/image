@@ -63,7 +63,7 @@ inspect_ubuntu_data() {
     data_offset=$(( data_start * data_ss ))
 
     if is_luks "${image}" "${data_offset}"; then
-        first_boot="unknown ${DIM}(ubuntu-data is encrypted)${RESET}"
+        first_boot="${GREEN}encrypted${RESET}"
         return 0
     fi
 
