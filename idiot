@@ -10,6 +10,15 @@ export IDIOT_ROOT
 IDIOT_CMD_DIR="${IDIOT_ROOT}/cmd"
 IDIOT_LIB_DIR="${IDIOT_ROOT}/lib"
 
+# pre-scan for --color before sourcing common.sh so color vars are set correctly
+for _arg in "$@"; do
+    case "${_arg}" in
+        --color) export FORCE_COLOR=1 ;;
+        --) break ;;
+    esac
+done
+unset _arg
+
 # shellcheck source=lib/common.sh
 . "${IDIOT_LIB_DIR}/common.sh"
 
@@ -54,6 +63,13 @@ idiot_help() {
 }
 
 main() {
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            --color) shift ;;
+            *) break ;;
+        esac
+    done
+
     cmd="${1:-}"
     [ $# -ge 1 ] && shift
 

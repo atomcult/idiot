@@ -25,7 +25,7 @@ IDIOT_EXAMPLES_DIR="${IDIOT_EXAMPLES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}
 
 # Use colors only when stderr is a TTY and NO_COLOR is unset
 # shellcheck disable=SC2034
-if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then
+if { [ -t 2 ] || [ -n "${FORCE_COLOR:-}" ]; } && [ -z "${NO_COLOR:-}" ]; then
     BOLD="$(printf '\033[1m')"
     DIM="$(printf '\033[2m')"
     BLACK="$(printf '\033[30m')"
