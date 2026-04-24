@@ -7,10 +7,14 @@ main() {
 	help_heading "Usage:" "idiot model <subcommand>"
 	echo >&2
 	help_heading "Subcommands:"
+	help_command "list" "List configured model repos"
+	help_command "add" "Register a user model repo"
+	help_command "remove" "Remove a registered user model repo"
 	help_command "pick" "Interactively select a model assertion"
-	help_command "update" "Fetch the latest model assertions"
+	help_command "update" "Clone or pull model repositories"
 	echo >&2
 	help_heading "Environment:"
-	help_env "IDIOT_MODELS_DIR" "Models repository"
+	help_env "IDIOT_MODELS_DIR" "Parent directory for cloned repos"
+	help_env "IDIOT_MODEL_REPOS_DIR" "User-defined repo registry"
 }
 main "$@"

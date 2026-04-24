@@ -1,25 +1,61 @@
 #!/usr/bin/env sh
-# cmd/model/update - clone or pull the canonical/models repository
-# Usage: idiot model update
+# cmd/model/update - clone or pull model repositories
+# Usage: idiot model update [<name>]
 
 . "$(dirname "${0}")/../../share/common.sh"
 include models.sh
 
+_update_repo() {
+	_ur_name="${1}"
+	_ur_url="${2}"
+	_ur_clone="${IDIOT_MODELS_DIR}/${_ur_name}"
+	if [ -d "${_ur_clone}/.git" ]; then
+		say "Updating '${BOLD}${_ur_name}${RESET}'..."
+		git -C "${_ur_clone}" pull >&2
+	else
+		say "Cloning '${BOLD}${_ur_name}${RESET}'..."
+		mkdir -p "${IDIOT_MODELS_DIR}"
+		git clone "${_ur_url}" "${_ur_clone}" >&2
+	fi
+}
+
+_migrate_old_layout() {
+	[ -d "${IDIOT_MODELS_DIR}/.git" ] || return 0
+	say "Migrating models directory to multi-repo layout..."
+	_tmp="${IDIOT_MODELS_DIR}.migrate.$$"
+	mv "${IDIOT_MODELS_DIR}" "${_tmp}"
+	mkdir -p "${IDIOT_MODELS_DIR}"
+	mv "${_tmp}" "${IDIOT_MODELS_DIR}/canonical"
+	say "Moved existing clone to '${BOLD}canonical${RESET}'"
+}
+
 main() {
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot model update"
+		help_heading "Usage:" "idiot model update [<name>]"
 		exit 0
 		;;
 	esac
-	MODELS_REPO_URL="https://github.com/canonical/models.git"
 
-	if [ -d "${IDIOT_MODELS_DIR}/.git" ]; then
-		say "Updating models repository..."
-		git -C "${IDIOT_MODELS_DIR}" pull >&2
+	_migrate_old_layout
+
+	if [ -n "${1:-}" ]; then
+		_target="${1}"
+		_url="$(resolve_model_repo_url "${_target}")"
+		_update_repo "${_target}" "${_url}"
 	else
-		say "Cloning models repository..."
-		git clone "${MODELS_REPO_URL}" "${IDIOT_MODELS_DIR}" >&2
+		_updated=0
+		for _dir in "${IDIOT_DATA_DIR}/models" "${IDIOT_MODEL_REPOS_DIR}"; do
+			[ -d "${_dir}" ] || continue
+			for _f in "${_dir}"/*; do
+				[ -f "${_f}" ] || continue
+				_name="$(basename "${_f}")"
+				_url="$(head -1 "${_f}")"
+				_update_repo "${_name}" "${_url}"
+				_updated=$((_updated + 1))
+			done
+		done
+		[ "${_updated}" -gt 0 ] || die "no model repos configured — use idiot model add <name> <url>"
 	fi
 }
 main "$@"

@@ -1,0 +1,33 @@
+#!/usr/bin/env sh
+# cmd/model/add - register a model repo under a human-readable name
+# Usage: idiot model add <name> <url>
+
+. "$(dirname "${0}")/../../share/common.sh"
+include models.sh
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot model add <name> <url>"
+		exit 0
+		;;
+	esac
+	name="${1:-}"
+	url="${2:-}"
+
+	[ -n "${name}" ] && [ -n "${url}" ] || die "usage: idiot model add <name> <url>"
+
+	case "${name}" in
+	*[!A-Za-z0-9_-]*) die "invalid repo name '${name}': use only letters, digits, hyphens, underscores" ;;
+	esac
+
+	[ -f "${IDIOT_DATA_DIR}/models/${name}" ] && die "cannot shadow built-in repo '${name}'"
+
+	mkdir -p "${IDIOT_MODEL_REPOS_DIR}"
+	[ -f "${IDIOT_MODEL_REPOS_DIR}/${name}" ] && die "model repo '${name}' already exists — use idiot model remove first"
+
+	printf '%s\n' "${url}" >"${IDIOT_MODEL_REPOS_DIR}/${name}"
+	say "Added model repo '${BOLD}${name}${RESET}' (${url})"
+	say "Run ${BOLD}idiot model update ${name}${RESET} to clone it."
+}
+main "$@"
