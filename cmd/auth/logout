@@ -9,8 +9,8 @@ main() {
     case "${1:-}" in
         -h|--help|help) help_heading "Usage:" "idiot auth logout"; exit 0 ;;
     esac
-    printf 'unset SNAPCRAFT_STORE_CREDENTIALS\n'
-    printf 'unset UBUNTU_STORE_AUTH\n'
-    printf 'unset IDIOT_ACTIVE_CRED\n'
+    emit_unset SNAPCRAFT_STORE_CREDENTIALS
+    emit_unset UBUNTU_STORE_AUTH
+    emit_unset IDIOT_ACTIVE_CRED
 }
 main "$@"

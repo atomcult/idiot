@@ -195,6 +195,16 @@ file_preview_cmd() {
     fi
 }
 
+# Emit a shell-appropriate unset statement for a variable.
+# Fish uses "set -e VAR"; bash/zsh use "unset VAR".
+emit_unset() {
+    if [ "${IDIOT_SHELL:-}" = "fish" ]; then
+        printf 'set -e %s\n' "${1}"
+    else
+        printf 'unset %s\n' "${1}"
+    fi
+}
+
 git() {
     printf '%s' "${DIM}"
     command git "$@"

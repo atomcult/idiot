@@ -9,6 +9,6 @@ main() {
     case "${1:-}" in
         -h|--help|help) help_heading "Usage:" "idiot arch unset"; exit 0 ;;
     esac
-    printf 'unset UBUNTU_STORE_ARCH\n'
+    emit_unset UBUNTU_STORE_ARCH
 }
 main "$@"
