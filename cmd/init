@@ -34,6 +34,7 @@ idiot() {
     eval "\$_idiot_out"
     return \${_idiot_rc:-0}
 }
+iot() { idiot "\$@"; }
 EOF
 		;;
 
@@ -50,6 +51,7 @@ function idiot
     end
     return \$_rc
 end
+function iot; idiot \$argv; end
 EOF
 		;;
 
