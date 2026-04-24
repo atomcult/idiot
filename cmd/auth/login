@@ -3,7 +3,7 @@
 # Usage: idiot auth login [<name>]
 # Outputs: eval-able export statements
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

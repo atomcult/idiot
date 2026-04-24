@@ -2,7 +2,7 @@
 # cmd/model/update - clone or pull the canonical/models repository
 # Usage: idiot model update
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

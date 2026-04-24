@@ -2,7 +2,7 @@
 # cmd/store/list - list saved stores and their IDs
 # Usage: idiot store list
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

@@ -2,7 +2,7 @@
 # cmd/auth/add - create new credentials using snapcraft export-login
 # Usage: idiot auth add <name>
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

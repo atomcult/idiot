@@ -2,7 +2,7 @@
 # cmd/inspect/changes - browse snap changes interactively
 # Usage: idiot inspect changes
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

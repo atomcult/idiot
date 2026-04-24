@@ -2,7 +2,7 @@
 # cmd/auth/status - show login status
 # Usage: idiot auth status [--refresh]
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 map_permission() {
 	case "${1}" in

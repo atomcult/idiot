@@ -3,7 +3,7 @@
 # Usage: idiot arch set [<architecture>]
 # Outputs: eval-able export statement
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

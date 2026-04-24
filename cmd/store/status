@@ -2,7 +2,7 @@
 # cmd/store/status - show the current store ID
 # Usage: idiot store status
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

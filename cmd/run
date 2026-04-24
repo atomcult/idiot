@@ -2,7 +2,7 @@
 # cmd/run - run a snap-bundled tool directly
 # Usage: idiot run [--shell] [<binary> [args...]]
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 _snap_shell() {
 	if [ -n "${SNAP:-}" ]; then

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/status - show current idiot environment at a glance
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 _row() {
 	_r_label="${1}"

@@ -2,7 +2,7 @@
 # cmd/auth/list - list credential files in IDIOT_AUTH_DIR
 # Usage: idiot auth list
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

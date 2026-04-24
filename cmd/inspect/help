@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/inspect/help - usage for the inspect subcommand group
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	help_heading "Usage:" "idiot inspect <subcommand> [args...]"

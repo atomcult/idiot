@@ -8,7 +8,7 @@ set -e
 IDIOT_ROOT="${IDIOT_ROOT:-$(cd "$(dirname "${0}")" && pwd)}"
 export IDIOT_ROOT
 IDIOT_CMD_DIR="${IDIOT_ROOT}/cmd"
-IDIOT_LIB_DIR="${IDIOT_ROOT}/lib"
+IDIOT_LIB_DIR="${IDIOT_ROOT}/share"
 
 # pre-scan for --color before sourcing common.sh so color vars are set correctly
 for _arg in "$@"; do
@@ -19,7 +19,7 @@ for _arg in "$@"; do
 done
 unset _arg
 
-# shellcheck source=lib/common.sh
+# shellcheck source=share/common.sh
 . "${IDIOT_LIB_DIR}/common.sh"
 
 idiot_help() {

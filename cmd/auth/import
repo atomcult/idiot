@@ -2,7 +2,7 @@
 # cmd/auth/import - import a credential file into IDIOT_AUTH_DIR
 # Usage: idiot auth import <file> [<name>]
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

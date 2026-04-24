@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/vm - launch and connect to a QEMU VM
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 # Normalise uname -m output to snap arch naming
 host_arch() {

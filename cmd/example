@@ -2,7 +2,7 @@
 # cmd/examples - clone an example repository
 # Usage: idiot example [list | add | remove | update | <repo> [options]]
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 EXAMPLES_CACHE="${IDIOT_CACHE_DIR}/examples"
 

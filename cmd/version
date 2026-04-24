@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/version - show version and authorship information
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 main() {
 	case "${1:-}" in

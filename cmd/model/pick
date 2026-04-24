@@ -5,7 +5,7 @@
 # Signed model assertions:   *.model
 # Unsigned model assertions: *.json
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	filter=""

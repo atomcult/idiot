@@ -2,7 +2,7 @@
 # cmd/auth/export - print a credential file to stdout or write to a file
 # Usage: idiot auth export [<name>] [-f|--file <file>]
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	name=""

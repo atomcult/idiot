@@ -2,7 +2,7 @@
 # cmd/store/add - save a Dedicated Snap Store ID under a human-readable name
 # Usage: idiot store add <name> <store-id>
 
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 
 main() {
 	case "${1:-}" in

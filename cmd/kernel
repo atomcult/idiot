@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/kernel - clone an Ubuntu kernel from Launchpad
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 KERNEL_DATA="${IDIOT_DATA_DIR}/kernels"
 

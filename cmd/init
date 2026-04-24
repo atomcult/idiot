@@ -7,7 +7,7 @@
 
 IDIOT_BIN="$(cd "$(dirname "${0}")/.." && pwd)/idiot"
 
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 main() {
 	shell="${1:-}"
