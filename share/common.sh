@@ -199,17 +199,6 @@ snap_app() {
     fi
 }
 
-# Return an fzf --preview command string for files inside a directory.
-# $1: name of the exported shell variable holding the directory path.
-# The returned string uses {} as the fzf-supplied filename.
-file_preview_cmd() {
-    if command -v batcat >/dev/null 2>&1; then
-        printf 'batcat --style=plain --color=always "$%s/"{}\n' "${1}"
-    else
-        printf 'cat "$%s/"{}\n' "${1}"
-    fi
-}
-
 # Emit a shell-appropriate unset statement for a variable.
 # Fish uses "set -e VAR"; bash/zsh use "unset VAR".
 emit_unset() {

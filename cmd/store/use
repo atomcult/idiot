@@ -4,6 +4,8 @@
 # Outputs: eval-able export statement
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/fzf.sh
+. "$(dirname "${0}")/../../share/fzf.sh"
 
 main() {
 	case "${1:-}" in
@@ -15,22 +17,10 @@ main() {
 	name="${1:-}"
 
 	[ -n "${name}" ] || {
-		require fzf "install fzf for interactive selection"
-
-		mkdir -p "${IDIOT_STORES_DIR}"
-
-		files=$(find "${IDIOT_STORES_DIR}" -maxdepth 1 -type f ! -name '.*' |
-			sort | sed "s|${IDIOT_STORES_DIR}/||")
-
-		[ -n "${files}" ] || die "no stores saved — use 'idiot store add' to add a store"
-
-		export IDIOT_STORES_DIR
-		preview_cmd="$(file_preview_cmd IDIOT_STORES_DIR)"
-
-		name=$(printf '%s\n' "${files}" |
-			fzf \
-				--prompt="store> " \
-				--preview="${preview_cmd}") || exit 0
+		name=$(fzf_pick_from_dir \
+			"${IDIOT_STORES_DIR}" \
+			"store> " \
+			"no stores saved — use 'idiot store add' to add a store") || exit 0
 	}
 
 	mkdir -p "${IDIOT_STORES_DIR}"

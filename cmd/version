@@ -14,7 +14,7 @@ main() {
 		;;
 	esac
 
-	version_file="${IDIOT_ROOT}/lib/version"
+	version_file="${IDIOT_ROOT}/share/version"
 	if [ -f "${version_file}" ]; then
 		version="$(cat "${version_file}")"
 	else

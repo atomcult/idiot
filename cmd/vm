@@ -2,34 +2,8 @@
 # cmd/vm - launch and connect to a QEMU VM
 
 . "$(dirname "${0}")/../share/common.sh"
-
-# Normalise uname -m output to snap arch naming
-host_arch() {
-	case "$(uname -m)" in
-	x86_64) printf 'amd64' ;;
-	aarch64) printf 'arm64' ;;
-	armv7l) printf 'armhf' ;;
-	riscv64) printf 'riscv64' ;;
-	s390x) printf 's390x' ;;
-	ppc64le) printf 'ppc64el' ;;
-	i686) printf 'i386' ;;
-	*) uname -m ;;
-	esac
-}
-
-# Map snap arch name to qemu-system-* binary suffix
-arch_to_qemu() {
-	case "${1}" in
-	amd64) printf 'x86_64' ;;
-	arm64) printf 'aarch64' ;;
-	armhf) printf 'arm' ;;
-	riscv64) printf 'riscv64' ;;
-	s390x) printf 's390x' ;;
-	ppc64el) printf 'ppc64' ;;
-	i386) printf 'i386' ;;
-	*) die "unsupported architecture: ${1}" ;;
-	esac
-}
+# shellcheck source=share/arch.sh
+. "$(dirname "${0}")/../share/arch.sh"
 
 # Return the first path from the argument list that exists as a regular file
 find_first() {
@@ -295,7 +269,7 @@ _build_machine_flags() {
 	esac
 
 	kvm_flags=''
-	if [ "${arch}" = "$(host_arch)" ] && [ -e /dev/kvm ]; then
+	if [ "${arch}" = "$(uname_to_snap_arch)" ] && [ -e /dev/kvm ]; then
 		kvm_flags='-enable-kvm -cpu host'
 	fi
 }
@@ -427,8 +401,8 @@ do_run() {
 		"usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] \
 [--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] <image> [-- <qemu-args>]"
 	[ -f "${image}" ] || die "image not found: ${image}"
-	[ -n "${arch}" ] || arch="$(host_arch)"
-	qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
+	[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
+	qemu_bin="qemu-system-$(snap_arch_to_qemu "${arch}")"
 	require "${qemu_bin}"
 
 	# Assemble machine and KVM flags

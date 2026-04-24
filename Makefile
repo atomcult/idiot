@@ -10,16 +10,16 @@ CACHE_DIR  = $(CACHE_HOME)/idiot
 
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
 
-SHELL_FILES := idiot share/common.sh $(shell find cmd -type f)
+SHELL_FILES := idiot share/common.sh share/fzf.sh share/arch.sh $(shell find cmd -type f)
 
 LOG := printf '  \033[1;36m%-12s\033[0m %s\n'
 
 .PHONY: check fmt fmt-check install uninstall purge
 
 check: fmt-check
-	@$(LOG) "SHELLCHECK" "idiot share/common.sh cmd/**"
+	@$(LOG) "SHELLCHECK" "idiot share/*.sh cmd/**"
 	@rc=0; \
-	shellcheck idiot share/common.sh || rc=1; \
+	shellcheck idiot share/common.sh share/fzf.sh share/arch.sh || rc=1; \
 	find cmd -type f | xargs shellcheck -x || rc=1; \
 	exit $$rc
 
@@ -35,10 +35,10 @@ install:
 	@$(LOG) "MKDIR" "$(LIBDIR)"
 	@install -d '$(LIBDIR)' '$(BINDIR)'
 	@$(LOG) "COPY" "cmd lib -> $(LIBDIR)/"
-	@rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/lib'
+	@rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/share'
 	@cp -rp cmd share '$(LIBDIR)/'
 	@$(LOG) "VERSION" "$(VERSION)"
-	@printf '%s\n' '$(VERSION)' > '$(LIBDIR)/lib/version'
+	@printf '%s\n' '$(VERSION)' > '$(LIBDIR)/share/version'
 	@$(LOG) "INSTALL" "$(LIBDIR)/idiot"
 	@install -m755 idiot '$(LIBDIR)/idiot'
 	@$(LOG) "WRITE" "$(BINDIR)/idiot"

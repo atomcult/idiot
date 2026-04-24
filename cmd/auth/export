@@ -3,6 +3,8 @@
 # Usage: idiot auth export [<name>] [-f|--file <file>]
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/fzf.sh
+. "$(dirname "${0}")/../../share/fzf.sh"
 
 main() {
 	name=""
@@ -34,22 +36,10 @@ main() {
 	done
 
 	[ -n "${name}" ] || {
-		require fzf "install fzf for interactive selection"
-
-		mkdir -p "${IDIOT_AUTH_DIR}"
-
-		files=$(find "${IDIOT_AUTH_DIR}" -maxdepth 1 -type f ! -name '.*' |
-			sort | sed "s|${IDIOT_AUTH_DIR}/||")
-
-		[ -n "${files}" ] || die "no credentials found"
-
-		export IDIOT_AUTH_DIR
-		preview_cmd="$(file_preview_cmd IDIOT_AUTH_DIR)"
-
-		name=$(printf '%s\n' "${files}" |
-			fzf \
-				--prompt="export auth> " \
-				--preview="${preview_cmd}") || exit 0
+		name=$(fzf_pick_from_dir \
+			"${IDIOT_AUTH_DIR}" \
+			"export auth> " \
+			"no credentials found") || exit 0
 	}
 
 	require_cred "${name}"
