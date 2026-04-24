@@ -17,6 +17,39 @@ process substitution, no `local` outside a function. The shebang is always:
 
 ---
 
+## Line length
+
+Target 80 characters. Hard limit 100 — no line should exceed it except:
+
+- String literals that cannot be broken without changing their value (URLs,
+  error messages with embedded quotes, heredoc bodies)
+- `# shellcheck disable` pragmas
+
+When a command invocation or condition would push past the limit, break it with
+a trailing `\` and indent the continuation by four spaces:
+
+```sh
+GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null \
+    | sed 's|.*refs/heads/||' \
+    | sort
+
+[ -n "${name}" ] && [ -n "${store_id}" ] \
+    || die "usage: idiot store add <name> <store-id>"
+```
+
+Multi-option `fzf` calls always use one flag per line:
+
+```sh
+fzf \
+    --header-lines=1 \
+    --no-sort \
+    --prompt="change> " \
+    --preview="snap change {1}" \
+    --preview-window="down:60%:wrap"
+```
+
+---
+
 ## File headers
 
 Every script begins with a two-line header:
@@ -67,18 +100,106 @@ path relative to its own location:
 
 ---
 
+## Comments
+
+Write a comment only when the **why** is not obvious from the code itself.
+Don't narrate what the code does — a reader can see that.
+
+Good (explains a non-obvious constraint):
+
+```sh
+# Launchpad does not support shallow clones
+git clone "${url}" "${dest}"
+```
+
+Bad (restates the code):
+
+```sh
+# Clone the repository
+git clone "${url}" "${dest}"
+```
+
+**Function headers in `lib/common.sh`** use a short prose description followed
+by `# $N:` lines for each parameter when the argument contract is not obvious
+from the name alone:
+
+```sh
+# Dispatch to a subcommand within a command group directory.
+# $1: display name of the parent command (e.g. "auth")
+# $2: path to the command group directory
+# Remaining args are passed through to the subcommand.
+dispatch_subcmd() { ... }
+```
+
+Leaf commands in `cmd/` do not need per-function headers — the file header
+serves that purpose.
+
+**Section markers** inside a long `main()` body are a lightweight alternative
+to splitting everything into functions. Use a single-line comment that names
+the logical phase:
+
+```sh
+# Auth
+...
+# Store
+...
+```
+
+**Shellcheck pragmas** go on the line immediately before the line they suppress,
+not at the top of the file:
+
+```sh
+# shellcheck disable=SC2016
+preview_cmd='...'
+```
+
+---
+
 ## Structure: the `main()` pattern
 
 Every script wraps its logic in `main()` and calls it at the end of the file:
 
 ```sh
 main() {
+    set -eu
     ...
 }
 main "$@"
 ```
 
-Private helper functions defined outside `main()` are prefixed with `_`:
+### `main()` should read as a high-level narrative
+
+`main()` is for sequencing: parse arguments, validate preconditions, do the
+work, report results. Implementation detail — anything with a meaningful name
+that could live independently — belongs in a named helper function.
+
+A well-structured `main()` reads like a table of contents for the command. A
+reader should understand the full flow without having to trace through
+implementation details:
+
+```sh
+setup_firmware() { ... }
+start_vm() { ... }
+
+main() {
+    # parse flags ...
+    arch=$(resolve_arch "${arch_flag}")
+    setup_firmware "${arch}"
+    start_vm "${arch}" "${image}"
+}
+```
+
+Contrast with an unstructured `main()` where 80 lines of logic sit in a single
+body — that style makes commands hard to read, test mentally, and extend.
+
+**When to extract a function:**
+
+- The block has a clear, nameable purpose distinct from argument parsing
+- The block is more than ~10 lines
+- The same logic is needed in more than one place
+- A section comment names a logical phase that could just as well be a function
+
+Private helpers (used only within the file) are prefixed with `_`:
 
 ```sh
 _row() { ... }
