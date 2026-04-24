@@ -4,90 +4,93 @@
 . "$(dirname "${0}")/../lib/common.sh"
 
 _row() {
-    _r_label="${1}"; _r_value="${2}"; _r_ann="${3:-}"
-    _r_gap=$(( 8 - ${#_r_label} ))
-    [ "${_r_gap}" -lt 1 ] && _r_gap=1
-    if [ -n "${_r_ann}" ]; then
-        say "  ${CYAN}${_r_label}${RESET}$(printf '%*s' "${_r_gap}" '')${_r_value}  ${DIM}${_r_ann}${RESET}"
-    else
-        say "  ${CYAN}${_r_label}${RESET}$(printf '%*s' "${_r_gap}" '')${_r_value}"
-    fi
+	_r_label="${1}"
+	_r_value="${2}"
+	_r_ann="${3:-}"
+	_r_gap=$((8 - ${#_r_label}))
+	[ "${_r_gap}" -lt 1 ] && _r_gap=1
+	if [ -n "${_r_ann}" ]; then
+		say "  ${CYAN}${_r_label}${RESET}$(printf '%*s' "${_r_gap}" '')${_r_value}  ${DIM}${_r_ann}${RESET}"
+	else
+		say "  ${CYAN}${_r_label}${RESET}$(printf '%*s' "${_r_gap}" '')${_r_value}"
+	fi
 }
 
 main() {
-    case "${1:-}" in
-        -h|--help|help)
-            help_heading "Usage:" "idiot status"
-            echo >&2
-            say "Shows the active store credential, store, architecture, and Launchpad identity."
-            exit 0 ;;
-    esac
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot status"
+		echo >&2
+		say "Shows the active store credential, store, architecture, and Launchpad identity."
+		exit 0
+		;;
+	esac
 
-    # Auth
-    if [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || [ -n "${UBUNTU_STORE_AUTH:-}" ]; then
-        _auth_value="${BOLD}logged in${RESET}"
-        _auth_ann=""
-        if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
-            _auth_ann="${IDIOT_ACTIVE_CRED}"
-            _whoami_cache="${IDIOT_CACHE_DIR}/whoami/${IDIOT_ACTIVE_CRED}"
-            if [ -f "${_whoami_cache}" ]; then
-                _email="$(grep '^email: ' "${_whoami_cache}" | sed 's/^email: //')"
-                [ -n "${_email}" ] && _auth_ann="${IDIOT_ACTIVE_CRED} · ${_email}"
-            fi
-        fi
-    else
-        _auth_value="${DIM}not logged in${RESET}"
-        _auth_ann="run: idiot auth login"
-    fi
-    _row "auth" "${_auth_value}" "${_auth_ann}"
+	# Auth
+	if [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || [ -n "${UBUNTU_STORE_AUTH:-}" ]; then
+		_auth_value="${BOLD}logged in${RESET}"
+		_auth_ann=""
+		if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
+			_auth_ann="${IDIOT_ACTIVE_CRED}"
+			_whoami_cache="${IDIOT_CACHE_DIR}/whoami/${IDIOT_ACTIVE_CRED}"
+			if [ -f "${_whoami_cache}" ]; then
+				_email="$(grep '^email: ' "${_whoami_cache}" | sed 's/^email: //')"
+				[ -n "${_email}" ] && _auth_ann="${IDIOT_ACTIVE_CRED} · ${_email}"
+			fi
+		fi
+	else
+		_auth_value="${DIM}not logged in${RESET}"
+		_auth_ann="run: idiot auth login"
+	fi
+	_row "auth" "${_auth_value}" "${_auth_ann}"
 
-    # Store
-    if [ -n "${UBUNTU_STORE_ID:-}" ]; then
-        _store_name=""
-        if [ -d "${IDIOT_STORES_DIR}" ]; then
-            for _f in "${IDIOT_STORES_DIR}"/*; do
-                [ -f "${_f}" ] || continue
-                _fid="$(cat "${_f}")"
-                if [ "${_fid}" = "${UBUNTU_STORE_ID}" ]; then
-                    _store_name="${_f##*/}"
-                    break
-                fi
-            done
-        fi
-        if [ -n "${_store_name}" ]; then
-            _row "store" "${BOLD}${_store_name}${RESET}" "${UBUNTU_STORE_ID}"
-        else
-            _row "store" "${BOLD}${UBUNTU_STORE_ID}${RESET}"
-        fi
-    else
-        _row "store" "${DIM}global${RESET}"
-    fi
+	# Store
+	if [ -n "${UBUNTU_STORE_ID:-}" ]; then
+		_store_name=""
+		if [ -d "${IDIOT_STORES_DIR}" ]; then
+			for _f in "${IDIOT_STORES_DIR}"/*; do
+				[ -f "${_f}" ] || continue
+				_fid="$(cat "${_f}")"
+				if [ "${_fid}" = "${UBUNTU_STORE_ID}" ]; then
+					_store_name="${_f##*/}"
+					break
+				fi
+			done
+		fi
+		if [ -n "${_store_name}" ]; then
+			_row "store" "${BOLD}${_store_name}${RESET}" "${UBUNTU_STORE_ID}"
+		else
+			_row "store" "${BOLD}${UBUNTU_STORE_ID}${RESET}"
+		fi
+	else
+		_row "store" "${DIM}global${RESET}"
+	fi
 
-    # Arch
-    if [ -n "${UBUNTU_STORE_ARCH:-}" ]; then
-        _row "arch" "${BOLD}${UBUNTU_STORE_ARCH}${RESET}"
-    else
-        case "$(uname -m)" in
-            x86_64)        _host_arch="amd64" ;;
-            aarch64)       _host_arch="arm64" ;;
-            armv7l|armv6l) _host_arch="armhf" ;;
-            i686|i386)     _host_arch="i386" ;;
-            ppc64le)       _host_arch="ppc64el" ;;
-            riscv64)       _host_arch="riscv64" ;;
-            s390x)         _host_arch="s390x" ;;
-            *)             _host_arch="$(uname -m)" ;;
-        esac
-        _row "arch" "${DIM}${_host_arch}${RESET}" "host default"
-    fi
+	# Arch
+	if [ -n "${UBUNTU_STORE_ARCH:-}" ]; then
+		_row "arch" "${BOLD}${UBUNTU_STORE_ARCH}${RESET}"
+	else
+		case "$(uname -m)" in
+		x86_64) _host_arch="amd64" ;;
+		aarch64) _host_arch="arm64" ;;
+		armv7l | armv6l) _host_arch="armhf" ;;
+		i686 | i386) _host_arch="i386" ;;
+		ppc64le) _host_arch="ppc64el" ;;
+		riscv64) _host_arch="riscv64" ;;
+		s390x) _host_arch="s390x" ;;
+		*) _host_arch="$(uname -m)" ;;
+		esac
+		_row "arch" "${DIM}${_host_arch}${RESET}" "host default"
+	fi
 
-    # Launchpad
-    if [ -n "${IDIOT_LP_USER:-}" ]; then
-        _row "lp" "${BOLD}${IDIOT_LP_USER}${RESET}"
-    elif [ -f "${IDIOT_LP_USER_FILE}" ]; then
-        _lp_user="$(cat "${IDIOT_LP_USER_FILE}")"
-        _row "lp" "${BOLD}${_lp_user}${RESET}"
-    else
-        _row "lp" "${DIM}not set${RESET}" "run: idiot lp set <username>"
-    fi
+	# Launchpad
+	if [ -n "${IDIOT_LP_USER:-}" ]; then
+		_row "lp" "${BOLD}${IDIOT_LP_USER}${RESET}"
+	elif [ -f "${IDIOT_LP_USER_FILE}" ]; then
+		_lp_user="$(cat "${IDIOT_LP_USER_FILE}")"
+		_row "lp" "${BOLD}${_lp_user}${RESET}"
+	else
+		_row "lp" "${DIM}not set${RESET}" "run: idiot lp set <username>"
+	fi
 }
 main "$@"

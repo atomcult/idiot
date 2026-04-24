@@ -5,62 +5,63 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    name=""
-    outfile=""
+	name=""
+	outfile=""
 
-    while [ $# -gt 0 ]; do
-        case "${1}" in
-            -h|--help|help)
-                help_heading "Usage:" "idiot auth export [<name>] [-f <file>]"
-                echo >&2
-                help_heading "Options:"
-                help_option "-f, --file <file>" "Write to file instead of stdout"
-                exit 0 ;;
-            -f|--file)
-                [ -n "${2:-}" ] || die "option '${1}' requires an argument"
-                outfile="${2}"
-                shift 2
-                ;;
-            -*)
-                die "unknown option: ${1}"
-                ;;
-            *)
-                [ -n "${name}" ] && die "usage: idiot auth export [<name>] [-f <file>]"
-                name="${1}"
-                shift
-                ;;
-        esac
-    done
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot auth export [<name>] [-f <file>]"
+			echo >&2
+			help_heading "Options:"
+			help_option "-f, --file <file>" "Write to file instead of stdout"
+			exit 0
+			;;
+		-f | --file)
+			[ -n "${2:-}" ] || die "option '${1}' requires an argument"
+			outfile="${2}"
+			shift 2
+			;;
+		-*)
+			die "unknown option: ${1}"
+			;;
+		*)
+			[ -n "${name}" ] && die "usage: idiot auth export [<name>] [-f <file>]"
+			name="${1}"
+			shift
+			;;
+		esac
+	done
 
-    [ -n "${name}" ] || {
-        require fzf "install fzf for interactive selection"
+	[ -n "${name}" ] || {
+		require fzf "install fzf for interactive selection"
 
-        mkdir -p "${IDIOT_AUTH_DIR}"
+		mkdir -p "${IDIOT_AUTH_DIR}"
 
-        files=$(find "${IDIOT_AUTH_DIR}" -maxdepth 1 -type f ! -name '.*' \
-            | sort | sed "s|${IDIOT_AUTH_DIR}/||")
+		files=$(find "${IDIOT_AUTH_DIR}" -maxdepth 1 -type f ! -name '.*' |
+			sort | sed "s|${IDIOT_AUTH_DIR}/||")
 
-        [ -n "${files}" ] || die "no credentials found"
+		[ -n "${files}" ] || die "no credentials found"
 
-        export IDIOT_AUTH_DIR
-        preview_cmd="$(file_preview_cmd IDIOT_AUTH_DIR)"
+		export IDIOT_AUTH_DIR
+		preview_cmd="$(file_preview_cmd IDIOT_AUTH_DIR)"
 
-        name=$(printf '%s\n' "${files}" \
-            | fzf \
-                --prompt="export auth> " \
-                --preview="${preview_cmd}") || exit 0
-    }
+		name=$(printf '%s\n' "${files}" |
+			fzf \
+				--prompt="export auth> " \
+				--preview="${preview_cmd}") || exit 0
+	}
 
-    cred_file="${IDIOT_AUTH_DIR}/${name}"
+	cred_file="${IDIOT_AUTH_DIR}/${name}"
 
-    [ -f "${cred_file}" ] || die "credentials '${name}' not found"
+	[ -f "${cred_file}" ] || die "credentials '${name}' not found"
 
-    if [ -n "${outfile}" ]; then
-        cp "${cred_file}" "${outfile}"
-        say "Exported '${BOLD}${name}${RESET}' to '${BOLD}${outfile}${RESET}'"
-    else
-        cat "${cred_file}"
-    fi
+	if [ -n "${outfile}" ]; then
+		cp "${cred_file}" "${outfile}"
+		say "Exported '${BOLD}${name}${RESET}' to '${BOLD}${outfile}${RESET}'"
+	else
+		cat "${cred_file}"
+	fi
 }
 
 main "$@"

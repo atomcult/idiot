@@ -6,20 +6,23 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot lp set [<username>]"; exit 0 ;;
-    esac
-    username="${1:-}"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot lp set [<username>]"
+		exit 0
+		;;
+	esac
+	username="${1:-}"
 
-    [ -n "${username}" ] || {
-        printf 'Launchpad username: ' >&2
-        read -r username
-    }
+	[ -n "${username}" ] || {
+		printf 'Launchpad username: ' >&2
+		read -r username
+	}
 
-    [ -n "${username}" ] || die "username is required"
+	[ -n "${username}" ] || die "username is required"
 
-    mkdir -p "$(dirname "${IDIOT_LP_USER_FILE}")"
-    printf '%s\n' "${username}" > "${IDIOT_LP_USER_FILE}"
-    printf 'export IDIOT_LP_USER=%s\n' "$(shell_quote "${username}")"
+	mkdir -p "$(dirname "${IDIOT_LP_USER_FILE}")"
+	printf '%s\n' "${username}" >"${IDIOT_LP_USER_FILE}"
+	printf 'export IDIOT_LP_USER=%s\n' "$(shell_quote "${username}")"
 }
 main "$@"

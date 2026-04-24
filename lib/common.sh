@@ -69,8 +69,8 @@ die() {
 # Die unless the given command is found in PATH.
 # $1: command name, $2: optional install hint appended after " — "
 require() {
-    command -v "${1}" > /dev/null 2>&1 \
-        || die "${1} is required but not found${2:+ — ${2}}"
+    command -v "${1}" >/dev/null 2>&1 ||
+        die "${1} is required but not found${2:+ — ${2}}"
 }
 
 # POSIX-safe single-quote escaping
@@ -95,21 +95,21 @@ help_heading() {
 
 # Print a subcommand/command row: cyan name padded to 14 chars, then description.
 help_command() {
-    gap=$(( 14 - ${#1} ))
+    gap=$((14 - ${#1}))
     [ "${gap}" -lt 2 ] && gap=2
     say "  ${CYAN}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
 
 # Print an option row: bold name padded to 22 chars, then description.
 help_option() {
-    gap=$(( 22 - ${#1} ))
+    gap=$((22 - ${#1}))
     [ "${gap}" -lt 2 ] && gap=2
     say "  ${BOLD}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
 
 # Print an environment variable row: bold name padded to 22 chars, then description.
 help_env() {
-    gap=$(( 22 - ${#1} ))
+    gap=$((22 - ${#1}))
     [ "${gap}" -lt 2 ] && gap=2
     say "  ${BOLD}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
@@ -119,46 +119,48 @@ help_env() {
 # $2: path to the command group directory
 # Remaining args are passed through to the subcommand.
 dispatch_subcmd() {
-    cmd="${1}"; cmd_file="${2}"; shift 2
+    cmd="${1}"
+    cmd_file="${2}"
+    shift 2
     subcmd="${1:-}"
     [ $# -ge 1 ] && shift
     case "${subcmd}" in
-        ""|-h|--help|help)
-            if [ -x "${cmd_file}/help" ]; then
-                exec "${cmd_file}/help"
-            else
-                die "usage: idiot ${cmd} <subcommand>"
-            fi
-            ;;
-        *)
-            [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
-            subcmd_file="${cmd_file}/${subcmd}"
-            if [ -d "${subcmd_file}" ]; then
-                subsubcmd="${1:-}"
-                [ $# -ge 1 ] && shift
-                case "${subsubcmd}" in
-                    ""|-h|--help|help)
-                        if [ -x "${subcmd_file}/help" ]; then
-                            exec "${subcmd_file}/help"
-                        else
-                            die "usage: idiot ${cmd} ${subcmd} <subcommand>"
-                        fi
-                        ;;
-                    *)
-                        subsubcmd_file="${subcmd_file}/${subsubcmd}"
-                        if [ -x "${subsubcmd_file}" ]; then
-                            exec "${subsubcmd_file}" "$@"
-                        else
-                            die "unknown subcommand: ${cmd} ${subcmd} ${subsubcmd}"
-                        fi
-                        ;;
-                esac
-            elif [ -x "${subcmd_file}" ]; then
-                exec "${subcmd_file}" "$@"
-            else
-                die "unknown subcommand: ${cmd} ${subcmd}"
-            fi
-            ;;
+    "" | -h | --help | help)
+        if [ -x "${cmd_file}/help" ]; then
+            exec "${cmd_file}/help"
+        else
+            die "usage: idiot ${cmd} <subcommand>"
+        fi
+        ;;
+    *)
+        [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+        subcmd_file="${cmd_file}/${subcmd}"
+        if [ -d "${subcmd_file}" ]; then
+            subsubcmd="${1:-}"
+            [ $# -ge 1 ] && shift
+            case "${subsubcmd}" in
+            "" | -h | --help | help)
+                if [ -x "${subcmd_file}/help" ]; then
+                    exec "${subcmd_file}/help"
+                else
+                    die "usage: idiot ${cmd} ${subcmd} <subcommand>"
+                fi
+                ;;
+            *)
+                subsubcmd_file="${subcmd_file}/${subsubcmd}"
+                if [ -x "${subsubcmd_file}" ]; then
+                    exec "${subsubcmd_file}" "$@"
+                else
+                    die "unknown subcommand: ${cmd} ${subcmd} ${subsubcmd}"
+                fi
+                ;;
+            esac
+        elif [ -x "${subcmd_file}" ]; then
+            exec "${subcmd_file}" "$@"
+        else
+            die "unknown subcommand: ${cmd} ${subcmd}"
+        fi
+        ;;
     esac
 }
 
@@ -166,7 +168,8 @@ dispatch_subcmd() {
 # When $SNAP is set, resolves to $SNAP/usr/bin/<cmd> or $SNAP/bin/<cmd>.
 # Falls back to the system PATH when not running inside a snap.
 snap_app() {
-    _sa_cmd="${1}"; shift
+    _sa_cmd="${1}"
+    shift
     if [ -n "${SNAP:-}" ]; then
         if [ -x "${SNAP}/usr/bin/${_sa_cmd}" ]; then
             "${SNAP}/usr/bin/${_sa_cmd}" "$@"
@@ -176,7 +179,7 @@ snap_app() {
             die "${_sa_cmd}: not found in snap (install the core component: snap install idiot+core)"
         fi
     else
-        command -v "${_sa_cmd}" > /dev/null 2>&1 || die "${_sa_cmd} is required but not found"
+        command -v "${_sa_cmd}" >/dev/null 2>&1 || die "${_sa_cmd} is required but not found"
         "${_sa_cmd}" "$@"
     fi
 }
@@ -185,7 +188,7 @@ snap_app() {
 # $1: name of the exported shell variable holding the directory path.
 # The returned string uses {} as the fzf-supplied filename.
 file_preview_cmd() {
-    if command -v batcat > /dev/null 2>&1; then
+    if command -v batcat >/dev/null 2>&1; then
         printf 'batcat --style=plain --color=always "$%s/"{}\n' "${1}"
     else
         printf 'cat "$%s/"{}\n' "${1}"

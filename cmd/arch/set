@@ -6,21 +6,24 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot arch set [<arch>]"; exit 0 ;;
-    esac
-    arch="${1:-}"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot arch set [<arch>]"
+		exit 0
+		;;
+	esac
+	arch="${1:-}"
 
-    [ -n "${arch}" ] || {
-        require fzf "install fzf for interactive selection"
-        arch=$(printf 'amd64\narm64\narmhf\ni386\nppc64el\nriscv64\ns390x\n' | fzf --prompt="arch> ") || exit 0
-    }
+	[ -n "${arch}" ] || {
+		require fzf "install fzf for interactive selection"
+		arch=$(printf 'amd64\narm64\narmhf\ni386\nppc64el\nriscv64\ns390x\n' | fzf --prompt="arch> ") || exit 0
+	}
 
-    case "${arch}" in
-        amd64|arm64|armhf|i386|ppc64el|riscv64|s390x)
-            printf 'export UBUNTU_STORE_ARCH=%s\n' "$(shell_quote "${arch}")"
-            ;;
-        *) die "invalid architecture: '${arch}' (valid: amd64, arm64, armhf, i386, ppc64el, riscv64, s390x)" ;;
-    esac
+	case "${arch}" in
+	amd64 | arm64 | armhf | i386 | ppc64el | riscv64 | s390x)
+		printf 'export UBUNTU_STORE_ARCH=%s\n' "$(shell_quote "${arch}")"
+		;;
+	*) die "invalid architecture: '${arch}' (valid: amd64, arm64, armhf, i386, ppc64el, riscv64, s390x)" ;;
+	esac
 }
 main "$@"

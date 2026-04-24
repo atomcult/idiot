@@ -4,11 +4,11 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    help_heading "Usage:" "idiot clean <subcommand>"
-    echo >&2
-    help_heading "Subcommands:"
-    help_command "all"        "Remove all snapcraft build containers and unasserted snaps"
-    help_command "containers" "Remove all snapcraft build containers"
-    help_command "snaps"      "Remove all unasserted snaps"
+	help_heading "Usage:" "idiot clean <subcommand>"
+	echo >&2
+	help_heading "Subcommands:"
+	help_command "all" "Remove all snapcraft build containers and unasserted snaps"
+	help_command "containers" "Remove all snapcraft build containers"
+	help_command "snaps" "Remove all unasserted snaps"
 }
 main "$@"

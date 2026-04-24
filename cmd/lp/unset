@@ -6,10 +6,13 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot lp unset"; exit 0 ;;
-    esac
-    rm -f "${IDIOT_LP_USER_FILE}"
-    emit_unset IDIOT_LP_USER
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot lp unset"
+		exit 0
+		;;
+	esac
+	rm -f "${IDIOT_LP_USER_FILE}"
+	emit_unset IDIOT_LP_USER
 }
 main "$@"

@@ -4,36 +4,38 @@
 . "$(dirname "${0}")/../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help)
-            help_heading "Usage:" "idiot version [--short]"
-            echo >&2
-            help_heading "Options:"
-            help_option "--short" "Print version string only (stdout)"
-            exit 0 ;;
-    esac
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot version [--short]"
+		echo >&2
+		help_heading "Options:"
+		help_option "--short" "Print version string only (stdout)"
+		exit 0
+		;;
+	esac
 
-    version_file="${IDIOT_ROOT}/lib/version"
-    if [ -f "${version_file}" ]; then
-        version="$(cat "${version_file}")"
-    else
-        version="dev"
-    fi
+	version_file="${IDIOT_ROOT}/lib/version"
+	if [ -f "${version_file}" ]; then
+		version="$(cat "${version_file}")"
+	else
+		version="dev"
+	fi
 
-    case "${1:-}" in
-        --short)
-            say "${version}"
-            exit 0 ;;
-    esac
+	case "${1:-}" in
+	--short)
+		say "${version}"
+		exit 0
+		;;
+	esac
 
-    say "${BOLD}idiot${RESET} — Interactive Devtools for IoT"
-    say "${DIM}${version}${RESET}"
-    echo >&2
-    say "${CYAN}Author${RESET}"
-    say "  Lauren Brock"
-    echo >&2
-    say "${CYAN}License${RESET}"
-    say "  MIT"
-    say "  ${DIM}https://opensource.org/licenses/MIT${RESET}"
+	say "${BOLD}idiot${RESET} — Interactive Devtools for IoT"
+	say "${DIM}${version}${RESET}"
+	echo >&2
+	say "${CYAN}Author${RESET}"
+	say "  Lauren Brock"
+	echo >&2
+	say "${CYAN}License${RESET}"
+	say "  MIT"
+	say "  ${DIM}https://opensource.org/licenses/MIT${RESET}"
 }
 main "$@"

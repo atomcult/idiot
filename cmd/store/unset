@@ -6,9 +6,12 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot store unset"; exit 0 ;;
-    esac
-    emit_unset UBUNTU_STORE_ID
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot store unset"
+		exit 0
+		;;
+	esac
+	emit_unset UBUNTU_STORE_ID
 }
 main "$@"

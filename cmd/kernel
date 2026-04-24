@@ -6,196 +6,232 @@
 KERNEL_DATA="${IDIOT_DATA_DIR}/kernels"
 
 kernel_url() {
-    _series="${1}"; _flavour="${2:-}"
-    # generic and raspi live under ~ubuntu-kernel; everything else is ~canonical-kernel
-    case "${_flavour}" in
-        ''|generic) _team="ubuntu-kernel";    _pkg="linux" ;;
-        raspi)      _team="ubuntu-kernel";    _pkg="linux-raspi" ;;
-        *)          _team="canonical-kernel"; _pkg="linux-${_flavour}" ;;
-    esac
-    printf 'https://git.launchpad.net/~%s/ubuntu/+source/%s/+git/%s\n' \
-        "${_team}" "${_pkg}" "${_series}"
+	_series="${1}"
+	_flavour="${2:-}"
+	# generic and raspi live under ~ubuntu-kernel; everything else is ~canonical-kernel
+	case "${_flavour}" in
+	'' | generic)
+		_team="ubuntu-kernel"
+		_pkg="linux"
+		;;
+	raspi)
+		_team="ubuntu-kernel"
+		_pkg="linux-raspi"
+		;;
+	*)
+		_team="canonical-kernel"
+		_pkg="linux-${_flavour}"
+		;;
+	esac
+	printf 'https://git.launchpad.net/~%s/ubuntu/+source/%s/+git/%s\n' \
+		"${_team}" "${_pkg}" "${_series}"
 }
 
 _list_data() {
-    _ld_file="${1}"; _ld_col="${2:-20}"; _ld_limit="${3:-0}"
-    [ -f "${_ld_file}" ] || die "data file not found: ${_ld_file}"
-    _ld_shown=0; _ld_total=0
-    while read -r _ld_name _ld_rest; do
-        case "${_ld_name}" in ''|'#'*) continue ;; esac
-        _ld_total=$(( _ld_total + 1 ))
-        [ "${_ld_limit}" -gt 0 ] && [ "${_ld_shown}" -ge "${_ld_limit}" ] && continue
-        _ld_gap=$(( _ld_col - ${#_ld_name} ))
-        [ "${_ld_gap}" -lt 2 ] && _ld_gap=2
-        say "  ${CYAN}${_ld_name}${RESET}$(printf '%*s' "${_ld_gap}" '')${DIM}${_ld_rest}${RESET}"
-        _ld_shown=$(( _ld_shown + 1 ))
-    done < "${_ld_file}"
-    [ "${_ld_limit}" -gt 0 ] && [ "${_ld_total}" -gt "${_ld_limit}" ] && \
-        say "  ${DIM}… and $(( _ld_total - _ld_limit )) more  (use fzf picker to see all)${RESET}"
+	_ld_file="${1}"
+	_ld_col="${2:-20}"
+	_ld_limit="${3:-0}"
+	[ -f "${_ld_file}" ] || die "data file not found: ${_ld_file}"
+	_ld_shown=0
+	_ld_total=0
+	while read -r _ld_name _ld_rest; do
+		case "${_ld_name}" in '' | '#'*) continue ;; esac
+		_ld_total=$((_ld_total + 1))
+		[ "${_ld_limit}" -gt 0 ] && [ "${_ld_shown}" -ge "${_ld_limit}" ] && continue
+		_ld_gap=$((_ld_col - ${#_ld_name}))
+		[ "${_ld_gap}" -lt 2 ] && _ld_gap=2
+		say "  ${CYAN}${_ld_name}${RESET}$(printf '%*s' "${_ld_gap}" '')${DIM}${_ld_rest}${RESET}"
+		_ld_shown=$((_ld_shown + 1))
+	done <"${_ld_file}"
+	[ "${_ld_limit}" -gt 0 ] && [ "${_ld_total}" -gt "${_ld_limit}" ] &&
+		say "  ${DIM}… and $((_ld_total - _ld_limit)) more  (use fzf picker to see all)${RESET}"
 }
 
 _pick_from() {
-    _pf_file="${1}"; _pf_prompt="${2:-pick> }"
-    require fzf "install fzf for interactive selection"
-    [ -f "${_pf_file}" ] || die "data file not found: ${_pf_file}"
-    grep -v '^[[:space:]]*\(#\|$\)' "${_pf_file}" \
-        | fzf --prompt="${_pf_prompt}" | awk '{print $1}'
+	_pf_file="${1}"
+	_pf_prompt="${2:-pick> }"
+	require fzf "install fzf for interactive selection"
+	[ -f "${_pf_file}" ] || die "data file not found: ${_pf_file}"
+	grep -v '^[[:space:]]*\(#\|$\)' "${_pf_file}" |
+		fzf --prompt="${_pf_prompt}" | awk '{print $1}'
 }
 
 # Compute the human-readable kernel package label for progress messages.
 _kernel_label() {
-    if [ "${flavour}" = "generic" ]; then
-        printf 'linux'
-    else
-        printf 'linux-%s' "${flavour}"
-    fi
+	if [ "${flavour}" = "generic" ]; then
+		printf 'linux'
+	else
+		printf 'linux-%s' "${flavour}"
+	fi
 }
 
 # Compute the default clone destination directory name.
 _default_dest() {
-    if [ "${flavour}" = "generic" ]; then
-        printf 'linux-%s' "${series}"
-    else
-        printf 'linux-%s-%s' "${flavour}" "${series}"
-    fi
+	if [ "${flavour}" = "generic" ]; then
+		printf 'linux-%s' "${series}"
+	else
+		printf 'linux-%s-%s' "${flavour}" "${series}"
+	fi
 }
 
 # Resolve the branch to clone, prompting interactively when needed.
 # Reads globals: pick_branch, branch, branches. Sets: branch.
 _resolve_branch() {
-    if [ -n "${branch}" ]; then
-        : # explicit --branch value, use as-is
-    elif [ "${pick_branch}" -eq 1 ]; then
-        require fzf "install fzf for interactive selection"
-        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
-        [ -n "${branch}" ] || exit 0
-    elif printf '%s\n' "${branches}" | grep -qx 'main-next'; then
-        branch="main-next"
-    elif printf '%s\n' "${branches}" | grep -qx 'master-next'; then
-        branch="master-next"
-    else
-        require fzf \
-            "install fzf for branch selection (neither main-next nor master-next found)"
-        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
-        [ -n "${branch}" ] || exit 0
-    fi
+	if [ -n "${branch}" ]; then
+		: # explicit --branch value, use as-is
+	elif [ "${pick_branch}" -eq 1 ]; then
+		require fzf "install fzf for interactive selection"
+		branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
+		[ -n "${branch}" ] || exit 0
+	elif printf '%s\n' "${branches}" | grep -qx 'main-next'; then
+		branch="main-next"
+	elif printf '%s\n' "${branches}" | grep -qx 'master-next'; then
+		branch="master-next"
+	else
+		require fzf \
+			"install fzf for branch selection (neither main-next nor master-next found)"
+		branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
+		[ -n "${branch}" ] || exit 0
+	fi
 }
 
 main() {
-    case "${1:-}" in
-        ""|--help|-h|help)
-            help_heading "Usage:" "idiot kernel [<series>] [<flavour>] [options]"
-            echo >&2
-            say "Clones an Ubuntu kernel from Launchpad. Tries ${BOLD}main-next${RESET} then"
-            say "falls back to ${BOLD}master-next${RESET}. Launchpad does not support shallow clones."
-            echo >&2
-            help_heading "Options:"
-            help_option "--series [name]"  "Ubuntu series; omit value for fzf picker"
-            help_option "--flavour [name]" "Kernel flavour (default: generic); omit value for fzf picker"
-            help_option "--branch [name]"  "Branch to clone; omit value for fzf picker"
-            help_option "--dest <dir>"     "Destination directory"
-            echo >&2
-            help_heading "Series:"
-            _list_data "${KERNEL_DATA}/series" 12 6
-            echo >&2
-            help_heading "Flavours:"
-            _list_data "${KERNEL_DATA}/flavours" 16
-            echo >&2
-            help_heading "Examples:"
-            say "  ${CYAN}idiot kernel${RESET} noble"
-            say "  ${CYAN}idiot kernel${RESET} noble raspi"
-            say "  ${CYAN}idiot kernel${RESET} jammy xilinx-zynqmp ${DIM}--dest${RESET} ~/src/zynqmp"
-            say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--flavour${RESET}          ${DIM}# fzf picker${RESET}"
-            say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--branch${RESET}           ${DIM}# fzf branch picker${RESET}"
-            exit 0 ;;
-    esac
+	case "${1:-}" in
+	"" | --help | -h | help)
+		help_heading "Usage:" "idiot kernel [<series>] [<flavour>] [options]"
+		echo >&2
+		say "Clones an Ubuntu kernel from Launchpad. Tries ${BOLD}main-next${RESET} then"
+		say "falls back to ${BOLD}master-next${RESET}. Launchpad does not support shallow clones."
+		echo >&2
+		help_heading "Options:"
+		help_option "--series [name]" "Ubuntu series; omit value for fzf picker"
+		help_option "--flavour [name]" "Kernel flavour (default: generic); omit value for fzf picker"
+		help_option "--branch [name]" "Branch to clone; omit value for fzf picker"
+		help_option "--dest <dir>" "Destination directory"
+		echo >&2
+		help_heading "Series:"
+		_list_data "${KERNEL_DATA}/series" 12 6
+		echo >&2
+		help_heading "Flavours:"
+		_list_data "${KERNEL_DATA}/flavours" 16
+		echo >&2
+		help_heading "Examples:"
+		say "  ${CYAN}idiot kernel${RESET} noble"
+		say "  ${CYAN}idiot kernel${RESET} noble raspi"
+		say "  ${CYAN}idiot kernel${RESET} jammy xilinx-zynqmp ${DIM}--dest${RESET} ~/src/zynqmp"
+		say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--flavour${RESET}          ${DIM}# fzf picker${RESET}"
+		say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--branch${RESET}           ${DIM}# fzf branch picker${RESET}"
+		exit 0
+		;;
+	esac
 
-    # Parse arguments
-    series=""
-    pick_series=0
-    flavour=""
-    pick_flavour=0
-    branch=""
-    pick_branch=0
-    dest=""
+	# Parse arguments
+	series=""
+	pick_series=0
+	flavour=""
+	pick_flavour=0
+	branch=""
+	pick_branch=0
+	dest=""
 
-    while [ $# -gt 0 ]; do
-        case "${1}" in
-            --series)
-                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
-                    series="${2}"; shift 2
-                else
-                    pick_series=1; shift
-                fi ;;
-            --series=*)
-                series="${1#--series=}"; shift ;;
-            --flavour)
-                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
-                    flavour="${2}"; shift 2
-                else
-                    pick_flavour=1; shift
-                fi ;;
-            --flavour=*)
-                flavour="${1#--flavour=}"; shift ;;
-            --branch)
-                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
-                    branch="${2}"; shift 2
-                else
-                    pick_branch=1; shift
-                fi ;;
-            --branch=*)
-                branch="${1#--branch=}"; shift ;;
-            --dest)
-                [ -n "${2:-}" ] || die "--dest requires a directory argument"
-                dest="${2}"; shift 2 ;;
-            --dest=*)
-                dest="${1#--dest=}"; shift ;;
-            --*)
-                die "unknown option: ${1}" ;;
-            *)
-                if [ -z "${series}" ] && [ "${pick_series}" -eq 0 ]; then
-                    series="${1}"
-                elif [ -z "${flavour}" ] && [ "${pick_flavour}" -eq 0 ]; then
-                    flavour="${1}"
-                else
-                    die "unexpected argument: ${1}"
-                fi
-                shift ;;
-        esac
-    done
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		--series)
+			if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+				series="${2}"
+				shift 2
+			else
+				pick_series=1
+				shift
+			fi
+			;;
+		--series=*)
+			series="${1#--series=}"
+			shift
+			;;
+		--flavour)
+			if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+				flavour="${2}"
+				shift 2
+			else
+				pick_flavour=1
+				shift
+			fi
+			;;
+		--flavour=*)
+			flavour="${1#--flavour=}"
+			shift
+			;;
+		--branch)
+			if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+				branch="${2}"
+				shift 2
+			else
+				pick_branch=1
+				shift
+			fi
+			;;
+		--branch=*)
+			branch="${1#--branch=}"
+			shift
+			;;
+		--dest)
+			[ -n "${2:-}" ] || die "--dest requires a directory argument"
+			dest="${2}"
+			shift 2
+			;;
+		--dest=*)
+			dest="${1#--dest=}"
+			shift
+			;;
+		--*)
+			die "unknown option: ${1}"
+			;;
+		*)
+			if [ -z "${series}" ] && [ "${pick_series}" -eq 0 ]; then
+				series="${1}"
+			elif [ -z "${flavour}" ] && [ "${pick_flavour}" -eq 0 ]; then
+				flavour="${1}"
+			else
+				die "unexpected argument: ${1}"
+			fi
+			shift
+			;;
+		esac
+	done
 
-    require git
+	require git
 
-    # Resolve series and flavour
-    if [ -z "${series}" ]; then
-        series=$(_pick_from "${KERNEL_DATA}/series" "series> ") || exit 0
-        [ -n "${series}" ] || exit 0
-    fi
+	# Resolve series and flavour
+	if [ -z "${series}" ]; then
+		series=$(_pick_from "${KERNEL_DATA}/series" "series> ") || exit 0
+		[ -n "${series}" ] || exit 0
+	fi
 
-    if [ "${pick_flavour}" -eq 1 ]; then
-        flavour=$(_pick_from "${KERNEL_DATA}/flavours" "flavour> ") || exit 0
-        [ -n "${flavour}" ] || exit 0
-    fi
-    [ -n "${flavour}" ] || flavour="generic"
+	if [ "${pick_flavour}" -eq 1 ]; then
+		flavour=$(_pick_from "${KERNEL_DATA}/flavours" "flavour> ") || exit 0
+		[ -n "${flavour}" ] || exit 0
+	fi
+	[ -n "${flavour}" ] || flavour="generic"
 
-    url=$(kernel_url "${series}" "${flavour}")
-    [ -n "${dest}" ] || dest="$(_default_dest)"
-    [ -e "${dest}" ] && die "destination '${dest}' already exists"
+	url=$(kernel_url "${series}" "${flavour}")
+	[ -n "${dest}" ] || dest="$(_default_dest)"
+	[ -e "${dest}" ] && die "destination '${dest}' already exists"
 
-    # Fetch remote branch list
-    _label="$(_kernel_label)"
-    say "Fetching branches for ${BOLD}${_label}${RESET} (${series})..."
-    branches=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null \
-        | sed 's|.*refs/heads/||' | sort)
-    [ -n "${branches}" ] || die "repository not found — check series and flavour"
+	# Fetch remote branch list
+	_label="$(_kernel_label)"
+	say "Fetching branches for ${BOLD}${_label}${RESET} (${series})..."
+	branches=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null |
+		sed 's|.*refs/heads/||' | sort)
+	[ -n "${branches}" ] || die "repository not found — check series and flavour"
 
-    # Resolve branch
-    _resolve_branch
+	# Resolve branch
+	_resolve_branch
 
-    # Clone
-    say "Cloning ${BOLD}${_label}${RESET} (${series})..."
-    GIT_TERMINAL_PROMPT=0 git clone --branch "${branch}" "${url}" "${dest}" >&2 \
-        || die "clone failed"
-    say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(${branch})${RESET}"
+	# Clone
+	say "Cloning ${BOLD}${_label}${RESET} (${series})..."
+	GIT_TERMINAL_PROMPT=0 git clone --branch "${branch}" "${url}" "${dest}" >&2 ||
+		die "clone failed"
+	say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(${branch})${RESET}"
 }
 main "$@"

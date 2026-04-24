@@ -4,13 +4,13 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    help_heading "Usage:" "idiot model <subcommand>"
-    echo >&2
-    help_heading "Subcommands:"
-    help_command "pick"   "Interactively select a model assertion"
-    help_command "update" "Fetch the latest model assertions"
-    echo >&2
-    help_heading "Environment:"
-    help_env "IDIOT_MODELS_DIR" "Models repository"
+	help_heading "Usage:" "idiot model <subcommand>"
+	echo >&2
+	help_heading "Subcommands:"
+	help_command "pick" "Interactively select a model assertion"
+	help_command "update" "Fetch the latest model assertions"
+	echo >&2
+	help_heading "Environment:"
+	help_env "IDIOT_MODELS_DIR" "Models repository"
 }
 main "$@"

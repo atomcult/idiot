@@ -12,10 +12,10 @@ IDIOT_LIB_DIR="${IDIOT_ROOT}/lib"
 
 # pre-scan for --color before sourcing common.sh so color vars are set correctly
 for _arg in "$@"; do
-    case "${_arg}" in
-        --color) export FORCE_COLOR=1 ;;
-        --) break ;;
-    esac
+	case "${_arg}" in
+	--color) export FORCE_COLOR=1 ;;
+	--) break ;;
+	esac
 done
 unset _arg
 
@@ -23,80 +23,80 @@ unset _arg
 . "${IDIOT_LIB_DIR}/common.sh"
 
 idiot_help() {
-    say "${BOLD}idiot${RESET} — Interactive Devtools for IoT"
-    echo >&2
-    help_heading "Usage:" "idiot <command> [args...]"
-    echo >&2
-    help_heading "Store & environment:"
-    help_command "status"  "Show current environment at a glance"
-    help_command "auth"    "Manage snap store credentials"
-    help_command "store"   "Select which snap store to use"
-    help_command "arch"    "Set the target build architecture"
-    help_command "lp"      "Manage Launchpad identity"
-    echo >&2
-    help_heading "Development:"
-    help_command "kernel"  "Clone an Ubuntu kernel from Launchpad"
-    help_command "example" "Clone an example repository"
-    help_command "inspect" "Inspect snaps, images, and snapd changes"
-    help_command "model"   "Manage model assertions"
-    echo >&2
-    help_heading "VM & device:"
-    help_command "vm"      "Launch and connect to a QEMU VM"
-    echo >&2
-    help_heading "Shell:"
-    help_command "init"    "Set up shell integration"
-    help_command "run"     "Run a snap-bundled tool directly"
-    help_command "clean"   "Remove development leftovers"
-    echo >&2
-    help_heading "Shell setup" "(run once, add to your shell rc):"
-    # shellcheck disable=SC2016
-    {
-        say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init bash)"'"${RESET}    ${DIM}# bash${RESET}"
-        say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init zsh)"'"${RESET}     ${DIM}# zsh${RESET}"
-        say "  ${CYAN}idiot${RESET} init fish | ${CYAN}source${RESET}     ${DIM}# fish${RESET}"
-    }
-    echo >&2
-    say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
+	say "${BOLD}idiot${RESET} — Interactive Devtools for IoT"
+	echo >&2
+	help_heading "Usage:" "idiot <command> [args...]"
+	echo >&2
+	help_heading "Store & environment:"
+	help_command "status" "Show current environment at a glance"
+	help_command "auth" "Manage snap store credentials"
+	help_command "store" "Select which snap store to use"
+	help_command "arch" "Set the target build architecture"
+	help_command "lp" "Manage Launchpad identity"
+	echo >&2
+	help_heading "Development:"
+	help_command "kernel" "Clone an Ubuntu kernel from Launchpad"
+	help_command "example" "Clone an example repository"
+	help_command "inspect" "Inspect snaps, images, and snapd changes"
+	help_command "model" "Manage model assertions"
+	echo >&2
+	help_heading "VM & device:"
+	help_command "vm" "Launch and connect to a QEMU VM"
+	echo >&2
+	help_heading "Shell:"
+	help_command "init" "Set up shell integration"
+	help_command "run" "Run a snap-bundled tool directly"
+	help_command "clean" "Remove development leftovers"
+	echo >&2
+	help_heading "Shell setup" "(run once, add to your shell rc):"
+	# shellcheck disable=SC2016
+	{
+		say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init bash)"'"${RESET}    ${DIM}# bash${RESET}"
+		say "  ${CYAN}eval${RESET} ${GREEN}"'"$(idiot init zsh)"'"${RESET}     ${DIM}# zsh${RESET}"
+		say "  ${CYAN}idiot${RESET} init fish | ${CYAN}source${RESET}     ${DIM}# fish${RESET}"
+	}
+	echo >&2
+	say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
 }
 
 main() {
-    while [ $# -gt 0 ]; do
-        case "${1}" in
-            --color) shift ;;
-            *) break ;;
-        esac
-    done
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		--color) shift ;;
+		*) break ;;
+		esac
+	done
 
-    cmd="${1:-}"
-    [ $# -ge 1 ] && shift
+	cmd="${1:-}"
+	[ $# -ge 1 ] && shift
 
-    case "${cmd}" in
-        ""|-h|--help|help)
-            idiot_help
-            exit 0
-            ;;
-        -V|--version|version)
-            exec "${IDIOT_CMD_DIR}/version" "$@"
-            ;;
-        status)
-            exec "${IDIOT_CMD_DIR}/status" "$@"
-            ;;
-        *)
-            cmd_file="${IDIOT_CMD_DIR}/${cmd}"
-            if [ -d "${cmd_file}" ]; then
-                dispatch_subcmd "${cmd}" "${cmd_file}" "$@"
-            elif [ -x "${cmd_file}" ]; then
-                case "${cmd}" in
-                    init) exec "${cmd_file}" "$@" ;;
-                    *)
-                        [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
-                        exec "${cmd_file}" "$@"
-                        ;;
-                esac
-            else
-                die "unknown command: ${cmd}"
-            fi
-            ;;
-    esac
+	case "${cmd}" in
+	"" | -h | --help | help)
+		idiot_help
+		exit 0
+		;;
+	-V | --version | version)
+		exec "${IDIOT_CMD_DIR}/version" "$@"
+		;;
+	status)
+		exec "${IDIOT_CMD_DIR}/status" "$@"
+		;;
+	*)
+		cmd_file="${IDIOT_CMD_DIR}/${cmd}"
+		if [ -d "${cmd_file}" ]; then
+			dispatch_subcmd "${cmd}" "${cmd_file}" "$@"
+		elif [ -x "${cmd_file}" ]; then
+			case "${cmd}" in
+			init) exec "${cmd_file}" "$@" ;;
+			*)
+				[ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+				exec "${cmd_file}" "$@"
+				;;
+			esac
+		else
+			die "unknown command: ${cmd}"
+		fi
+		;;
+	esac
 }
 main "$@"

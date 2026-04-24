@@ -5,26 +5,29 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot auth add <name>"; exit 0 ;;
-    esac
-    name="${1:-}"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot auth add <name>"
+		exit 0
+		;;
+	esac
+	name="${1:-}"
 
-    [ -n "${name}" ] || die "usage: idiot auth add <name>"
+	[ -n "${name}" ] || die "usage: idiot auth add <name>"
 
-    mkdir -p "${IDIOT_AUTH_DIR}"
-    dest="${IDIOT_AUTH_DIR}/${name}"
+	mkdir -p "${IDIOT_AUTH_DIR}"
+	dest="${IDIOT_AUTH_DIR}/${name}"
 
-    ! [ -f "${dest}" ] ||
-        die "credentials '${name}' already exist (remove it first)"
+	! [ -f "${dest}" ] ||
+		die "credentials '${name}' already exist (remove it first)"
 
-    tmpfile="$(mktemp)"
-    trap 'rm -f "${tmpfile}"' EXIT INT TERM
+	tmpfile="$(mktemp)"
+	trap 'rm -f "${tmpfile}"' EXIT INT TERM
 
-    snapcraft export-login "${tmpfile}" >&2 ||
-        die "snapcraft export-login failed"
+	snapcraft export-login "${tmpfile}" >&2 ||
+		die "snapcraft export-login failed"
 
-    mv "${tmpfile}" "${dest}"
-    say "Added credentials '${BOLD}${name}${RESET}'"
+	mv "${tmpfile}" "${dest}"
+	say "Added credentials '${BOLD}${name}${RESET}'"
 }
 main "$@"

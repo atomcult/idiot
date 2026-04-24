@@ -6,13 +6,21 @@ LIBDIR    = $(PREFIX)/lib/idiot
 
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
 
-.PHONY: check install uninstall
+SHELL_FILES := idiot lib/common.sh $(shell find cmd -type f)
 
-check:
+.PHONY: check fmt fmt-check install uninstall
+
+check: fmt-check
 	@rc=0; \
 	shellcheck idiot lib/common.sh || rc=1; \
 	find cmd -type f | xargs shellcheck -x || rc=1; \
 	exit $$rc
+
+fmt:
+	shfmt -w $(SHELL_FILES)
+
+fmt-check:
+	@shfmt -d $(SHELL_FILES) || { echo 'Run: make fmt'; exit 1; }
 
 install:
 	install -d '$(LIBDIR)' '$(BINDIR)'

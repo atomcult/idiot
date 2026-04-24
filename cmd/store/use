@@ -6,36 +6,39 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot store use [<name>]"; exit 0 ;;
-    esac
-    name="${1:-}"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot store use [<name>]"
+		exit 0
+		;;
+	esac
+	name="${1:-}"
 
-    [ -n "${name}" ] || {
-        require fzf "install fzf for interactive selection"
+	[ -n "${name}" ] || {
+		require fzf "install fzf for interactive selection"
 
-        mkdir -p "${IDIOT_STORES_DIR}"
+		mkdir -p "${IDIOT_STORES_DIR}"
 
-        files=$(find "${IDIOT_STORES_DIR}" -maxdepth 1 -type f ! -name '.*' \
-            | sort | sed "s|${IDIOT_STORES_DIR}/||")
+		files=$(find "${IDIOT_STORES_DIR}" -maxdepth 1 -type f ! -name '.*' |
+			sort | sed "s|${IDIOT_STORES_DIR}/||")
 
-        [ -n "${files}" ] || die "no stores saved — use 'idiot store add' to add a store"
+		[ -n "${files}" ] || die "no stores saved — use 'idiot store add' to add a store"
 
-        export IDIOT_STORES_DIR
-        preview_cmd="$(file_preview_cmd IDIOT_STORES_DIR)"
+		export IDIOT_STORES_DIR
+		preview_cmd="$(file_preview_cmd IDIOT_STORES_DIR)"
 
-        name=$(printf '%s\n' "${files}" \
-            | fzf \
-                --prompt="store> " \
-                --preview="${preview_cmd}") || exit 0
-    }
+		name=$(printf '%s\n' "${files}" |
+			fzf \
+				--prompt="store> " \
+				--preview="${preview_cmd}") || exit 0
+	}
 
-    mkdir -p "${IDIOT_STORES_DIR}"
-    store_file="${IDIOT_STORES_DIR}/${name}"
+	mkdir -p "${IDIOT_STORES_DIR}"
+	store_file="${IDIOT_STORES_DIR}/${name}"
 
-    [ -f "${store_file}" ] || die "store '${name}' not found"
+	[ -f "${store_file}" ] || die "store '${name}' not found"
 
-    store_id="$(cat "${store_file}")"
-    printf 'export UBUNTU_STORE_ID=%s\n' "$(shell_quote "${store_id}")"
+	store_id="$(cat "${store_file}")"
+	printf 'export UBUNTU_STORE_ID=%s\n' "$(shell_quote "${store_id}")"
 }
 main "$@"

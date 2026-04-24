@@ -4,23 +4,26 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot inspect snap <snap-file>"; exit 0 ;;
-    esac
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot inspect snap <snap-file>"
+		exit 0
+		;;
+	esac
 
-    [ $# -ge 1 ] || die "usage: idiot inspect snap <snap-file>"
+	[ $# -ge 1 ] || die "usage: idiot inspect snap <snap-file>"
 
-    snap_file="${1}"
+	snap_file="${1}"
 
-    [ -f "${snap_file}" ] ||
-        die "file not found: ${snap_file}"
+	[ -f "${snap_file}" ] ||
+		die "file not found: ${snap_file}"
 
-    require unsquashfs
+	require unsquashfs
 
-    ! unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >&2 ||
-        exit 0
+	! unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >&2 ||
+		exit 0
 
-    unsquashfs -q -cat "${snap_file}" meta/snap.yaml >&2 ||
-        die "neither snap/snapcraft.yaml nor meta/snap.yaml found in ${snap_file}"
+	unsquashfs -q -cat "${snap_file}" meta/snap.yaml >&2 ||
+		die "neither snap/snapcraft.yaml nor meta/snap.yaml found in ${snap_file}"
 }
 main "$@"

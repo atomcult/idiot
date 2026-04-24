@@ -5,19 +5,22 @@
 . "$(dirname "${0}")/../../lib/common.sh"
 
 main() {
-    case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot inspect changes"; exit 0 ;;
-    esac
-    require fzf "https://github.com/junegunn/fzf"
-    require snap
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot inspect changes"
+		exit 0
+		;;
+	esac
+	require fzf "https://github.com/junegunn/fzf"
+	require snap
 
-    snap changes \
-        | fzf \
-            --header-lines=1 \
-            --no-sort \
-            --prompt="change> " \
-            --preview="snap change {1}" \
-            --preview-window="down:60%:wrap" \
-        > /dev/null || true
+	snap changes |
+		fzf \
+			--header-lines=1 \
+			--no-sort \
+			--prompt="change> " \
+			--preview="snap change {1}" \
+			--preview-window="down:60%:wrap" \
+			>/dev/null || true
 }
 main "$@"

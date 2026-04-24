@@ -5,200 +5,217 @@
 
 # Normalise uname -m output to snap arch naming
 host_arch() {
-    case "$(uname -m)" in
-        x86_64)  printf 'amd64' ;;
-        aarch64) printf 'arm64' ;;
-        armv7l)  printf 'armhf' ;;
-        riscv64) printf 'riscv64' ;;
-        s390x)   printf 's390x' ;;
-        ppc64le) printf 'ppc64el' ;;
-        i686)    printf 'i386' ;;
-        *)       uname -m ;;
-    esac
+	case "$(uname -m)" in
+	x86_64) printf 'amd64' ;;
+	aarch64) printf 'arm64' ;;
+	armv7l) printf 'armhf' ;;
+	riscv64) printf 'riscv64' ;;
+	s390x) printf 's390x' ;;
+	ppc64le) printf 'ppc64el' ;;
+	i686) printf 'i386' ;;
+	*) uname -m ;;
+	esac
 }
 
 # Map snap arch name to qemu-system-* binary suffix
 arch_to_qemu() {
-    case "${1}" in
-        amd64)   printf 'x86_64' ;;
-        arm64)   printf 'aarch64' ;;
-        armhf)   printf 'arm' ;;
-        riscv64) printf 'riscv64' ;;
-        s390x)   printf 's390x' ;;
-        ppc64el) printf 'ppc64' ;;
-        i386)    printf 'i386' ;;
-        *) die "unsupported architecture: ${1}" ;;
-    esac
+	case "${1}" in
+	amd64) printf 'x86_64' ;;
+	arm64) printf 'aarch64' ;;
+	armhf) printf 'arm' ;;
+	riscv64) printf 'riscv64' ;;
+	s390x) printf 's390x' ;;
+	ppc64el) printf 'ppc64' ;;
+	i386) printf 'i386' ;;
+	*) die "unsupported architecture: ${1}" ;;
+	esac
 }
 
 # Return the first path from the argument list that exists as a regular file
 find_first() {
-    for p in "$@"; do
-        [ -f "${p}" ] && { printf '%s' "${p}"; return 0; }
-    done
-    return 1
+	for p in "$@"; do
+		[ -f "${p}" ] && {
+			printf '%s' "${p}"
+			return 0
+		}
+	done
+	return 1
 }
 
 # Sets fw_code and fw_vars_template for the given arch
 setup_firmware() {
-    case "${1}" in
-        amd64)
-            fw_code=$(find_first \
-                /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
-                /usr/share/OVMF/OVMF_CODE.secboot.fd) \
-                || die "UEFI secure boot firmware not found — install the ovmf package"
-            fw_vars_template=$(find_first \
-                /usr/share/OVMF/OVMF_VARS_4M.ms.fd \
-                /usr/share/OVMF/OVMF_VARS.ms.fd) \
-                || die "UEFI vars not found — install the ovmf package"
-            ;;
-        arm64)
-            fw_code=$(find_first \
-                /usr/share/AAVMF/AAVMF_CODE.secboot.fd \
-                /usr/share/qemu-efi-aarch64/QEMU_EFI.secboot.fd) \
-                || die "UEFI secure boot firmware not found — install the qemu-efi-aarch64 package"
-            fw_vars_template=$(find_first \
-                /usr/share/AAVMF/AAVMF_VARS.ms.fd \
-                /usr/share/qemu-efi-aarch64/QEMU_VARS.ms.fd) \
-                || die "UEFI vars not found — install the qemu-efi-aarch64 package"
-            ;;
-        armhf)
-            fw_code=$(find_first \
-                /usr/share/AAVMF/AAVMF32_CODE.secboot.fd \
-                /usr/share/qemu-efi-arm/QEMU_EFI.secboot.fd) \
-                || die "UEFI secure boot firmware not found — install the qemu-efi-arm package"
-            fw_vars_template=$(find_first \
-                /usr/share/AAVMF/AAVMF32_VARS.ms.fd \
-                /usr/share/qemu-efi-arm/QEMU_VARS.ms.fd) \
-                || die "UEFI vars not found — install the qemu-efi-arm package"
-            ;;
-        riscv64)
-            fw_code=$(find_first \
-                /usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd) \
-                || die "UEFI firmware not found — install the qemu-efi-riscv64 package"
-            fw_vars_template=$(find_first \
-                /usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd) \
-                || die "UEFI vars not found — install the qemu-efi-riscv64 package"
-            ;;
-        *)
-            die "secure boot is not supported for architecture: ${1}" ;;
-    esac
+	case "${1}" in
+	amd64)
+		fw_code=$(find_first \
+			/usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
+			/usr/share/OVMF/OVMF_CODE.secboot.fd) ||
+			die "UEFI secure boot firmware not found — install the ovmf package"
+		fw_vars_template=$(find_first \
+			/usr/share/OVMF/OVMF_VARS_4M.ms.fd \
+			/usr/share/OVMF/OVMF_VARS.ms.fd) ||
+			die "UEFI vars not found — install the ovmf package"
+		;;
+	arm64)
+		fw_code=$(find_first \
+			/usr/share/AAVMF/AAVMF_CODE.secboot.fd \
+			/usr/share/qemu-efi-aarch64/QEMU_EFI.secboot.fd) ||
+			die "UEFI secure boot firmware not found — install the qemu-efi-aarch64 package"
+		fw_vars_template=$(find_first \
+			/usr/share/AAVMF/AAVMF_VARS.ms.fd \
+			/usr/share/qemu-efi-aarch64/QEMU_VARS.ms.fd) ||
+			die "UEFI vars not found — install the qemu-efi-aarch64 package"
+		;;
+	armhf)
+		fw_code=$(find_first \
+			/usr/share/AAVMF/AAVMF32_CODE.secboot.fd \
+			/usr/share/qemu-efi-arm/QEMU_EFI.secboot.fd) ||
+			die "UEFI secure boot firmware not found — install the qemu-efi-arm package"
+		fw_vars_template=$(find_first \
+			/usr/share/AAVMF/AAVMF32_VARS.ms.fd \
+			/usr/share/qemu-efi-arm/QEMU_VARS.ms.fd) ||
+			die "UEFI vars not found — install the qemu-efi-arm package"
+		;;
+	riscv64)
+		fw_code=$(find_first \
+			/usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd) ||
+			die "UEFI firmware not found — install the qemu-efi-riscv64 package"
+		fw_vars_template=$(find_first \
+			/usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd) ||
+			die "UEFI vars not found — install the qemu-efi-riscv64 package"
+		;;
+	*)
+		die "secure boot is not supported for architecture: ${1}"
+		;;
+	esac
 }
 
 # TPM passthrough device type differs between x86 (ISA bus) and everything else
 tpm_device_for_arch() {
-    case "${1}" in
-        amd64|i386) printf 'tpm-tis' ;;
-        *)          printf 'tpm-tis-device' ;;
-    esac
+	case "${1}" in
+	amd64 | i386) printf 'tpm-tis' ;;
+	*) printf 'tpm-tis-device' ;;
+	esac
 }
 
 do_ssh() {
-    port=8022
+	port=8022
 
-    while [ $# -gt 0 ]; do
-        case "${1}" in
-            -h|--help|help)
-                help_heading "Usage:" "idiot vm ssh [--port <port>] [ssh-args...]"
-                echo >&2
-                help_heading "Options:"
-                help_option "--port <port>" "SSH port on the host (default: 8022)"
-                echo >&2
-                say "The Launchpad username is used as the SSH user."
-                say "Set it with: ${CYAN}eval \"\$(idiot lp set <username>)\"${RESET}"
-                exit 0 ;;
-            --) shift; break ;;
-            --port)
-                [ -n "${2:-}" ] || die "--port requires an argument"
-                port="${2}"; shift ;;
-            -*) die "unknown option: ${1}" ;;
-            *) break ;;
-        esac
-        shift
-    done
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm ssh [--port <port>] [ssh-args...]"
+			echo >&2
+			help_heading "Options:"
+			help_option "--port <port>" "SSH port on the host (default: 8022)"
+			echo >&2
+			say "The Launchpad username is used as the SSH user."
+			say "Set it with: ${CYAN}eval \"\$(idiot lp set <username>)\"${RESET}"
+			exit 0
+			;;
+		--)
+			shift
+			break
+			;;
+		--port)
+			[ -n "${2:-}" ] || die "--port requires an argument"
+			port="${2}"
+			shift
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*) break ;;
+		esac
+		shift
+	done
 
-    lp_user="${IDIOT_LP_USER:-$(cat "${IDIOT_LP_USER_FILE}" 2>/dev/null || true)}"
-    [ -n "${lp_user}" ] || die "no Launchpad username set — run: eval \"\$(idiot lp set <username>)\""
+	lp_user="${IDIOT_LP_USER:-$(cat "${IDIOT_LP_USER_FILE}" 2>/dev/null || true)}"
+	[ -n "${lp_user}" ] || die "no Launchpad username set — run: eval \"\$(idiot lp set <username>)\""
 
-    exec ssh \
-        -p "${port}" \
-        -l "${lp_user}" \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        localhost "$@" >&2
+	exec ssh \
+		-p "${port}" \
+		-l "${lp_user}" \
+		-o StrictHostKeyChecking=no \
+		-o UserKnownHostsFile=/dev/null \
+		localhost "$@" >&2
 }
 
 do_scp() {
-    port=8022
+	port=8022
 
-    while [ $# -gt 0 ]; do
-        case "${1}" in
-            -h|--help|help)
-                help_heading "Usage:" "idiot vm scp [--port <port>] <src> <dst>"
-                echo >&2
-                help_heading "Options:"
-                help_option "--port <port>" "SCP port on the host (default: 8022)"
-                echo >&2
-                say "Use ${BOLD}vm:${RESET} as an alias for the guest host. The Launchpad username"
-                say "is used as the SSH user (set with ${CYAN}idiot lp set${RESET})."
-                echo >&2
-                help_heading "Examples:"
-                say "  ${CYAN}idiot vm scp${RESET} ./gadget.snap ${BOLD}vm${RESET}:/home/user/"
-                say "  ${CYAN}idiot vm scp${RESET} ${BOLD}vm${RESET}:/var/log/syslog ."
-                exit 0 ;;
-            --) shift; break ;;
-            --port)
-                [ -n "${2:-}" ] || die "--port requires an argument"
-                port="${2}"; shift ;;
-            -*) die "unknown option: ${1}" ;;
-            *) break ;;
-        esac
-        shift
-    done
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm scp [--port <port>] <src> <dst>"
+			echo >&2
+			help_heading "Options:"
+			help_option "--port <port>" "SCP port on the host (default: 8022)"
+			echo >&2
+			say "Use ${BOLD}vm:${RESET} as an alias for the guest host. The Launchpad username"
+			say "is used as the SSH user (set with ${CYAN}idiot lp set${RESET})."
+			echo >&2
+			help_heading "Examples:"
+			say "  ${CYAN}idiot vm scp${RESET} ./gadget.snap ${BOLD}vm${RESET}:/home/user/"
+			say "  ${CYAN}idiot vm scp${RESET} ${BOLD}vm${RESET}:/var/log/syslog ."
+			exit 0
+			;;
+		--)
+			shift
+			break
+			;;
+		--port)
+			[ -n "${2:-}" ] || die "--port requires an argument"
+			port="${2}"
+			shift
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*) break ;;
+		esac
+		shift
+	done
 
-    [ $# -ge 2 ] || die "usage: idiot vm scp [--port <port>] <src> <dst>"
+	[ $# -ge 2 ] || die "usage: idiot vm scp [--port <port>] <src> <dst>"
 
-    lp_user="${IDIOT_LP_USER:-$(cat "${IDIOT_LP_USER_FILE}" 2>/dev/null || true)}"
-    [ -n "${lp_user}" ] || die "no Launchpad username set — run: eval \"\$(idiot lp set <username>)\""
+	lp_user="${IDIOT_LP_USER:-$(cat "${IDIOT_LP_USER_FILE}" 2>/dev/null || true)}"
+	[ -n "${lp_user}" ] || die "no Launchpad username set — run: eval \"\$(idiot lp set <username>)\""
 
-    # Rewrite vm: → localhost: in all path arguments
-    _orig=$#
-    for _arg in "$@"; do
-        case "${_arg}" in
-            vm:*) set -- "$@" "localhost:${_arg#vm:}" ;;
-            *)    set -- "$@" "${_arg}" ;;
-        esac
-    done
-    shift "${_orig}"
+	# Rewrite vm: → localhost: in all path arguments
+	_orig=$#
+	for _arg in "$@"; do
+		case "${_arg}" in
+		vm:*) set -- "$@" "localhost:${_arg#vm:}" ;;
+		*) set -- "$@" "${_arg}" ;;
+		esac
+	done
+	shift "${_orig}"
 
-    exec scp \
-        -P "${port}" \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -o "User=${lp_user}" \
-        "$@" >&2
+	exec scp \
+		-P "${port}" \
+		-o StrictHostKeyChecking=no \
+		-o UserKnownHostsFile=/dev/null \
+		-o "User=${lp_user}" \
+		"$@" >&2
 }
 
 do_vars() {
-    case "${1:-}" in
-        -h|--help|help)
-            help_heading "Usage:" "idiot vm vars <state-dir>"
-            echo >&2
-            say "Dumps UEFI secure boot variables from a saved state directory."
-            say "Requires ${BOLD}virt-fw-vars${RESET} ${DIM}(python3-virt-firmware)${RESET} or ${BOLD}efi-readvar${RESET} ${DIM}(efitools)${RESET}."
-            exit 0 ;;
-    esac
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot vm vars <state-dir>"
+		echo >&2
+		say "Dumps UEFI secure boot variables from a saved state directory."
+		say "Requires ${BOLD}virt-fw-vars${RESET} ${DIM}(python3-virt-firmware)${RESET} or ${BOLD}efi-readvar${RESET} ${DIM}(efitools)${RESET}."
+		exit 0
+		;;
+	esac
 
-    state_dir="${1:-}"
-    [ -n "${state_dir}" ] || die "usage: idiot vm vars <state-dir>"
-    [ -d "${state_dir}" ] || die "state directory not found: ${state_dir}"
+	state_dir="${1:-}"
+	[ -n "${state_dir}" ] || die "usage: idiot vm vars <state-dir>"
+	[ -d "${state_dir}" ] || die "state directory not found: ${state_dir}"
 
-    vars_file="${state_dir}/fw_vars.fd"
-    [ -f "${vars_file}" ] || die "no fw_vars.fd in ${state_dir} — was the VM launched with --sb --state-dir?"
+	vars_file="${state_dir}/fw_vars.fd"
+	[ -f "${vars_file}" ] || die "no fw_vars.fd in ${state_dir} — was the VM launched with --sb --state-dir?"
 
-    if command -v virt-fw-vars > /dev/null 2>&1; then
-        virt-fw-vars --input "${vars_file}" --output-json /dev/stdout \
-            | python3 -c "
+	if command -v virt-fw-vars >/dev/null 2>&1; then
+		virt-fw-vars --input "${vars_file}" --output-json /dev/stdout |
+			python3 -c "
 import json, sys
 data = json.load(sys.stdin)
 for v in data.get('variables', []):
@@ -207,235 +224,268 @@ for v in data.get('variables', []):
     size = len(v.get('data', '')) // 2
     print(f'  {name}  ({guid})  {size} bytes')
 " >&2
-    elif command -v efi-readvar > /dev/null 2>&1; then
-        efi-readvar <"${vars_file}" >&2
-    else
-        die "no suitable tool found — install python3-virt-firmware or efitools"
-    fi
+	elif command -v efi-readvar >/dev/null 2>&1; then
+		efi-readvar <"${vars_file}" >&2
+	else
+		die "no suitable tool found — install python3-virt-firmware or efitools"
+	fi
 }
 
 do_tpm() {
-    case "${1:-}" in
-        -h|--help|help)
-            help_heading "Usage:" "idiot vm tpm <state-dir>"
-            echo >&2
-            say "Starts an swtpm instance against a saved TPM state directory for"
-            say "offline inspection with tpm2-tools. Runs until interrupted."
-            echo >&2
-            say "Example:"
-            say "  ${DIM}# in one terminal:${RESET}"
-            say "  ${CYAN}idiot vm tpm${RESET} ./my-state"
-            say "  ${DIM}# in another:${RESET}"
-            say "  ${CYAN}tpm2_pcrread${RESET} --tcti=swtpm:path=./my-state/inspect.sock"
-            exit 0 ;;
-    esac
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot vm tpm <state-dir>"
+		echo >&2
+		say "Starts an swtpm instance against a saved TPM state directory for"
+		say "offline inspection with tpm2-tools. Runs until interrupted."
+		echo >&2
+		say "Example:"
+		say "  ${DIM}# in one terminal:${RESET}"
+		say "  ${CYAN}idiot vm tpm${RESET} ./my-state"
+		say "  ${DIM}# in another:${RESET}"
+		say "  ${CYAN}tpm2_pcrread${RESET} --tcti=swtpm:path=./my-state/inspect.sock"
+		exit 0
+		;;
+	esac
 
-    state_dir="${1:-}"
-    [ -n "${state_dir}" ] || die "usage: idiot vm tpm <state-dir>"
-    [ -d "${state_dir}" ] || die "state directory not found: ${state_dir}"
+	state_dir="${1:-}"
+	[ -n "${state_dir}" ] || die "usage: idiot vm tpm <state-dir>"
+	[ -d "${state_dir}" ] || die "state directory not found: ${state_dir}"
 
-    # Check for existing TPM state files
-    found=0
-    for f in "${state_dir}"/tpm2-*.permall "${state_dir}"/tpm2-*.volatile; do
-        [ -f "${f}" ] && { found=1; break; }
-    done
-    [ "${found}" -eq 1 ] || die "no TPM state found in ${state_dir} — was the VM launched with --tpm --state-dir?"
+	# Check for existing TPM state files
+	found=0
+	for f in "${state_dir}"/tpm2-*.permall "${state_dir}"/tpm2-*.volatile; do
+		[ -f "${f}" ] && {
+			found=1
+			break
+		}
+	done
+	[ "${found}" -eq 1 ] || die "no TPM state found in ${state_dir} — was the VM launched with --tpm --state-dir?"
 
-    require swtpm "install the swtpm package"
+	require swtpm "install the swtpm package"
 
-    sock="${state_dir}/inspect.sock"
-    rm -f "${sock}"
+	sock="${state_dir}/inspect.sock"
+	rm -f "${sock}"
 
-    say "Starting swtpm on ${BOLD}${sock}${RESET} ${DIM}(Ctrl-C to stop)${RESET}"
-    say "Connect with: ${CYAN}--tcti=swtpm:path=${sock}${RESET}"
-    echo >&2
+	say "Starting swtpm on ${BOLD}${sock}${RESET} ${DIM}(Ctrl-C to stop)${RESET}"
+	say "Connect with: ${CYAN}--tcti=swtpm:path=${sock}${RESET}"
+	echo >&2
 
-    swtpm socket \
-        --tpmstate "dir=${state_dir}" \
-        --ctrl "type=unixio,path=${sock}" \
-        --tpm2 \
-        --flags not-need-init,startup-clear
+	swtpm socket \
+		--tpmstate "dir=${state_dir}" \
+		--ctrl "type=unixio,path=${sock}" \
+		--tpm2 \
+		--flags not-need-init,startup-clear
 }
 
 # Sets machine_flags and kvm_flags for the active arch.
 _build_machine_flags() {
-    case "${arch}" in
-        amd64|i386)
-            machine_flags='-machine q35 -global ICH9-LPC.disable_s3=1' ;;
-        arm64|armhf|riscv64)
-            machine_flags='-machine virt' ;;
-        *)
-            machine_flags='' ;;
-    esac
+	case "${arch}" in
+	amd64 | i386)
+		machine_flags='-machine q35 -global ICH9-LPC.disable_s3=1'
+		;;
+	arm64 | armhf | riscv64)
+		machine_flags='-machine virt'
+		;;
+	*)
+		machine_flags=''
+		;;
+	esac
 
-    kvm_flags=''
-    if [ "${arch}" = "$(host_arch)" ] && [ -e /dev/kvm ]; then
-        kvm_flags='-enable-kvm -cpu host'
-    fi
+	kvm_flags=''
+	if [ "${arch}" = "$(host_arch)" ] && [ -e /dev/kvm ]; then
+		kvm_flags='-enable-kvm -cpu host'
+	fi
 }
 
 # Creates or reuses a working directory for firmware/TPM state.
 # Sets workdir; installs a cleanup trap when using a temporary directory.
 _setup_workdir() {
-    if [ -n "${state_dir}" ]; then
-        mkdir -p "${state_dir}"
-        workdir="${state_dir}"
-    else
-        workdir="$(mktemp -d)"
-        trap 'rm -rf "${workdir}"' EXIT INT TERM HUP
-    fi
+	if [ -n "${state_dir}" ]; then
+		mkdir -p "${state_dir}"
+		workdir="${state_dir}"
+	else
+		workdir="$(mktemp -d)"
+		trap 'rm -rf "${workdir}"' EXIT INT TERM HUP
+	fi
 }
 
 # Sets fw_flags for UEFI secure boot. No-ops when sb=0.
 _build_fw_flags() {
-    fw_flags=''
-    [ "${sb}" -eq 1 ] || return
-    setup_firmware "${arch}"
-    fw_vars="${workdir}/fw_vars.fd"
-    # Reuse existing vars if present (allows persistent SB state across runs)
-    [ -f "${fw_vars}" ] || cp "${fw_vars_template}" "${fw_vars}"
-    fw_flags="-drive if=pflash,format=raw,unit=0,readonly=on,file=${fw_code}"
-    fw_flags="${fw_flags} -drive if=pflash,format=raw,unit=1,file=${fw_vars}"
+	fw_flags=''
+	[ "${sb}" -eq 1 ] || return
+	setup_firmware "${arch}"
+	fw_vars="${workdir}/fw_vars.fd"
+	# Reuse existing vars if present (allows persistent SB state across runs)
+	[ -f "${fw_vars}" ] || cp "${fw_vars_template}" "${fw_vars}"
+	fw_flags="-drive if=pflash,format=raw,unit=0,readonly=on,file=${fw_code}"
+	fw_flags="${fw_flags} -drive if=pflash,format=raw,unit=1,file=${fw_vars}"
 }
 
 # Sets tpm_flags and starts a background swtpm daemon. No-ops when tpm=0.
 _build_tpm_flags() {
-    tpm_flags=''
-    [ "${tpm}" -eq 1 ] || return
-    require swtpm "install the swtpm package"
-    tpm_sock="${workdir}/swtpm.sock"
-    swtpm socket \
-        --tpmstate "dir=${workdir}" \
-        --ctrl "type=unixio,path=${tpm_sock}" \
-        --tpm2 \
-        --daemon
-    tpm_dev="$(tpm_device_for_arch "${arch}")"
-    tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock}"
-    tpm_flags="${tpm_flags} -tpmdev emulator,id=tpm0,chardev=chrtpm"
-    tpm_flags="${tpm_flags} -device ${tpm_dev},tpmdev=tpm0"
+	tpm_flags=''
+	[ "${tpm}" -eq 1 ] || return
+	require swtpm "install the swtpm package"
+	tpm_sock="${workdir}/swtpm.sock"
+	swtpm socket \
+		--tpmstate "dir=${workdir}" \
+		--ctrl "type=unixio,path=${tpm_sock}" \
+		--tpm2 \
+		--daemon
+	tpm_dev="$(tpm_device_for_arch "${arch}")"
+	tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock}"
+	tpm_flags="${tpm_flags} -tpmdev emulator,id=tpm0,chardev=chrtpm"
+	tpm_flags="${tpm_flags} -device ${tpm_dev},tpmdev=tpm0"
 }
 
 do_run() {
-    arch=''
-    image=''
-    sb=1
-    tpm=0
-    no_gfx=1
-    ssh_port=8022
-    extra_fwds=''
-    state_dir=''
+	arch=''
+	image=''
+	sb=1
+	tpm=0
+	no_gfx=1
+	ssh_port=8022
+	extra_fwds=''
+	state_dir=''
 
-    # Parse arguments
-    while [ $# -gt 0 ]; do
-        case "${1}" in
-            -h|--help|help)
-                help_heading "Usage:" "idiot vm [options] <image> [-- <qemu-args>]"
-                echo >&2
-                help_heading "Subcommands:"
-                help_command "ssh"  "SSH into the running VM"
-                help_command "scp"  "Copy files to/from the running VM"
-                help_command "vars" "Inspect UEFI SB variables from a saved state"
-                help_command "tpm"  "Inspect TPM state with swtpm + tpm2-tools"
-                echo >&2
-                help_heading "Options:"
-                help_option "--arch <arch>"       "Target architecture (default: host)"
-                help_option "--sb / --no-sb"      "Enable/disable UEFI secure boot (default: sb)"
-                help_option "--tpm / --no-tpm"    "Enable/disable TPM emulation"
-                help_option "--gfx / --no-gfx"    "Enable/disable display window (default: no-gfx)"
-                help_option "--ssh-port <port>"   "Host port forwarded to guest port 22 (default: 8022)"
-                help_option "--port <host:guest>" "Additional port mapping (repeatable)"
-                help_option "--state-dir <dir>"   "Persist TPM state and UEFI vars after exit"
-                exit 0 ;;
-            --) shift; break ;;
-            --arch)
-                [ -n "${2:-}" ] || die "--arch requires an argument"
-                arch="${2}"; shift ;;
-            --sb)      sb=1 ;;
-            --no-sb)   sb=0 ;;
-            --tpm)     tpm=1 ;;
-            --no-tpm)  tpm=0 ;;
-            --gfx)     no_gfx=0 ;;
-            --no-gfx)  no_gfx=1 ;;
-            --ssh-port)
-                [ -n "${2:-}" ] || die "--ssh-port requires an argument"
-                ssh_port="${2}"; shift ;;
-            --port)
-                [ -n "${2:-}" ] || die "--port requires a host:guest mapping"
-                case "${2}" in
-                    *:*) ;;
-                    *) die "--port: expected host:guest, got '${2}'" ;;
-                esac
-                host_p="${2%%:*}"
-                guest_p="${2##*:}"
-                extra_fwds="${extra_fwds},hostfwd=tcp::${host_p}-:${guest_p}"
-                shift ;;
-            --state-dir)
-                [ -n "${2:-}" ] || die "--state-dir requires a directory argument"
-                state_dir="${2}"; shift ;;
-            --state-dir=*)
-                state_dir="${1#--state-dir=}" ;;
-            -*)
-                die "unknown option: ${1}" ;;
-            *)
-                [ -z "${image}" ] || die "unexpected argument: ${1}"
-                image="${1}" ;;
-        esac
-        shift
-    done
+	# Parse arguments
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm [options] <image> [-- <qemu-args>]"
+			echo >&2
+			help_heading "Subcommands:"
+			help_command "ssh" "SSH into the running VM"
+			help_command "scp" "Copy files to/from the running VM"
+			help_command "vars" "Inspect UEFI SB variables from a saved state"
+			help_command "tpm" "Inspect TPM state with swtpm + tpm2-tools"
+			echo >&2
+			help_heading "Options:"
+			help_option "--arch <arch>" "Target architecture (default: host)"
+			help_option "--sb / --no-sb" "Enable/disable UEFI secure boot (default: sb)"
+			help_option "--tpm / --no-tpm" "Enable/disable TPM emulation"
+			help_option "--gfx / --no-gfx" "Enable/disable display window (default: no-gfx)"
+			help_option "--ssh-port <port>" "Host port forwarded to guest port 22 (default: 8022)"
+			help_option "--port <host:guest>" "Additional port mapping (repeatable)"
+			help_option "--state-dir <dir>" "Persist TPM state and UEFI vars after exit"
+			exit 0
+			;;
+		--)
+			shift
+			break
+			;;
+		--arch)
+			[ -n "${2:-}" ] || die "--arch requires an argument"
+			arch="${2}"
+			shift
+			;;
+		--sb) sb=1 ;;
+		--no-sb) sb=0 ;;
+		--tpm) tpm=1 ;;
+		--no-tpm) tpm=0 ;;
+		--gfx) no_gfx=0 ;;
+		--no-gfx) no_gfx=1 ;;
+		--ssh-port)
+			[ -n "${2:-}" ] || die "--ssh-port requires an argument"
+			ssh_port="${2}"
+			shift
+			;;
+		--port)
+			[ -n "${2:-}" ] || die "--port requires a host:guest mapping"
+			case "${2}" in
+			*:*) ;;
+			*) die "--port: expected host:guest, got '${2}'" ;;
+			esac
+			host_p="${2%%:*}"
+			guest_p="${2##*:}"
+			extra_fwds="${extra_fwds},hostfwd=tcp::${host_p}-:${guest_p}"
+			shift
+			;;
+		--state-dir)
+			[ -n "${2:-}" ] || die "--state-dir requires a directory argument"
+			state_dir="${2}"
+			shift
+			;;
+		--state-dir=*)
+			state_dir="${1#--state-dir=}"
+			;;
+		-*)
+			die "unknown option: ${1}"
+			;;
+		*)
+			[ -z "${image}" ] || die "unexpected argument: ${1}"
+			image="${1}"
+			;;
+		esac
+		shift
+	done
 
-    [ -n "${image}" ] || die \
-        "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] \
+	[ -n "${image}" ] || die \
+		"usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] \
 [--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] <image> [-- <qemu-args>]"
-    [ -f "${image}" ] || die "image not found: ${image}"
-    [ -n "${arch}" ] || arch="$(host_arch)"
-    qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
-    require "${qemu_bin}"
+	[ -f "${image}" ] || die "image not found: ${image}"
+	[ -n "${arch}" ] || arch="$(host_arch)"
+	qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
+	require "${qemu_bin}"
 
-    # Assemble machine and KVM flags
-    _build_machine_flags
+	# Assemble machine and KVM flags
+	_build_machine_flags
 
-    # Set up working directory for firmware/TPM state files
-    if [ "${sb}" -eq 1 ] || [ "${tpm}" -eq 1 ]; then
-        _setup_workdir
-    fi
+	# Set up working directory for firmware/TPM state files
+	if [ "${sb}" -eq 1 ] || [ "${tpm}" -eq 1 ]; then
+		_setup_workdir
+	fi
 
-    # Build firmware and TPM flags
-    _build_fw_flags
-    _build_tpm_flags
+	# Build firmware and TPM flags
+	_build_fw_flags
+	_build_tpm_flags
 
-    [ "${no_gfx}" -eq 1 ] \
-        && display_flags='-nographic' \
-        || display_flags='-serial mon:stdio'
+	[ "${no_gfx}" -eq 1 ] &&
+		display_flags='-nographic' ||
+		display_flags='-serial mon:stdio'
 
-    [ -n "${state_dir}" ] && say "State directory: ${BOLD}${state_dir}${RESET}"
-    net_user="user,hostfwd=tcp::${ssh_port}-:22${extra_fwds}"
+	[ -n "${state_dir}" ] && say "State directory: ${BOLD}${state_dir}${RESET}"
+	net_user="user,hostfwd=tcp::${ssh_port}-:22${extra_fwds}"
 
-    # shellcheck disable=SC2086
-    "${qemu_bin}" \
-        -smp "$(nproc)" \
-        -m 2048 \
-        ${machine_flags} \
-        ${kvm_flags} \
-        -net nic,model=virtio \
-        -net "${net_user}" \
-        ${fw_flags} \
-        -drive "file=${image},if=none,format=raw,id=disk1" \
-        -device virtio-blk-pci,drive=disk1,bootindex=1 \
-        ${tpm_flags} \
-        ${display_flags} \
-        "$@" >&2
+	# shellcheck disable=SC2086
+	"${qemu_bin}" \
+		-smp "$(nproc)" \
+		-m 2048 \
+		${machine_flags} \
+		${kvm_flags} \
+		-net nic,model=virtio \
+		-net "${net_user}" \
+		${fw_flags} \
+		-drive "file=${image},if=none,format=raw,id=disk1" \
+		-device virtio-blk-pci,drive=disk1,bootindex=1 \
+		${tpm_flags} \
+		${display_flags} \
+		"$@" >&2
 
-    [ -n "${state_dir}" ] && say "State saved to ${BOLD}${state_dir}${RESET}"
+	[ -n "${state_dir}" ] && say "State saved to ${BOLD}${state_dir}${RESET}"
 }
 
 main() {
-    case "${1:-}" in
-        "")   do_run --help ;;
-        ssh)  shift; do_ssh "$@" ;;
-        scp)  shift; do_scp "$@" ;;
-        vars) shift; do_vars "$@" ;;
-        tpm)  shift; do_tpm "$@" ;;
-        *)    do_run "$@" ;;
-    esac
+	case "${1:-}" in
+	"") do_run --help ;;
+	ssh)
+		shift
+		do_ssh "$@"
+		;;
+	scp)
+		shift
+		do_scp "$@"
+		;;
+	vars)
+		shift
+		do_vars "$@"
+		;;
+	tpm)
+		shift
+		do_tpm "$@"
+		;;
+	*) do_run "$@" ;;
+	esac
 }
 main "$@"
