@@ -43,15 +43,13 @@ main() {
         ""|--help|-h|help)
             help_heading "Usage:" "idiot kernel [<series>] [<flavour>] [options]"
             echo >&2
-            say "Clones an Ubuntu kernel from Launchpad. Defaults to a shallow clone"
-            say "(${BOLD}--depth 1${RESET}) since kernel repositories are very large."
+            say "Clones an Ubuntu kernel from Launchpad (branch: ${BOLD}master-next${RESET})."
+            say "Note: Launchpad does not support shallow clones."
             echo >&2
             help_heading "Options:"
             help_option "--series [name]"  "Ubuntu series; omit value for fzf picker"
             help_option "--flavour [name]" "Kernel flavour (default: generic); omit value for fzf picker"
             help_option "--dest <dir>"     "Destination directory"
-            help_option "--depth <n>"      "Clone depth (default: 1; use 0 for a full clone)"
-            help_option "--branch <name>"  "Branch to clone"
             echo >&2
             help_heading "Series:"
             _list_data "${KERNEL_DATA}/series" 12
@@ -64,7 +62,6 @@ main() {
             say "  ${CYAN}idiot kernel${RESET} noble raspi"
             say "  ${CYAN}idiot kernel${RESET} jammy xilinx-zynqmp ${DIM}--dest${RESET} ~/src/zynqmp"
             say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--flavour${RESET}          ${DIM}# fzf picker${RESET}"
-            say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--depth${RESET} 0          ${DIM}# full clone${RESET}"
             exit 0 ;;
     esac
 
@@ -73,8 +70,6 @@ main() {
     flavour=""
     pick_flavour=0
     dest=""
-    depth=1
-    branch=""
 
     while [ $# -gt 0 ]; do
         case "${1}" in
@@ -99,16 +94,6 @@ main() {
                 dest="${2}"; shift 2 ;;
             --dest=*)
                 dest="${1#--dest=}"; shift ;;
-            --depth)
-                [ -n "${2:-}" ] || die "--depth requires a value"
-                depth="${2}"; shift 2 ;;
-            --depth=*)
-                depth="${1#--depth=}"; shift ;;
-            --branch)
-                [ -n "${2:-}" ] || die "--branch requires a branch name"
-                branch="${2}"; shift 2 ;;
-            --branch=*)
-                branch="${1#--branch=}"; shift ;;
             --*)
                 die "unknown option: ${1}" ;;
             *)
@@ -148,17 +133,12 @@ main() {
 
     [ -e "${dest}" ] && die "destination '${dest}' already exists"
 
-    set -- git clone
-    [ "${depth}" = "0" ] || set -- "$@" --depth "${depth}"
-    [ -n "${branch}" ] && set -- "$@" --branch "${branch}"
-    set -- "$@" "${url}" "${dest}"
-
     if [ "${flavour}" = "generic" ]; then
         say "Cloning ${BOLD}linux${RESET} (${series})..."
     else
         say "Cloning ${BOLD}linux-${flavour}${RESET} (${series})..."
     fi
-    "$@" >&2 || die "clone failed"
+    git clone --branch master-next "${url}" "${dest}" >&2 || die "clone failed"
     say "Cloned to ${BOLD}${dest}${RESET}"
 }
 main "$@"
