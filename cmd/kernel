@@ -142,7 +142,12 @@ main() {
     else
         say "Cloning ${BOLD}linux-${flavour}${RESET} (${series})..."
     fi
-    git clone --branch master-next "${url}" "${dest}" >&2 || die "clone failed"
-    say "Cloned to ${BOLD}${dest}${RESET}"
+    if git clone --branch main-next "${url}" "${dest}" 2>/dev/null; then
+        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(main-next)${RESET}"
+    else
+        say "Trying ${BOLD}master-next${RESET}..."
+        git clone --branch master-next "${url}" "${dest}" >&2 || die "clone failed"
+        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(master-next)${RESET}"
+    fi
 }
 main "$@"
