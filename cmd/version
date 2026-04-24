@@ -22,7 +22,7 @@ main() {
 
     case "${1:-}" in
         --short)
-            printf '%s\n' "${version}"
+            say "${version}"
             exit 0 ;;
     esac
 
@@ -33,7 +33,7 @@ main() {
     say "  Lauren Brock"
     echo >&2
     say "${CYAN}License${RESET}"
-    say "  GPL-3.0-or-later"
-    say "  ${DIM}https://www.gnu.org/licenses/gpl-3.0.html${RESET}"
+    say "  MIT"
+    say "  ${DIM}https://opensource.org/licenses/MIT${RESET}"
 }
 main "$@"
