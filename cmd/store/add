@@ -3,6 +3,8 @@
 # Usage: idiot store add <name> <store-id>
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/stores.sh
+. "$(dirname "${0}")/../../share/stores.sh"
 
 main() {
 	case "${1:-}" in
@@ -21,9 +23,8 @@ main() {
 	esac
 
 	mkdir -p "${IDIOT_STORES_DIR}"
+	require_no_store "${name}"
 	store_file="${IDIOT_STORES_DIR}/${name}"
-
-	[ -f "${store_file}" ] && die "store '${name}' already exists (use 'idiot store remove ${name}' first)"
 
 	printf '%s' "${store_id}" >"${store_file}"
 	say "Added store '${BOLD}${name}${RESET}' (${store_id})"

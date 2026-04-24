@@ -2,26 +2,11 @@
 # share/common.sh - shared helpers for idiot subcommands
 # Source this file; do not execute directly.
 
-# Credentials directory
-IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/auth}"
-
-# Dedicated Snap Store definitions directory
-IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/stores}"
-
-# Cloned models repository
-IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/models}"
-
 # Cache directory
 IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 
 # Bundled data directory (examples, kernels, etc.)
 IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/share}"
-
-# Launchpad username file
-IDIOT_LP_USER_FILE="${IDIOT_LP_USER_FILE:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/lp-user}"
-
-# User-defined example repo aliases (supplements bundled lib/examples/)
-IDIOT_EXAMPLES_DIR="${IDIOT_EXAMPLES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/examples}"
 
 # Use colors only when stderr is a TTY and NO_COLOR is unset
 # shellcheck disable=SC2034
@@ -71,21 +56,6 @@ die() {
 require() {
     command -v "${1}" >/dev/null 2>&1 ||
         die "${1} is required but not found${2:+ — ${2}}"
-}
-
-# Die unless a credential named $1 exists.
-require_cred() {
-    [ -f "${IDIOT_AUTH_DIR}/${1}" ] || die "credentials '${1}' not found"
-}
-
-# Die if a credential named $1 already exists.
-require_no_cred() {
-    [ -f "${IDIOT_AUTH_DIR}/${1}" ] && die "credentials '${1}' already exist — remove it first"
-}
-
-# Die unless a store named $1 exists.
-require_store() {
-    [ -f "${IDIOT_STORES_DIR}/${1}" ] || die "store '${1}' not found"
 }
 
 # POSIX-safe single-quote escaping

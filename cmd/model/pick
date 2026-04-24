@@ -6,6 +6,8 @@
 # Unsigned model assertions: *.json
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/models.sh
+. "$(dirname "${0}")/../../share/models.sh"
 # shellcheck source=share/fzf.sh
 . "$(dirname "${0}")/../../share/fzf.sh"
 
@@ -42,7 +44,7 @@ main() {
 	done
 
 	require fzf "https://github.com/junegunn/fzf"
-	[ -d "${IDIOT_MODELS_DIR}/.git" ] || die "models repository not found — run 'idiot model update' first"
+	require_models_repo
 	[ -n "${output}" ] || [ -d "${dest}" ] || die "destination directory does not exist: ${dest}"
 
 	files=$(

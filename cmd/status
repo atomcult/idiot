@@ -2,6 +2,14 @@
 # cmd/status - show current idiot environment at a glance
 
 . "$(dirname "${0}")/../share/common.sh"
+# shellcheck source=share/arch.sh
+. "$(dirname "${0}")/../share/arch.sh"
+# shellcheck source=share/creds.sh
+. "$(dirname "${0}")/../share/creds.sh"
+# shellcheck source=share/stores.sh
+. "$(dirname "${0}")/../share/stores.sh"
+# shellcheck source=share/lp.sh
+. "$(dirname "${0}")/../share/lp.sh"
 
 _row() {
 	_r_label="${1}"
@@ -32,7 +40,7 @@ main() {
 		_auth_ann=""
 		if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
 			_auth_ann="${IDIOT_ACTIVE_CRED}"
-			_whoami_cache="${IDIOT_CACHE_DIR}/whoami/${IDIOT_ACTIVE_CRED}"
+			_whoami_cache="$(whoami_cache_path "${IDIOT_ACTIVE_CRED}")"
 			if [ -f "${_whoami_cache}" ]; then
 				_email="$(grep '^email: ' "${_whoami_cache}" | sed 's/^email: //')"
 				[ -n "${_email}" ] && _auth_ann="${IDIOT_ACTIVE_CRED} · ${_email}"
@@ -70,25 +78,14 @@ main() {
 	if [ -n "${UBUNTU_STORE_ARCH:-}" ]; then
 		_row "arch" "${BOLD}${UBUNTU_STORE_ARCH}${RESET}"
 	else
-		case "$(uname -m)" in
-		x86_64) _host_arch="amd64" ;;
-		aarch64) _host_arch="arm64" ;;
-		armv7l | armv6l) _host_arch="armhf" ;;
-		i686 | i386) _host_arch="i386" ;;
-		ppc64le) _host_arch="ppc64el" ;;
-		riscv64) _host_arch="riscv64" ;;
-		s390x) _host_arch="s390x" ;;
-		*) _host_arch="$(uname -m)" ;;
-		esac
+		_host_arch="$(uname_to_snap_arch)"
 		_row "arch" "${DIM}${_host_arch}${RESET}" "host default"
 	fi
 
 	# Launchpad
-	if [ -n "${IDIOT_LP_USER:-}" ]; then
-		_row "lp" "${BOLD}${IDIOT_LP_USER}${RESET}"
-	elif [ -f "${IDIOT_LP_USER_FILE}" ]; then
-		_lp_user="$(cat "${IDIOT_LP_USER_FILE}")"
-		_row "lp" "${BOLD}${_lp_user}${RESET}"
+	_lp_val="$(lp_user_value)"
+	if [ -n "${_lp_val}" ]; then
+		_row "lp" "${BOLD}${_lp_val}${RESET}"
 	else
 		_row "lp" "${DIM}not set${RESET}"
 	fi

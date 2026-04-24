@@ -3,6 +3,8 @@
 # Usage: idiot auth status [--refresh]
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/creds.sh
+. "$(dirname "${0}")/../../share/creds.sh"
 
 map_permission() {
 	case "${1}" in
@@ -39,7 +41,7 @@ main() {
 	}
 
 	if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
-		whoami_cache="${IDIOT_CACHE_DIR}/whoami/${IDIOT_ACTIVE_CRED}"
+		whoami_cache="$(whoami_cache_path "${IDIOT_ACTIVE_CRED}")"
 
 		[ "${refresh}" -eq 1 ] && rm -f "${whoami_cache}"
 
@@ -52,7 +54,7 @@ main() {
 				printf '%s\n' "${raw}" >&2
 				exit "${rc}"
 			}
-			mkdir -p "${IDIOT_CACHE_DIR}/whoami"
+			mkdir -p "$(dirname "${whoami_cache}")"
 			printf '%s\n' "${raw}" >"${whoami_cache}"
 		fi
 	else

@@ -3,6 +3,8 @@
 # Usage: idiot lp status
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/lp.sh
+. "$(dirname "${0}")/../../share/lp.sh"
 
 main() {
 	case "${1:-}" in
@@ -12,10 +14,9 @@ main() {
 		;;
 	esac
 
-	if [ -n "${IDIOT_LP_USER:-}" ]; then
-		say "${BOLD}${IDIOT_LP_USER}${RESET}"
-	elif [ -f "${IDIOT_LP_USER_FILE}" ]; then
-		say "$(cat "${IDIOT_LP_USER_FILE}")"
+	_val="$(lp_user_value)"
+	if [ -n "${_val}" ]; then
+		say "${BOLD}${_val}${RESET}"
 	else
 		say "${DIM}Not set — run: eval \"\$(idiot lp set <username>)\"${RESET}"
 	fi

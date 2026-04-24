@@ -3,6 +3,8 @@
 # Usage: idiot store remove <name>
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/stores.sh
+. "$(dirname "${0}")/../../share/stores.sh"
 
 main() {
 	case "${1:-}" in

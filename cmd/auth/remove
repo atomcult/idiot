@@ -3,6 +3,8 @@
 # Usage: idiot auth remove [<name>]
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/creds.sh
+. "$(dirname "${0}")/../../share/creds.sh"
 # shellcheck source=share/fzf.sh
 . "$(dirname "${0}")/../../share/fzf.sh"
 
@@ -31,7 +33,7 @@ main() {
 	cred_file="${IDIOT_AUTH_DIR}/${name}"
 
 	rm "${cred_file}"
-	rm -f "${IDIOT_CACHE_DIR}/whoami/${name}"
+	rm -f "$(whoami_cache_path "${name}")"
 	say "Removed credentials '${BOLD}${name}${RESET}'"
 }
 main "$@"

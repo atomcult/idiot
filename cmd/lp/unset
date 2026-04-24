@@ -4,6 +4,8 @@
 # Outputs: eval-able unset statement
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/lp.sh
+. "$(dirname "${0}")/../../share/lp.sh"
 
 main() {
 	case "${1:-}" in

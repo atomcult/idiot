@@ -3,6 +3,8 @@
 # Usage: idiot model update
 
 . "$(dirname "${0}")/../../share/common.sh"
+# shellcheck source=share/models.sh
+. "$(dirname "${0}")/../../share/models.sh"
 
 main() {
 	case "${1:-}" in

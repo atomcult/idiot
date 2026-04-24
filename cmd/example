@@ -3,6 +3,10 @@
 # Usage: idiot example [list | add | remove | update | <repo> [options]]
 
 . "$(dirname "${0}")/../share/common.sh"
+# shellcheck source=share/examples.sh
+. "$(dirname "${0}")/../share/examples.sh"
+# shellcheck source=share/fzf.sh
+. "$(dirname "${0}")/../share/fzf.sh"
 
 EXAMPLES_CACHE="${IDIOT_CACHE_DIR}/examples"
 
@@ -61,27 +65,6 @@ list_known() {
 	_list_section "${IDIOT_EXAMPLES_DIR}"
 }
 
-resolve_url() {
-	case "${1}" in
-	*://*)
-		printf '%s\n' "${1}"
-		;;
-	*/*)
-		printf 'https://github.com/%s\n' "${1}"
-		;;
-	*)
-		for ex_dir in "${IDIOT_EXAMPLES_DIR}" "${IDIOT_DATA_DIR}/examples"; do
-			ex_file="${ex_dir}/${1}"
-			[ -f "${ex_file}" ] && {
-				head -1 "${ex_file}"
-				return 0
-			}
-		done
-		die "unknown example '${1}' — use <user>/<repo>, a full URI, or run 'idiot example list'"
-		;;
-	esac
-}
-
 do_add() {
 	name="${1:-}"
 	target="${2:-}"
@@ -122,17 +105,10 @@ do_remove() {
 	esac
 	name="${1:-}"
 	[ -n "${name}" ] || {
-		require fzf "install fzf for interactive selection"
-		[ -d "${IDIOT_EXAMPLES_DIR}" ] || die "no saved examples found"
-		files=$(find "${IDIOT_EXAMPLES_DIR}" -maxdepth 1 -type f ! -name '.*' | sort |
-			sed "s|${IDIOT_EXAMPLES_DIR}/||")
-		[ -n "${files}" ] || die "no saved examples found"
-		export IDIOT_EXAMPLES_DIR
-		preview_cmd="$(file_preview_cmd IDIOT_EXAMPLES_DIR)"
-		name=$(printf '%s\n' "${files}" |
-			fzf \
-				--prompt="remove example> " \
-				--preview="${preview_cmd}") || exit 0
+		name=$(fzf_pick_from_dir \
+			"${IDIOT_EXAMPLES_DIR}" \
+			"remove example> " \
+			"no saved examples found") || exit 0
 	}
 	alias_file="${IDIOT_EXAMPLES_DIR}/${name}"
 	[ -f "${alias_file}" ] || {
@@ -178,7 +154,7 @@ do_drop() {
 do_update() {
 	name="${1:-}"
 	if [ -n "${name}" ]; then
-		url=$(resolve_url "${name}")
+		url=$(resolve_example_url "${name}")
 		path="$(_cache_path "${name}")"
 		if [ -d "${path}" ]; then
 			say "Updating ${BOLD}${name}${RESET}..."
