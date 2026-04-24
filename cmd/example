@@ -25,23 +25,31 @@ ensure_cached() {
 _list_section() {
     _ls_dir="${1}"
     _ls_found=0
+    max_len=0
     if [ -d "${_ls_dir}" ]; then
         for f in "${_ls_dir}"/*; do
             [ -f "${f}" ] || continue
             _ls_found=1
-            alias_name="$(basename "${f}")"
-            url="$(head -1 "${f}")"
-            if [ -d "$(_cache_path "${alias_name}")" ]; then
-                cached_prefix="${GREEN}✓${RESET} "
-            else
-                cached_prefix="  "
-            fi
-            gap=$(( 28 - ${#alias_name} ))
-            [ "${gap}" -lt 2 ] && gap=2
-            say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${cached_prefix}${DIM}${url}${RESET}"
+            n="$(basename "${f}")"
+            [ "${#n}" -gt "${max_len}" ] && max_len="${#n}"
         done
     fi
-    [ "${_ls_found}" -eq 1 ] || say "  ${DIM}(none)${RESET}"
+    if [ "${_ls_found}" -eq 0 ]; then
+        say "  ${DIM}(none)${RESET}"
+        return
+    fi
+    for f in "${_ls_dir}"/*; do
+        [ -f "${f}" ] || continue
+        alias_name="$(basename "${f}")"
+        url="$(head -1 "${f}")"
+        if [ -d "$(_cache_path "${alias_name}")" ]; then
+            cached_prefix="${GREEN}✓${RESET} "
+        else
+            cached_prefix="  "
+        fi
+        gap=$(( max_len - ${#alias_name} + 2 ))
+        say "  ${CYAN}${alias_name}${RESET}$(printf '%*s' "${gap}" '')${cached_prefix}${DIM}${url}${RESET}"
+    done
 }
 
 list_known() {
