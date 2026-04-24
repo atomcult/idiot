@@ -40,7 +40,7 @@ main() {
 		fi
 	else
 		_auth_value="${DIM}not logged in${RESET}"
-		_auth_ann="run: idiot auth login"
+		_auth_ann=""
 	fi
 	_row "auth" "${_auth_value}" "${_auth_ann}"
 
@@ -90,7 +90,7 @@ main() {
 		_lp_user="$(cat "${IDIOT_LP_USER_FILE}")"
 		_row "lp" "${BOLD}${_lp_user}${RESET}"
 	else
-		_row "lp" "${DIM}not set${RESET}" "run: idiot lp set <username>"
+		_row "lp" "${DIM}not set${RESET}"
 	fi
 }
 main "$@"
