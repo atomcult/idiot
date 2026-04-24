@@ -3,6 +3,14 @@
 
 . "$(dirname "${0}")/../../share/common.sh"
 
+_show_yaml() {
+	if command -v bat >/dev/null 2>&1; then
+		bat --language yaml --paging=never "${1}" >&2
+	else
+		cat "${1}" >&2
+	fi
+}
+
 main() {
 	case "${1:-}" in
 	-h | --help | help)
@@ -14,16 +22,19 @@ main() {
 	[ $# -ge 1 ] || die "usage: idiot inspect snap <snap-file>"
 
 	snap_file="${1}"
-
-	[ -f "${snap_file}" ] ||
-		die "file not found: ${snap_file}"
+	[ -f "${snap_file}" ] || die "file not found: ${snap_file}"
 
 	require unsquashfs
 
-	! unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >&2 2>/dev/null ||
-		exit 0
+	_tmp=$(mktemp)
+	trap 'rm -f "${_tmp}"' EXIT INT TERM
 
-	unsquashfs -q -cat "${snap_file}" meta/snap.yaml >&2 2>/dev/null ||
+	if unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >"${_tmp}" 2>/dev/null; then
+		_show_yaml "${_tmp}"
+		exit 0
+	fi
+	unsquashfs -q -cat "${snap_file}" meta/snap.yaml >"${_tmp}" 2>/dev/null ||
 		die "neither snap/snapcraft.yaml nor meta/snap.yaml found in ${snap_file}"
+	_show_yaml "${_tmp}"
 }
 main "$@"
