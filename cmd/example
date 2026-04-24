@@ -53,10 +53,10 @@ _list_section() {
 }
 
 list_known() {
-    say "${BOLD}Built-in:${RESET}"
+    help_heading "Built-in:"
     _list_section "${IDIOT_DATA_DIR}/examples"
     echo >&2
-    say "${BOLD}Saved:${RESET}"
+    help_heading "Saved:"
     _list_section "${IDIOT_EXAMPLES_DIR}"
 }
 
