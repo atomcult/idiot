@@ -47,12 +47,13 @@ main() {
         ""|--help|-h|help)
             help_heading "Usage:" "idiot kernel [<series>] [<flavour>] [options]"
             echo >&2
-            say "Clones an Ubuntu kernel from Launchpad (branch: ${BOLD}master-next${RESET})."
-            say "Note: Launchpad does not support shallow clones."
+            say "Clones an Ubuntu kernel from Launchpad. Tries ${BOLD}main-next${RESET} then"
+            say "falls back to ${BOLD}master-next${RESET}. Launchpad does not support shallow clones."
             echo >&2
             help_heading "Options:"
             help_option "--series [name]"  "Ubuntu series; omit value for fzf picker"
             help_option "--flavour [name]" "Kernel flavour (default: generic); omit value for fzf picker"
+            help_option "--branch [name]"  "Branch to clone; omit value for fzf picker"
             help_option "--dest <dir>"     "Destination directory"
             echo >&2
             help_heading "Series:"
@@ -66,6 +67,7 @@ main() {
             say "  ${CYAN}idiot kernel${RESET} noble raspi"
             say "  ${CYAN}idiot kernel${RESET} jammy xilinx-zynqmp ${DIM}--dest${RESET} ~/src/zynqmp"
             say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--flavour${RESET}          ${DIM}# fzf picker${RESET}"
+            say "  ${CYAN}idiot kernel${RESET} noble ${DIM}--branch${RESET}           ${DIM}# fzf branch picker${RESET}"
             exit 0 ;;
     esac
 
@@ -73,6 +75,8 @@ main() {
     pick_series=0
     flavour=""
     pick_flavour=0
+    branch=""
+    pick_branch=0
     dest=""
 
     while [ $# -gt 0 ]; do
@@ -93,6 +97,14 @@ main() {
                 fi ;;
             --flavour=*)
                 flavour="${1#--flavour=}"; shift ;;
+            --branch)
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    branch="${2}"; shift 2
+                else
+                    pick_branch=1; shift
+                fi ;;
+            --branch=*)
+                branch="${1#--branch=}"; shift ;;
             --dest)
                 [ -n "${2:-}" ] || die "--dest requires a directory argument"
                 dest="${2}"; shift 2 ;;
@@ -127,6 +139,15 @@ main() {
 
     url=$(kernel_url "${series}" "${flavour}")
 
+    if [ "${pick_branch}" -eq 1 ]; then
+        require fzf "install fzf for interactive selection"
+        say "Fetching branches from Launchpad..."
+        branch=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null \
+            | sed 's|.*refs/heads/||' | sort \
+            | fzf --prompt="branch> ") || exit 0
+        [ -n "${branch}" ] || exit 0
+    fi
+
     if [ -z "${dest}" ]; then
         if [ "${flavour}" = "generic" ]; then
             dest="linux-${series}"
@@ -142,11 +163,15 @@ main() {
     else
         say "Cloning ${BOLD}linux-${flavour}${RESET} (${series})..."
     fi
-    if GIT_TERMINAL_PROMPT=0 git clone --branch main-next "${url}" "${dest}" 2>/dev/null; then
+    if [ -n "${branch}" ]; then
+        GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "${branch}" "${url}" "${dest}" >&2 \
+            || die "clone failed"
+        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(${branch})${RESET}"
+    elif GIT_TERMINAL_PROMPT=0 git clone --quiet --branch main-next "${url}" "${dest}" 2>/dev/null; then
         say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(main-next)${RESET}"
     else
         say "Trying ${BOLD}master-next${RESET}..."
-        GIT_TERMINAL_PROMPT=0 git clone --branch master-next "${url}" "${dest}" >&2 \
+        GIT_TERMINAL_PROMPT=0 git clone --quiet --branch master-next "${url}" "${dest}" 2>/dev/null \
             || die "clone failed"
         say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(master-next)${RESET}"
     fi
