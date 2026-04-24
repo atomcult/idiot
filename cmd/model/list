@@ -4,36 +4,6 @@
 . "$(dirname "${0}")/../../share/common.sh"
 include models.sh
 
-_list_section() {
-	_ls_dir="${1}"
-	_ls_max=0
-	if [ -d "${_ls_dir}" ]; then
-		for _f in "${_ls_dir}"/*; do
-			[ -f "${_f}" ] || continue
-			_n="$(basename "${_f}")"
-			[ "${#_n}" -gt "${_ls_max}" ] && _ls_max="${#_n}"
-		done
-	fi
-	_ls_found=0
-	if [ -d "${_ls_dir}" ]; then
-		for _f in "${_ls_dir}"/*; do
-			[ -f "${_f}" ] || continue
-			_ls_found=1
-			_name="$(basename "${_f}")"
-			_url="$(head -1 "${_f}")"
-			_clone="${IDIOT_MODELS_DIR}/${_name}"
-			if [ -d "${_clone}/.git" ]; then
-				_marker="${GREEN}✓${RESET} "
-			else
-				_marker="  "
-			fi
-			_gap=$((_ls_max - ${#_name} + 2))
-			say "  ${CYAN}${_name}${RESET}$(printf '%*s' "${_gap}" '')${_marker}${DIM}${_url}${RESET}"
-		done
-	fi
-	[ "${_ls_found}" -eq 1 ] || say "  ${DIM}(none)${RESET}"
-}
-
 main() {
 	case "${1:-}" in
 	-h | --help | help)
@@ -43,9 +13,9 @@ main() {
 	esac
 
 	help_heading "Built-in:"
-	_list_section "${IDIOT_DATA_DIR}/models"
+	model_list_section "${IDIOT_DATA_DIR}/models"
 	echo >&2
 	help_heading "User:"
-	_list_section "${IDIOT_MODEL_REPOS_DIR}"
+	model_list_section "${IDIOT_MODEL_REPOS_DIR}"
 }
 main "$@"

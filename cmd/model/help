@@ -2,6 +2,7 @@
 # cmd/model/help - usage for the model subcommand group
 
 . "$(dirname "${0}")/../../share/common.sh"
+include models.sh
 
 main() {
 	help_heading "Usage:" "idiot model <subcommand>"
@@ -12,6 +13,12 @@ main() {
 	help_command "remove" "Remove a user model repo and its clone"
 	help_command "pick" "Interactively select a model assertion"
 	help_command "update" "Clone or pull model repositories"
+	echo >&2
+	help_heading "Built-in:"
+	model_list_section "${IDIOT_DATA_DIR}/models"
+	echo >&2
+	help_heading "User:"
+	model_list_section "${IDIOT_MODEL_REPOS_DIR}"
 	echo >&2
 	help_heading "Environment:"
 	help_env "IDIOT_MODELS_DIR" "Parent directory for cloned repos"
