@@ -77,9 +77,9 @@ _xp_bar() {
 	_bar="${GREEN}$(_repeat "${_filled}" '█')${RESET}${DIM}$(_repeat "${_empty}" '▒')${RESET}"
 
 	if [ -z "${_nxt}" ]; then
-		_row "xp" "${_cur} [${_bar}]" "${_ann}"
+		_row "xp" "${_cur} |${_bar}|" "${_ann}"
 	else
-		_row "xp" "${_cur} [${_bar}] ${_nxt}" "${_ann}"
+		_row "xp" "${_cur} |${_bar}| ${_nxt}" "${_ann}"
 	fi
 }
 
