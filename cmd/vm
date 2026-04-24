@@ -151,6 +151,84 @@ do_scp() {
         "$@" >&2
 }
 
+do_vars() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot vm vars <state-dir>"
+            echo >&2
+            say "Dumps UEFI secure boot variables from a saved state directory."
+            say "Requires ${BOLD}virt-fw-vars${RESET} ${DIM}(python3-virt-firmware)${RESET} or ${BOLD}efi-readvar${RESET} ${DIM}(efitools)${RESET}."
+            exit 0 ;;
+    esac
+
+    state_dir="${1:-}"
+    [ -n "${state_dir}" ] || die "usage: idiot vm vars <state-dir>"
+    [ -d "${state_dir}" ] || die "state directory not found: ${state_dir}"
+
+    vars_file="${state_dir}/fw_vars.fd"
+    [ -f "${vars_file}" ] || die "no fw_vars.fd in ${state_dir} — was the VM launched with --sb --state-dir?"
+
+    if command -v virt-fw-vars > /dev/null 2>&1; then
+        virt-fw-vars --input "${vars_file}" --output-json /dev/stdout \
+            | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for v in data.get('variables', []):
+    name = v.get('name', '')
+    guid = v.get('guid', '')
+    size = len(v.get('data', '')) // 2
+    print(f'  {name}  ({guid})  {size} bytes')
+" >&2
+    elif command -v efi-readvar > /dev/null 2>&1; then
+        efi-readvar -f "${vars_file}" >&2
+    else
+        die "no suitable tool found — install python3-virt-firmware or efitools"
+    fi
+}
+
+do_tpm() {
+    case "${1:-}" in
+        -h|--help|help)
+            help_heading "Usage:" "idiot vm tpm <state-dir>"
+            echo >&2
+            say "Starts an swtpm instance against a saved TPM state directory for"
+            say "offline inspection with tpm2-tools. Runs until interrupted."
+            echo >&2
+            say "Example:"
+            say "  ${DIM}# in one terminal:${RESET}"
+            say "  ${CYAN}idiot vm tpm${RESET} ./my-state"
+            say "  ${DIM}# in another:${RESET}"
+            say "  ${CYAN}tpm2_pcrread${RESET} --tcti=swtpm:path=./my-state/inspect.sock"
+            exit 0 ;;
+    esac
+
+    state_dir="${1:-}"
+    [ -n "${state_dir}" ] || die "usage: idiot vm tpm <state-dir>"
+    [ -d "${state_dir}" ] || die "state directory not found: ${state_dir}"
+
+    # Check for existing TPM state files
+    found=0
+    for f in "${state_dir}"/tpm2-*.permall "${state_dir}"/tpm2-*.volatile; do
+        [ -f "${f}" ] && { found=1; break; }
+    done
+    [ "${found}" -eq 1 ] || die "no TPM state found in ${state_dir} — was the VM launched with --tpm --state-dir?"
+
+    require swtpm "install the swtpm package"
+
+    sock="${state_dir}/inspect.sock"
+    rm -f "${sock}"
+
+    say "Starting swtpm on ${BOLD}${sock}${RESET} ${DIM}(Ctrl-C to stop)${RESET}"
+    say "Connect with: ${CYAN}--tcti=swtpm:path=${sock}${RESET}"
+    echo >&2
+
+    swtpm socket \
+        --tpmstate "dir=${state_dir}" \
+        --ctrl "type=unixio,path=${sock}" \
+        --tpm2 \
+        --flags not-need-init,startup-clear
+}
+
 do_run() {
     arch=''
     image=''
@@ -159,6 +237,7 @@ do_run() {
     no_gfx=1
     ssh_port=8022
     extra_fwds=''
+    state_dir=''
 
     while [ $# -gt 0 ]; do
         case "${1}" in
@@ -166,8 +245,10 @@ do_run() {
                 help_heading "Usage:" "idiot vm [options] <image> [-- <qemu-args>]"
                 echo >&2
                 help_heading "Subcommands:"
-                help_command "ssh" "SSH into the running VM"
-                help_command "scp" "Copy files to/from the running VM"
+                help_command "ssh"  "SSH into the running VM"
+                help_command "scp"  "Copy files to/from the running VM"
+                help_command "vars" "Inspect UEFI SB variables from a saved state"
+                help_command "tpm"  "Inspect TPM state with swtpm + tpm2-tools"
                 echo >&2
                 help_heading "Options:"
                 help_option "--arch <arch>"       "Target architecture (default: host)"
@@ -176,6 +257,7 @@ do_run() {
                 help_option "--gfx / --no-gfx"    "Enable/disable display window (default: no-gfx)"
                 help_option "--ssh-port <port>"   "Host port forwarded to guest port 22 (default: 8022)"
                 help_option "--port <host:guest>" "Additional port mapping (repeatable)"
+                help_option "--state-dir <dir>"   "Persist TPM state and UEFI vars after exit"
                 exit 0 ;;
             --) shift; break ;;
             --arch)
@@ -200,6 +282,11 @@ do_run() {
                 guest_p="${2##*:}"
                 extra_fwds="${extra_fwds},hostfwd=tcp::${host_p}-:${guest_p}"
                 shift ;;
+            --state-dir)
+                [ -n "${2:-}" ] || die "--state-dir requires a directory argument"
+                state_dir="${2}"; shift ;;
+            --state-dir=*)
+                state_dir="${1#--state-dir=}" ;;
             -*)
                 die "unknown option: ${1}" ;;
             *)
@@ -209,7 +296,7 @@ do_run() {
         shift
     done
 
-    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] <image> [-- <qemu-args>]"
+    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] <image> [-- <qemu-args>]"
     [ -f "${image}" ] || die "image not found: ${image}"
 
     [ -n "${arch}" ] || arch="$(host_arch)"
@@ -235,22 +322,28 @@ do_run() {
     tpm_flags=''
 
     if [ "${sb}" -eq 1 ] || [ "${tpm}" -eq 1 ]; then
-        tmpdir="$(mktemp -d)"
-        trap 'rm -rf "${tmpdir}"' EXIT INT TERM HUP
+        if [ -n "${state_dir}" ]; then
+            mkdir -p "${state_dir}"
+            workdir="${state_dir}"
+        else
+            workdir="$(mktemp -d)"
+            trap 'rm -rf "${workdir}"' EXIT INT TERM HUP
+        fi
     fi
 
     if [ "${sb}" -eq 1 ]; then
         setup_firmware "${arch}"
-        fw_vars="${tmpdir}/fw_vars.fd"
-        cp "${fw_vars_template}" "${fw_vars}"
+        fw_vars="${workdir}/fw_vars.fd"
+        # Reuse existing vars if present (allows persistent SB state across runs)
+        [ -f "${fw_vars}" ] || cp "${fw_vars_template}" "${fw_vars}"
         fw_flags="-drive if=pflash,format=raw,unit=0,readonly=on,file=${fw_code} -drive if=pflash,format=raw,unit=1,file=${fw_vars}"
     fi
 
     if [ "${tpm}" -eq 1 ]; then
         require swtpm "install the swtpm package"
-        tpm_sock="${tmpdir}/swtpm.sock"
+        tpm_sock="${workdir}/swtpm.sock"
         swtpm socket \
-            --tpmstate "dir=${tmpdir}" \
+            --tpmstate "dir=${workdir}" \
             --ctrl "type=unixio,path=${tpm_sock}" \
             --tpm2 --daemon
         tpm_dev="$(tpm_device_for_arch "${arch}")"
@@ -262,6 +355,8 @@ do_run() {
     else
         display_flags='-serial mon:stdio'
     fi
+
+    [ -n "${state_dir}" ] && say "State directory: ${BOLD}${state_dir}${RESET}"
 
     net_user="user,hostfwd=tcp::${ssh_port}-:22${extra_fwds}"
 
@@ -279,12 +374,16 @@ do_run() {
         ${tpm_flags} \
         ${display_flags} \
         "$@" >&2
+
+    [ -n "${state_dir}" ] && say "State saved to ${BOLD}${state_dir}${RESET}"
 }
 
 main() {
     case "${1:-}" in
         ssh)  shift; do_ssh "$@" ;;
         scp)  shift; do_scp "$@" ;;
+        vars) shift; do_vars "$@" ;;
+        tpm)  shift; do_tpm "$@" ;;
         *)    do_run "$@" ;;
     esac
 }
