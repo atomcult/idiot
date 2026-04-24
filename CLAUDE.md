@@ -15,6 +15,20 @@ make uninstall
 make purge      # uninstall + delete user data dirs
 ```
 
+## Git workflow
+
+- **Always commit after making changes.** Do not leave the working tree dirty.
+- **Use Conventional Commits** for all commit messages:
+  `<type>(<scope>): <description>`
+  Common types: `feat`, `fix`, `docs`, `refactor`, `chore`, `style`, `test`
+  Examples:
+  ```
+  feat(init): add iot() alias for all shells
+  fix(logo): use octal escapes for POSIX printf compatibility
+  docs: trim README to selling points
+  chore: add MIT LICENSE
+  ```
+
 ## Project layout
 
 ```

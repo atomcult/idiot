@@ -52,6 +52,12 @@ make purge    # uninstall + delete all user data
 
 ---
 
+## Contributing
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
+
+---
+
 ## License
 
 MIT © Lauren Brock
