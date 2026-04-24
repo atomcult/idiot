@@ -180,9 +180,9 @@ emit_unset() {
 }
 
 git() {
-    printf '%s' "${DIM}"
+    printf '%s' "${DIM}" >&2
     command git "$@"
-    printf '%s' "${RESET}"
+    printf '%s' "${RESET}" >&2
 }
 
 # Source a share/ module by name.
