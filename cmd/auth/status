@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # cmd/auth/status - show login status
-# Usage: idiot auth status
+# Usage: idiot auth status [--refresh]
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
@@ -23,13 +23,21 @@ map_permission() {
 }
 
 main() {
+    refresh=0
     case "${1:-}" in
-        -h|--help|help) help_heading "Usage:" "idiot auth status"; exit 0 ;;
+        -h|--help|help)
+            help_heading "Usage:" "idiot auth status [--refresh]"
+            echo >&2
+            help_option "--refresh" "Bypass cache and fetch fresh status"
+            exit 0 ;;
+        --refresh) refresh=1 ;;
     esac
     [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || { say "${DIM}Not logged in${RESET}"; exit 0; }
 
     if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
         whoami_cache="${IDIOT_CACHE_DIR}/whoami/${IDIOT_ACTIVE_CRED}"
+
+        [ "${refresh}" -eq 1 ] && rm -f "${whoami_cache}"
 
         if [ -f "${whoami_cache}" ]; then
             raw="$(cat "${whoami_cache}")"
