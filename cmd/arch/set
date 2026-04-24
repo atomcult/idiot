@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/arch/set - set the target architecture for store operations
+# cmd/arch/set - set the target architecture for store operations
 # Usage: idiot arch set [<architecture>]
 # Outputs: eval-able export statement
 
@@ -12,7 +12,7 @@ main() {
     arch="${1:-}"
 
     [ -n "${arch}" ] || {
-        command -v fzf > /dev/null 2>&1 || die "an architecture is required (fzf not found for interactive selection)"
+        require fzf "install fzf for interactive selection"
         arch=$(printf 'amd64\narm64\narmhf\ni386\nppc64el\nriscv64\ns390x\n' | fzf --prompt="arch> ") || exit 0
     }
 

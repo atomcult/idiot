@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/arch/status - show the current target architecture
+# cmd/arch/status - show the current target architecture
 # Usage: idiot arch status
 
 . "$(dirname "${0}")/../../lib/common.sh"

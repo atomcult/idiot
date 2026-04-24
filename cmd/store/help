@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/store/help - usage for the store subcommand group
+# cmd/store/help - usage for the store subcommand group
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

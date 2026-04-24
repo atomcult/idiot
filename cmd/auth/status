@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/auth/status - show login status
+# cmd/auth/status - show login status
 # Usage: idiot auth status
 
 . "$(dirname "${0}")/../../lib/common.sh"

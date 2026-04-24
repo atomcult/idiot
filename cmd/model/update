@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/models/update - clone or pull the canonical/models repository
+# cmd/model/update - clone or pull the canonical/models repository
 # Usage: idiot model update
 
 . "$(dirname "${0}")/../../lib/common.sh"

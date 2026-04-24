@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/models/help - usage for the models subcommand group
+# cmd/model/help - usage for the model subcommand group
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

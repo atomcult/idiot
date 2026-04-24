@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/auth/login - set store credential environment variables from a credential file
+# cmd/auth/login - set store credential environment variables from a credential file
 # Usage: idiot auth login [<name>]
 # Outputs: eval-able export statements
 
@@ -12,7 +12,7 @@ main() {
     name="${1:-}"
 
     [ -n "${name}" ] || {
-        command -v fzf > /dev/null 2>&1 || die "a credential name is required (fzf not found for interactive selection)"
+        require fzf "install fzf for interactive selection"
 
         mkdir -p "${IDIOT_AUTH_DIR}"
 

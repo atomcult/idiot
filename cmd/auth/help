@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/auth/help - usage for the creds subcommand group
+# cmd/auth/help - usage for the auth subcommand group
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

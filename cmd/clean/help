@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/prune/help - usage for the prune subcommand group
+# cmd/clean/help - usage for the clean subcommand group
 
 . "$(dirname "${0}")/../../lib/common.sh"
 

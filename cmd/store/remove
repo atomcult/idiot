@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/store/remove - remove a saved store
+# cmd/store/remove - remove a saved store
 # Usage: idiot store remove <name>
 
 . "$(dirname "${0}")/../../lib/common.sh"

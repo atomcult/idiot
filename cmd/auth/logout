@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/auth/logout - unset store credential environment variables
+# cmd/auth/logout - unset store credential environment variables
 # Usage: idiot auth logout
 # Outputs: eval-able unset statements
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/store/use - set UBUNTU_STORE_ID to the named store's ID
+# cmd/store/use - set UBUNTU_STORE_ID to the named store's ID
 # Usage: idiot store use [<name>]
 # Outputs: eval-able export statement
 
@@ -12,7 +12,7 @@ main() {
     name="${1:-}"
 
     [ -n "${name}" ] || {
-        command -v fzf > /dev/null 2>&1 || die "a store name is required (fzf not found for interactive selection)"
+        require fzf "install fzf for interactive selection"
 
         mkdir -p "${IDIOT_STORES_DIR}"
 

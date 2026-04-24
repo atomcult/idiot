@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/auth/export - print a credential file to stdout or write to a file
+# cmd/auth/export - print a credential file to stdout or write to a file
 # Usage: idiot auth export [<name>] [-f|--file <file>]
 
 . "$(dirname "${0}")/../../lib/common.sh"
@@ -33,7 +33,7 @@ main() {
     done
 
     [ -n "${name}" ] || {
-        command -v fzf > /dev/null 2>&1 || die "a credential name is required (fzf not found for interactive selection)"
+        require fzf "install fzf for interactive selection"
 
         mkdir -p "${IDIOT_AUTH_DIR}"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/store/status - show the current store ID
+# cmd/store/status - show the current store ID
 # Usage: idiot store status
 
 . "$(dirname "${0}")/../../lib/common.sh"

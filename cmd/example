@@ -113,8 +113,7 @@ do_remove() {
     esac
     name="${1:-}"
     [ -n "${name}" ] || {
-        command -v fzf > /dev/null 2>&1 \
-            || die "a name is required (fzf not found for interactive selection)"
+        require fzf "install fzf for interactive selection"
         [ -d "${IDIOT_EXAMPLES_DIR}" ] || die "no saved examples found"
         files=$(find "${IDIOT_EXAMPLES_DIR}" -maxdepth 1 -type f ! -name '.*' | sort \
             | sed "s|${IDIOT_EXAMPLES_DIR}/||")
@@ -151,8 +150,7 @@ do_drop() {
     esac
     name="${1:-}"
     [ -n "${name}" ] || {
-        command -v fzf > /dev/null 2>&1 \
-            || die "a name is required (fzf not found for interactive selection)"
+        require fzf "install fzf for interactive selection"
         [ -d "${EXAMPLES_CACHE}" ] || die "no cached examples found"
         entries=$(find "${EXAMPLES_CACHE}" -maxdepth 1 -mindepth 1 -type d | sort \
             | sed "s|${EXAMPLES_CACHE}/||")

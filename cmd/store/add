@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/store/add - save a Dedicated Snap Store ID under a human-readable name
+# cmd/store/add - save a Dedicated Snap Store ID under a human-readable name
 # Usage: idiot store add <name> <store-id>
 
 . "$(dirname "${0}")/../../lib/common.sh"

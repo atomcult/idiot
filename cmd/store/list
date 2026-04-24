@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/store/list - list saved stores and their IDs
+# cmd/store/list - list saved stores and their IDs
 # Usage: idiot store list
 
 . "$(dirname "${0}")/../../lib/common.sh"
@@ -27,7 +27,7 @@ main() {
         name="$(basename "${f}")"
         store_id="$(cat "${f}")"
         padded="$(printf "%-${max_len}s" "${name}")"
-        printf '  %s  %s\n' "${BOLD}${padded}${RESET}" "${store_id}" >&2
+        say "  ${BOLD}${padded}${RESET}  ${store_id}"
     done
 }
 main "$@"

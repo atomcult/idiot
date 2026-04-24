@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/env/arch/help - usage for the arch subcommand group
+# cmd/arch/help - usage for the arch subcommand group
 
 . "$(dirname "${0}")/../../lib/common.sh"
 
