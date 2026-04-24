@@ -194,3 +194,9 @@ file_preview_cmd() {
         printf 'cat "$%s/"{}\n' "${1}"
     fi
 }
+
+git() {
+    printf '%s' "${DIM}"
+    command git "$@"
+    printf '%s' "${RESET}"
+}

@@ -31,10 +31,16 @@ main() {
     doc_file="${docs_dir}/${name}"
     [ -f "${doc_file}" ] || die "doc '${name}' not found"
 
+    case "${doc_file}" in
+        *.md|*.MD)
+            exec "${IDIOT_ROOT}/lib/mdview" "${doc_file}"
+            ;;
+    esac
+
     if command -v batcat > /dev/null 2>&1; then
-        batcat --style=plain --paging=auto --language=markdown "${doc_file}"
+        batcat --style=plain --paging=auto "${doc_file}"
     elif command -v bat > /dev/null 2>&1; then
-        bat --style=plain --paging=auto --language=markdown "${doc_file}"
+        bat --style=plain --paging=auto "${doc_file}"
     elif command -v less > /dev/null 2>&1; then
         less "${doc_file}"
     else
