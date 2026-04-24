@@ -42,11 +42,6 @@ idiot_help() {
     help_heading "VM & device:"
     help_command "vm"      "Launch and connect to a QEMU VM"
     echo >&2
-    help_heading "Reference:"
-    help_command "docs"    "Browse and search IoT reference docs"
-    help_command "process" "Step-by-step process checklists"
-    help_command "todo"    "Manage per-project to-do lists"
-    echo >&2
     help_heading "Shell:"
     help_command "init"    "Set up shell integration"
     help_command "run"     "Run a snap-bundled tool directly"
