@@ -20,10 +20,10 @@ main() {
 
 	require unsquashfs
 
-	! unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >&2 ||
+	! unsquashfs -q -cat "${snap_file}" snap/snapcraft.yaml >&2 2>/dev/null ||
 		exit 0
 
-	unsquashfs -q -cat "${snap_file}" meta/snap.yaml >&2 ||
+	unsquashfs -q -cat "${snap_file}" meta/snap.yaml >&2 2>/dev/null ||
 		die "neither snap/snapcraft.yaml nor meta/snap.yaml found in ${snap_file}"
 }
 main "$@"
