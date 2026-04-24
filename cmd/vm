@@ -154,7 +154,7 @@ do_scp() {
 do_run() {
     arch=''
     image=''
-    sb=0
+    sb=1
     tpm=0
     no_gfx=1
     ssh_port=8022
@@ -171,7 +171,7 @@ do_run() {
                 echo >&2
                 help_heading "Options:"
                 help_option "--arch <arch>"       "Target architecture (default: host)"
-                help_option "--sb / --no-sb"      "Enable/disable UEFI secure boot"
+                help_option "--sb / --no-sb"      "Enable/disable UEFI secure boot (default: sb)"
                 help_option "--tpm / --no-tpm"    "Enable/disable TPM emulation"
                 help_option "--gfx / --no-gfx"    "Enable/disable display window (default: no-gfx)"
                 help_option "--ssh-port <port>"   "Host port forwarded to guest port 22 (default: 8022)"
