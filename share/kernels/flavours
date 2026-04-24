@@ -1,11 +1,17 @@
 # Ubuntu kernel flavours available on Launchpad
 # Format: <flavour>  <description>
-# Not all flavours exist for every series.
+# ~ubuntu-kernel team:
 generic        Standard kernel (x86-64, arm64)
 raspi          Raspberry Pi
+# ~canonical-kernel team:
 xilinx-zynqmp  Xilinx ZynqMP (AMD Kria)
-lowlatency     Low-latency
-hwe            Hardware enablement stack
+nvidia-tegra   NVIDIA Tegra SoC (Jetson)
+nvidia         NVIDIA
+oem            OEM
 aws            Amazon Web Services
 azure          Microsoft Azure
 gcp            Google Cloud Platform
+oracle         Oracle Cloud
+ibm            IBM POWER
+gke            Google Kubernetes Engine
+riscv          RISC-V

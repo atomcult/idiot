@@ -7,13 +7,14 @@ KERNEL_DATA="${IDIOT_DATA_DIR}/kernels"
 
 kernel_url() {
     _series="${1}"; _flavour="${2:-}"
-    if [ -z "${_flavour}" ] || [ "${_flavour}" = "generic" ]; then
-        printf 'https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/%s\n' \
-            "${_series}"
-    else
-        printf 'https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux-%s/+git/%s\n' \
-            "${_flavour}" "${_series}"
-    fi
+    # generic and raspi live under ~ubuntu-kernel; everything else is ~canonical-kernel
+    case "${_flavour}" in
+        ''|generic) _team="ubuntu-kernel";    _pkg="linux" ;;
+        raspi)      _team="ubuntu-kernel";    _pkg="linux-raspi" ;;
+        *)          _team="canonical-kernel"; _pkg="linux-${_flavour}" ;;
+    esac
+    printf 'https://git.launchpad.net/~%s/ubuntu/+source/%s/+git/%s\n' \
+        "${_team}" "${_pkg}" "${_series}"
 }
 
 _list_data() {
