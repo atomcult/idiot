@@ -26,10 +26,11 @@ main() {
             exit 0 ;;
     esac
 
-    say "${BOLD}idiot${RESET} ${version}"
+    say "${BOLD}idiot${RESET} — Interactive Devtools for IoT"
+    say "${DIM}${version}${RESET}"
     echo >&2
-    say "${CYAN}Authors${RESET}"
-    say "  Canonical Ltd."
+    say "${CYAN}Author${RESET}"
+    say "  Lauren Brock"
     echo >&2
     say "${CYAN}License${RESET}"
     say "  GPL-3.0-or-later"
