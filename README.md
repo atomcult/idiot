@@ -54,7 +54,12 @@ make purge    # uninstall + delete all user data
 
 ## Contributing
 
+```sh
+make hooks    # wire up git hooks (run once after cloning)
+```
+
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
+The `pre-commit` hook runs `make check`; `commit-msg` enforces the format.
 
 ---
 

@@ -36,6 +36,7 @@ else
     RESET=''
 fi
 
+# shellcheck disable=SC2034
 if [ -n "${IDIOT_NERD:-}" ]; then
     IDIOT_LOGO="${GREEN}${RESET}"
 else

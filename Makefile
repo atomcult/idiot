@@ -14,7 +14,11 @@ SHELL_FILES := idiot share/common.sh share/fzf.sh share/arch.sh share/creds.sh s
 
 LOG := printf '  \033[1;36m%-12s\033[0m %s\n'
 
-.PHONY: check fmt fmt-check install uninstall purge
+.PHONY: check fmt fmt-check hooks install uninstall purge
+
+hooks:
+	@$(LOG) "GIT" "core.hooksPath = .githooks"
+	@git config core.hooksPath .githooks
 
 check: fmt-check
 	@$(LOG) "SHELLCHECK" "idiot share/*.sh cmd/**"

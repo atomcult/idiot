@@ -8,6 +8,7 @@ shell. All user-visible output (progress, errors) goes to stderr.
 ## Commands
 
 ```sh
+make hooks      # configure git to use .githooks/ (run once after cloning)
 make check      # shfmt format-check + shellcheck (run before every commit)
 make fmt        # rewrite files to match shfmt style
 make install    # install to $PREFIX (default: ~/.local)

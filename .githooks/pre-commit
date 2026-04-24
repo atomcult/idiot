@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# .githooks/pre-commit - run shfmt format-check and shellcheck
+
+make check
