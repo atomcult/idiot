@@ -380,6 +380,7 @@ do_run() {
 
 main() {
     case "${1:-}" in
+        "")   do_run --help ;;
         ssh)  shift; do_ssh "$@" ;;
         scp)  shift; do_scp "$@" ;;
         vars) shift; do_vars "$@" ;;
