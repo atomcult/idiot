@@ -199,7 +199,7 @@ pairs = [(k.split(" ", 1)[0], k.split(" ", 1)[1]) for k in sorted(conns)]
 max_plug = max(len(plug) for plug, _ in pairs)
 for plug_side, slot_side in pairs:
     pad = max_plug - len(plug_side)
-    print(f"  {fmt_side(plug_side)}{' ' * pad}  {fmt_side(slot_side)}")
+    print(f"  {fmt_side(plug_side)}{' ' * pad}  {D}→{R}  {fmt_side(slot_side)}")
 PYEOF
 }
 
