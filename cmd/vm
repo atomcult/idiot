@@ -156,7 +156,7 @@ do_run() {
     image=''
     sb=0
     tpm=0
-    no_gfx=0
+    no_gfx=1
     ssh_port=8022
     extra_fwds=''
 
@@ -173,7 +173,7 @@ do_run() {
                 help_option "--arch <arch>"       "Target architecture (default: host)"
                 help_option "--sb / --no-sb"      "Enable/disable UEFI secure boot"
                 help_option "--tpm / --no-tpm"    "Enable/disable TPM emulation"
-                help_option "--no-gfx"            "Console-only output, no display window"
+                help_option "--gfx / --no-gfx"    "Enable/disable display window (default: no-gfx)"
                 help_option "--ssh-port <port>"   "Host port forwarded to guest port 22 (default: 8022)"
                 help_option "--port <host:guest>" "Additional port mapping (repeatable)"
                 exit 0 ;;
@@ -185,6 +185,7 @@ do_run() {
             --no-sb)   sb=0 ;;
             --tpm)     tpm=1 ;;
             --no-tpm)  tpm=0 ;;
+            --gfx)     no_gfx=0 ;;
             --no-gfx)  no_gfx=1 ;;
             --ssh-port)
                 [ -n "${2:-}" ] || die "--ssh-port requires an argument"
