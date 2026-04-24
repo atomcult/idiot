@@ -139,15 +139,6 @@ main() {
 
     url=$(kernel_url "${series}" "${flavour}")
 
-    if [ "${pick_branch}" -eq 1 ]; then
-        require fzf "install fzf for interactive selection"
-        say "Fetching branches from Launchpad..."
-        branch=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null \
-            | sed 's|.*refs/heads/||' | sort \
-            | fzf --prompt="branch> ") || exit 0
-        [ -n "${branch}" ] || exit 0
-    fi
-
     if [ -z "${dest}" ]; then
         if [ "${flavour}" = "generic" ]; then
             dest="linux-${series}"
@@ -159,21 +150,37 @@ main() {
     [ -e "${dest}" ] && die "destination '${dest}' already exists"
 
     if [ "${flavour}" = "generic" ]; then
+        say "Fetching branches for ${BOLD}linux${RESET} (${series})..."
+    else
+        say "Fetching branches for ${BOLD}linux-${flavour}${RESET} (${series})..."
+    fi
+    branches=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null \
+        | sed 's|.*refs/heads/||' | sort)
+    [ -n "${branches}" ] || die "repository not found — check series and flavour"
+
+    if [ -n "${branch}" ]; then
+        : # explicit --branch value, use as-is
+    elif [ "${pick_branch}" -eq 1 ]; then
+        require fzf "install fzf for interactive selection"
+        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
+        [ -n "${branch}" ] || exit 0
+    elif printf '%s\n' "${branches}" | grep -qx 'main-next'; then
+        branch="main-next"
+    elif printf '%s\n' "${branches}" | grep -qx 'master-next'; then
+        branch="master-next"
+    else
+        require fzf "install fzf for branch selection (neither main-next nor master-next found)"
+        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
+        [ -n "${branch}" ] || exit 0
+    fi
+
+    if [ "${flavour}" = "generic" ]; then
         say "Cloning ${BOLD}linux${RESET} (${series})..."
     else
         say "Cloning ${BOLD}linux-${flavour}${RESET} (${series})..."
     fi
-    if [ -n "${branch}" ]; then
-        GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "${branch}" "${url}" "${dest}" >&2 \
-            || die "clone failed"
-        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(${branch})${RESET}"
-    elif GIT_TERMINAL_PROMPT=0 git clone --quiet --branch main-next "${url}" "${dest}" 2>/dev/null; then
-        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(main-next)${RESET}"
-    else
-        say "Trying ${BOLD}master-next${RESET}..."
-        GIT_TERMINAL_PROMPT=0 git clone --quiet --branch master-next "${url}" "${dest}" 2>/dev/null \
-            || die "clone failed"
-        say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(master-next)${RESET}"
-    fi
+    GIT_TERMINAL_PROMPT=0 git clone --branch "${branch}" "${url}" "${dest}" >&2 \
+        || die "clone failed"
+    say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(${branch})${RESET}"
 }
 main "$@"
