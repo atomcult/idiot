@@ -73,8 +73,9 @@ main() {
 
     selection=$(
         printf '%s\n' "${files}" \
-        | fzf --prompt="${prompt}" \
-              --preview="${preview_cmd}"
+        | fzf \
+            --prompt="${prompt}" \
+            --preview="${preview_cmd}"
     ) || exit 0
 
     src="${IDIOT_MODELS_DIR}/${selection}"

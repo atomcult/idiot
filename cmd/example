@@ -120,8 +120,10 @@ do_remove() {
         [ -n "${files}" ] || die "no saved examples found"
         export IDIOT_EXAMPLES_DIR
         preview_cmd="$(file_preview_cmd IDIOT_EXAMPLES_DIR)"
-        name=$(printf '%s\n' "${files}" | fzf --prompt="remove example> " \
-            --preview="${preview_cmd}") || exit 0
+        name=$(printf '%s\n' "${files}" \
+            | fzf \
+                --prompt="remove example> " \
+                --preview="${preview_cmd}") || exit 0
     }
     alias_file="${IDIOT_EXAMPLES_DIR}/${name}"
     [ -f "${alias_file}" ] || {
@@ -202,6 +204,208 @@ do_update() {
     fi
 }
 
+# --- clone helpers ---
+
+# Parse clone arguments into globals: bare, dest, ref, subdir, pick_ref,
+# pick_subdir, repo.
+_parse_clone_args() {
+    bare=0
+    dest=""
+    ref=""
+    subdir=""
+    pick_ref=""
+    pick_subdir=0
+    repo=""
+
+    while [ $# -gt 0 ]; do
+        case "${1}" in
+            --bare)
+                bare=1; shift ;;
+            --dest)
+                [ -n "${2:-}" ] || die "--dest requires a directory argument"
+                dest="${2}"; shift 2 ;;
+            --dest=*)
+                dest="${1#--dest=}"; shift ;;
+            --branch)
+                [ -z "${ref}" ] && [ -z "${pick_ref}" ] \
+                    || die "--branch and --tag are mutually exclusive"
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    ref="${2}"; shift 2
+                else
+                    pick_ref="branch"; shift
+                fi ;;
+            --tag)
+                [ -z "${ref}" ] && [ -z "${pick_ref}" ] \
+                    || die "--branch and --tag are mutually exclusive"
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    ref="${2}"; shift 2
+                else
+                    pick_ref="tag"; shift
+                fi ;;
+            --subdir)
+                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                    subdir="${2}"; shift 2
+                else
+                    pick_subdir=1; shift
+                fi ;;
+            --*)
+                die "unknown option: ${1}" ;;
+            *)
+                [ -z "${repo}" ] || die "unexpected argument: ${1}"
+                repo="${1}"; shift ;;
+        esac
+    done
+
+    [ -n "${repo}" ] || die "usage: idiot example <repo> [options]"
+}
+
+# Set dest from subdir or repo_name if not already provided.
+_resolve_dest() {
+    [ -n "${dest}" ] && return
+    if [ -n "${subdir}" ]; then
+        dest="${subdir##*/}"
+    else
+        dest="${repo_name}"
+    fi
+}
+
+# Clone a saved example (alias) from the local mirror cache.
+_clone_from_cache() {
+    cpath=$(ensure_cached "${repo}" "${url}")
+
+    # Interactive ref picker (works offline from local mirror)
+    if [ -n "${pick_ref}" ]; then
+        require fzf "install fzf for interactive selection"
+        if [ "${pick_ref}" = "branch" ]; then
+            ref=$(git -C "${cpath}" branch | sed 's/^..//' | sort \
+                | fzf --prompt="branch> ") || exit 0
+        else
+            ref=$(git -C "${cpath}" tag | sort -V \
+                | fzf --prompt="tag> ") || exit 0
+        fi
+    fi
+
+    # Interactive subdir picker (also offline)
+    subdirs=""
+    if [ "${pick_subdir}" -eq 1 ]; then
+        require nnn "install nnn for interactive directory selection"
+        _nnn_tmp=$(mktemp -d)
+        _nnn_sel=$(mktemp)
+        trap '[ -d "${_nnn_tmp}" ] && rm -rf "${_nnn_tmp}"; rm -f "${_nnn_sel}"' EXIT INT TERM
+        git -C "${cpath}" ls-tree -r -d --name-only "${ref:-HEAD}" \
+            | while IFS= read -r dir; do mkdir -p "${_nnn_tmp}/${dir}"; done
+        nnn -R -p "${_nnn_sel}" "${_nnn_tmp}" >&2 || exit 0
+        [ -f "${_nnn_sel}" ] || exit 0
+        subdirs=$(while IFS= read -r _line; do
+            _line="${_line#"${_nnn_tmp}"}"; _line="${_line#/}"
+            [ -n "${_line}" ] && printf '%s\n' "${_line}"
+        done < "${_nnn_sel}")
+        rm -rf "${_nnn_tmp}"; rm -f "${_nnn_sel}"
+        trap - EXIT INT TERM
+        [ -n "${subdirs}" ] || exit 0
+        # collapse to single subdir if only one was selected
+        _nsel=$(printf '%s\n' "${subdirs}" | grep -c '.')
+        if [ "${_nsel}" -eq 1 ]; then
+            subdir="${subdirs}"; subdirs=""
+        fi
+        bare=1
+    fi
+
+    _resolve_dest
+
+    if [ "${bare}" -eq 1 ]; then
+        [ -e "${dest}" ] && die "destination '${dest}' already exists"
+        mkdir -p "${dest}"
+        if [ -n "${subdirs}" ]; then
+            printf '%s\n' "${subdirs}" | while IFS= read -r sd; do
+                [ -n "${sd}" ] || continue
+                sdbase="${sd##*/}"
+                git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${sd}" | grep -q '^' \
+                    || die "subdirectory '${sd}' not found"
+                strip=$(printf '%s' "${sd}" | awk -F/ '{print NF}')
+                mkdir -p "${dest}/${sdbase}"
+                git -C "${cpath}" archive "${ref:-HEAD}" -- "${sd}" \
+                    | tar -x --strip-components="${strip}" -C "${dest}/${sdbase}" \
+                    || die "extraction failed"
+                say "Extracted ${DIM}${sd}${RESET} → ${BOLD}${dest}/${sdbase}${RESET} ${DIM}(no git history)${RESET}"
+            done
+        elif [ -n "${subdir}" ]; then
+            git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${subdir}" | grep -q '^' \
+                || die "subdirectory '${subdir}' not found"
+            strip=$(printf '%s' "${subdir}" | awk -F/ '{print NF}')
+            git -C "${cpath}" archive "${ref:-HEAD}" -- "${subdir}" \
+                | tar -x --strip-components="${strip}" -C "${dest}" \
+                || die "extraction failed"
+            say "Extracted ${DIM}${subdir}${RESET} → ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+        else
+            git -C "${cpath}" archive "${ref:-HEAD}" \
+                | tar -x -C "${dest}" \
+                || die "extraction failed"
+            say "Extracted to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+        fi
+    else
+        # Local clone from mirror — fast, no network
+        set -- git clone
+        [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+        set -- "$@" "${cpath}" "${dest}"
+        say "Cloning ${BOLD}${repo}${RESET} from cache..."
+        "$@" >&2 || die "clone failed"
+        say "Cloned to ${BOLD}${dest}${RESET}"
+    fi
+}
+
+# Clone a direct <user>/<repo> slug or URI without caching.
+_clone_direct() {
+    [ "${pick_subdir}" -eq 1 ] \
+        && die "--subdir without a value requires a saved example name"
+
+    # Branch/tag pickers fall back to ls-remote (needs network)
+    if [ -n "${pick_ref}" ]; then
+        require fzf "install fzf for interactive selection"
+        say "Fetching refs from ${BOLD}${repo}${RESET}..."
+        if [ "${pick_ref}" = "branch" ]; then
+            ref=$(git ls-remote --heads "${url}" \
+                | sed 's|.*refs/heads/||' | sort \
+                | fzf --prompt="branch> ") || exit 0
+        else
+            ref=$(git ls-remote --tags "${url}" \
+                | sed 's|.*refs/tags/||' | grep -v '\^{}' | sort -V \
+                | fzf --prompt="tag> ") || exit 0
+        fi
+    fi
+
+    _resolve_dest
+
+    if [ "${bare}" -eq 1 ]; then
+        tmpdir=$(mktemp -d)
+        trap '[ -d "${tmpdir}" ] && rm -rf "${tmpdir}"' EXIT INT TERM
+        set -- git clone --depth 1
+        [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+        set -- "$@" "${url}" "${tmpdir}"
+        say "Cloning ${BOLD}${repo}${RESET}..."
+        "$@" >&2 || die "clone failed"
+        rm -rf "${tmpdir}/.git"
+        if [ -n "${subdir}" ]; then
+            src="${tmpdir}/${subdir}"
+            [ -d "${src}" ] || die "subdirectory '${subdir}' not found"
+            [ -e "${dest}" ] && die "destination '${dest}' already exists"
+            mv "${src}" "${dest}"
+            say "Extracted ${DIM}${subdir}${RESET} → ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+        else
+            [ -e "${dest}" ] && die "destination '${dest}' already exists"
+            mv "${tmpdir}" "${dest}"
+            say "Extracted to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
+        fi
+    else
+        set -- git clone
+        [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
+        set -- "$@" "${url}" "${dest}"
+        say "Cloning ${BOLD}${repo}${RESET}..."
+        "$@" >&2 || die "clone failed"
+        say "Cloned to ${BOLD}${dest}${RESET}"
+    fi
+}
+
 # --- main ---
 
 main() {
@@ -244,204 +448,15 @@ main() {
         update) shift; do_update "$@"; exit 0 ;;
     esac
 
-    bare=0
-    dest=""
-    ref=""
-    subdir=""
-    pick_ref=""
-    pick_subdir=0
-    repo=""
-
-    while [ $# -gt 0 ]; do
-        case "${1}" in
-            --bare)
-                bare=1; shift ;;
-            --dest)
-                [ -n "${2:-}" ] || die "--dest requires a directory argument"
-                dest="${2}"; shift 2 ;;
-            --dest=*)
-                dest="${1#--dest=}"; shift ;;
-            --branch)
-                [ -z "${ref}" ] && [ -z "${pick_ref}" ] || die "--branch and --tag are mutually exclusive"
-                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
-                    ref="${2}"; shift 2
-                else
-                    pick_ref="branch"; shift
-                fi ;;
-            --tag)
-                [ -z "${ref}" ] && [ -z "${pick_ref}" ] || die "--branch and --tag are mutually exclusive"
-                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
-                    ref="${2}"; shift 2
-                else
-                    pick_ref="tag"; shift
-                fi ;;
-            --subdir)
-                if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
-                    subdir="${2}"; shift 2
-                else
-                    pick_subdir=1; shift
-                fi ;;
-            --*)
-                die "unknown option: ${1}" ;;
-            *)
-                [ -z "${repo}" ] || die "unexpected argument: ${1}"
-                repo="${1}"; shift ;;
-        esac
-    done
-
-    [ -n "${repo}" ] || die "usage: idiot example <repo> [options]"
-
+    _parse_clone_args "$@"
     require git
-
     url=$(resolve_url "${repo}")
     repo_name="${repo##*/}"
-
-    # --subdir always produces a file-only extraction
     [ -n "${subdir}" ] && bare=1
 
     case "${repo}" in
-        *://*) is_alias=0 ;;
-        */*)   is_alias=0 ;;
-        *)     is_alias=1 ;;
+        *://*|*/*)  _clone_direct ;;
+        *)          _clone_from_cache ;;
     esac
-
-    if [ "${is_alias}" -eq 1 ]; then
-        # ----------------------------------------------------------------
-        # Saved example: use local mirror cache
-        # ----------------------------------------------------------------
-        cpath=$(ensure_cached "${repo}" "${url}")
-
-        # Interactive ref picker (works offline from local mirror)
-        if [ -n "${pick_ref}" ]; then
-            require fzf "install fzf for interactive selection"
-            if [ "${pick_ref}" = "branch" ]; then
-                ref=$(git -C "${cpath}" branch | sed 's/^..//' | sort \
-                    | fzf --prompt="branch> ") || exit 0
-            else
-                ref=$(git -C "${cpath}" tag | sort -V \
-                    | fzf --prompt="tag> ") || exit 0
-            fi
-        fi
-
-        # Interactive subdir picker (also offline)
-        subdirs=""
-        if [ "${pick_subdir}" -eq 1 ]; then
-            require nnn "install nnn for interactive directory selection"
-            _nnn_tmp=$(mktemp -d)
-            _nnn_sel=$(mktemp)
-            trap '[ -d "${_nnn_tmp}" ] && rm -rf "${_nnn_tmp}"; rm -f "${_nnn_sel}"' EXIT INT TERM
-            git -C "${cpath}" ls-tree -r -d --name-only "${ref:-HEAD}" \
-                | while IFS= read -r dir; do mkdir -p "${_nnn_tmp}/${dir}"; done
-            nnn -R -p "${_nnn_sel}" "${_nnn_tmp}" >&2 || exit 0
-            [ -f "${_nnn_sel}" ] || exit 0
-            subdirs=$(while IFS= read -r _line; do
-                _line="${_line#"${_nnn_tmp}"}"; _line="${_line#/}"
-                [ -n "${_line}" ] && printf '%s\n' "${_line}"
-            done < "${_nnn_sel}")
-            rm -rf "${_nnn_tmp}"; rm -f "${_nnn_sel}"
-            trap - EXIT INT TERM
-            [ -n "${subdirs}" ] || exit 0
-            # collapse to single subdir if only one was selected
-            _nsel=$(printf '%s\n' "${subdirs}" | grep -c '.')
-            if [ "${_nsel}" -eq 1 ]; then
-                subdir="${subdirs}"; subdirs=""
-            fi
-            bare=1
-        fi
-
-        [ -n "${dest}" ] || dest="${subdir:+${subdir##*/}}"; [ -n "${dest}" ] || dest="${repo_name}"
-
-        if [ "${bare}" -eq 1 ]; then
-            [ -e "${dest}" ] && die "destination '${dest}' already exists"
-            mkdir -p "${dest}"
-            if [ -n "${subdirs}" ]; then
-                printf '%s\n' "${subdirs}" | while IFS= read -r sd; do
-                    [ -n "${sd}" ] || continue
-                    sdbase="${sd##*/}"
-                    git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${sd}" | grep -q '^' \
-                        || die "subdirectory '${sd}' not found"
-                    strip=$(printf '%s' "${sd}" | awk -F/ '{print NF}')
-                    mkdir -p "${dest}/${sdbase}"
-                    git -C "${cpath}" archive "${ref:-HEAD}" -- "${sd}" \
-                        | tar -x --strip-components="${strip}" -C "${dest}/${sdbase}" \
-                        || die "extraction failed"
-                    say "Extracted ${DIM}${sd}${RESET} → ${BOLD}${dest}/${sdbase}${RESET} ${DIM}(no git history)${RESET}"
-                done
-            elif [ -n "${subdir}" ]; then
-                git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${subdir}" | grep -q '^' \
-                    || die "subdirectory '${subdir}' not found"
-                strip=$(printf '%s' "${subdir}" | awk -F/ '{print NF}')
-                git -C "${cpath}" archive "${ref:-HEAD}" -- "${subdir}" \
-                    | tar -x --strip-components="${strip}" -C "${dest}" \
-                    || die "extraction failed"
-                say "Extracted ${DIM}${subdir}${RESET} → ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
-            else
-                git -C "${cpath}" archive "${ref:-HEAD}" \
-                    | tar -x -C "${dest}" \
-                    || die "extraction failed"
-                say "Extracted to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
-            fi
-        else
-            # Local clone from mirror — fast, no network
-            set -- git clone
-            [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
-            set -- "$@" "${cpath}" "${dest}"
-            say "Cloning ${BOLD}${repo}${RESET} from cache..."
-            "$@" >&2 || die "clone failed"
-            say "Cloned to ${BOLD}${dest}${RESET}"
-        fi
-
-    else
-        # ----------------------------------------------------------------
-        # Direct <user>/<repo> slug: one-time clone, no caching
-        # ----------------------------------------------------------------
-        [ "${pick_subdir}" -eq 1 ] && die "--subdir without a value requires a saved example name"
-
-        # Branch/tag pickers fall back to ls-remote (needs network)
-        if [ -n "${pick_ref}" ]; then
-            require fzf "install fzf for interactive selection"
-            say "Fetching refs from ${BOLD}${repo}${RESET}..."
-            if [ "${pick_ref}" = "branch" ]; then
-                ref=$(git ls-remote --heads "${url}" \
-                    | sed 's|.*refs/heads/||' | sort \
-                    | fzf --prompt="branch> ") || exit 0
-            else
-                ref=$(git ls-remote --tags "${url}" \
-                    | sed 's|.*refs/tags/||' | grep -v '\^{}' | sort -V \
-                    | fzf --prompt="tag> ") || exit 0
-            fi
-        fi
-
-        [ -n "${dest}" ] || dest="${subdir:+${subdir##*/}}"; [ -n "${dest}" ] || dest="${repo_name}"
-
-        if [ "${bare}" -eq 1 ]; then
-            tmpdir=$(mktemp -d)
-            trap '[ -d "${tmpdir}" ] && rm -rf "${tmpdir}"' EXIT INT TERM
-            set -- git clone --depth 1
-            [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
-            set -- "$@" "${url}" "${tmpdir}"
-            say "Cloning ${BOLD}${repo}${RESET}..."
-            "$@" >&2 || die "clone failed"
-            rm -rf "${tmpdir}/.git"
-            if [ -n "${subdir}" ]; then
-                src="${tmpdir}/${subdir}"
-                [ -d "${src}" ] || die "subdirectory '${subdir}' not found"
-                [ -e "${dest}" ] && die "destination '${dest}' already exists"
-                mv "${src}" "${dest}"
-                say "Extracted ${DIM}${subdir}${RESET} → ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
-            else
-                [ -e "${dest}" ] && die "destination '${dest}' already exists"
-                mv "${tmpdir}" "${dest}"
-                say "Extracted to ${BOLD}${dest}${RESET} ${DIM}(no git history)${RESET}"
-            fi
-        else
-            set -- git clone
-            [ -n "${ref}" ] && set -- "$@" --branch "${ref}"
-            set -- "$@" "${url}" "${dest}"
-            say "Cloning ${BOLD}${repo}${RESET}..."
-            "$@" >&2 || die "clone failed"
-            say "Cloned to ${BOLD}${dest}${RESET}"
-        fi
-    fi
 }
 main "$@"

@@ -42,6 +42,45 @@ _pick_from() {
         | fzf --prompt="${_pf_prompt}" | awk '{print $1}'
 }
 
+# Compute the human-readable kernel package label for progress messages.
+_kernel_label() {
+    if [ "${flavour}" = "generic" ]; then
+        printf 'linux'
+    else
+        printf 'linux-%s' "${flavour}"
+    fi
+}
+
+# Compute the default clone destination directory name.
+_default_dest() {
+    if [ "${flavour}" = "generic" ]; then
+        printf 'linux-%s' "${series}"
+    else
+        printf 'linux-%s-%s' "${flavour}" "${series}"
+    fi
+}
+
+# Resolve the branch to clone, prompting interactively when needed.
+# Reads globals: pick_branch, branch, branches. Sets: branch.
+_resolve_branch() {
+    if [ -n "${branch}" ]; then
+        : # explicit --branch value, use as-is
+    elif [ "${pick_branch}" -eq 1 ]; then
+        require fzf "install fzf for interactive selection"
+        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
+        [ -n "${branch}" ] || exit 0
+    elif printf '%s\n' "${branches}" | grep -qx 'main-next'; then
+        branch="main-next"
+    elif printf '%s\n' "${branches}" | grep -qx 'master-next'; then
+        branch="master-next"
+    else
+        require fzf \
+            "install fzf for branch selection (neither main-next nor master-next found)"
+        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
+        [ -n "${branch}" ] || exit 0
+    fi
+}
+
 main() {
     case "${1:-}" in
         ""|--help|-h|help)
@@ -71,6 +110,7 @@ main() {
             exit 0 ;;
     esac
 
+    # Parse arguments
     series=""
     pick_series=0
     flavour=""
@@ -126,6 +166,7 @@ main() {
 
     require git
 
+    # Resolve series and flavour
     if [ -z "${series}" ]; then
         series=$(_pick_from "${KERNEL_DATA}/series" "series> ") || exit 0
         [ -n "${series}" ] || exit 0
@@ -138,47 +179,21 @@ main() {
     [ -n "${flavour}" ] || flavour="generic"
 
     url=$(kernel_url "${series}" "${flavour}")
-
-    if [ -z "${dest}" ]; then
-        if [ "${flavour}" = "generic" ]; then
-            dest="linux-${series}"
-        else
-            dest="linux-${flavour}-${series}"
-        fi
-    fi
-
+    [ -n "${dest}" ] || dest="$(_default_dest)"
     [ -e "${dest}" ] && die "destination '${dest}' already exists"
 
-    if [ "${flavour}" = "generic" ]; then
-        say "Fetching branches for ${BOLD}linux${RESET} (${series})..."
-    else
-        say "Fetching branches for ${BOLD}linux-${flavour}${RESET} (${series})..."
-    fi
+    # Fetch remote branch list
+    _label="$(_kernel_label)"
+    say "Fetching branches for ${BOLD}${_label}${RESET} (${series})..."
     branches=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null \
         | sed 's|.*refs/heads/||' | sort)
     [ -n "${branches}" ] || die "repository not found — check series and flavour"
 
-    if [ -n "${branch}" ]; then
-        : # explicit --branch value, use as-is
-    elif [ "${pick_branch}" -eq 1 ]; then
-        require fzf "install fzf for interactive selection"
-        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
-        [ -n "${branch}" ] || exit 0
-    elif printf '%s\n' "${branches}" | grep -qx 'main-next'; then
-        branch="main-next"
-    elif printf '%s\n' "${branches}" | grep -qx 'master-next'; then
-        branch="master-next"
-    else
-        require fzf "install fzf for branch selection (neither main-next nor master-next found)"
-        branch=$(printf '%s\n' "${branches}" | fzf --prompt="branch> ") || exit 0
-        [ -n "${branch}" ] || exit 0
-    fi
+    # Resolve branch
+    _resolve_branch
 
-    if [ "${flavour}" = "generic" ]; then
-        say "Cloning ${BOLD}linux${RESET} (${series})..."
-    else
-        say "Cloning ${BOLD}linux-${flavour}${RESET} (${series})..."
-    fi
+    # Clone
+    say "Cloning ${BOLD}${_label}${RESET} (${series})..."
     GIT_TERMINAL_PROMPT=0 git clone --branch "${branch}" "${url}" "${dest}" >&2 \
         || die "clone failed"
     say "Cloned to ${BOLD}${dest}${RESET} ${DIM}(${branch})${RESET}"

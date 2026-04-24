@@ -257,6 +257,64 @@ do_tpm() {
         --flags not-need-init,startup-clear
 }
 
+# Sets machine_flags and kvm_flags for the active arch.
+_build_machine_flags() {
+    case "${arch}" in
+        amd64|i386)
+            machine_flags='-machine q35 -global ICH9-LPC.disable_s3=1' ;;
+        arm64|armhf|riscv64)
+            machine_flags='-machine virt' ;;
+        *)
+            machine_flags='' ;;
+    esac
+
+    kvm_flags=''
+    if [ "${arch}" = "$(host_arch)" ] && [ -e /dev/kvm ]; then
+        kvm_flags='-enable-kvm -cpu host'
+    fi
+}
+
+# Creates or reuses a working directory for firmware/TPM state.
+# Sets workdir; installs a cleanup trap when using a temporary directory.
+_setup_workdir() {
+    if [ -n "${state_dir}" ]; then
+        mkdir -p "${state_dir}"
+        workdir="${state_dir}"
+    else
+        workdir="$(mktemp -d)"
+        trap 'rm -rf "${workdir}"' EXIT INT TERM HUP
+    fi
+}
+
+# Sets fw_flags for UEFI secure boot. No-ops when sb=0.
+_build_fw_flags() {
+    fw_flags=''
+    [ "${sb}" -eq 1 ] || return
+    setup_firmware "${arch}"
+    fw_vars="${workdir}/fw_vars.fd"
+    # Reuse existing vars if present (allows persistent SB state across runs)
+    [ -f "${fw_vars}" ] || cp "${fw_vars_template}" "${fw_vars}"
+    fw_flags="-drive if=pflash,format=raw,unit=0,readonly=on,file=${fw_code}"
+    fw_flags="${fw_flags} -drive if=pflash,format=raw,unit=1,file=${fw_vars}"
+}
+
+# Sets tpm_flags and starts a background swtpm daemon. No-ops when tpm=0.
+_build_tpm_flags() {
+    tpm_flags=''
+    [ "${tpm}" -eq 1 ] || return
+    require swtpm "install the swtpm package"
+    tpm_sock="${workdir}/swtpm.sock"
+    swtpm socket \
+        --tpmstate "dir=${workdir}" \
+        --ctrl "type=unixio,path=${tpm_sock}" \
+        --tpm2 \
+        --daemon
+    tpm_dev="$(tpm_device_for_arch "${arch}")"
+    tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock}"
+    tpm_flags="${tpm_flags} -tpmdev emulator,id=tpm0,chardev=chrtpm"
+    tpm_flags="${tpm_flags} -device ${tpm_dev},tpmdev=tpm0"
+}
+
 do_run() {
     arch=''
     image=''
@@ -267,6 +325,7 @@ do_run() {
     extra_fwds=''
     state_dir=''
 
+    # Parse arguments
     while [ $# -gt 0 ]; do
         case "${1}" in
             -h|--help|help)
@@ -324,68 +383,31 @@ do_run() {
         shift
     done
 
-    [ -n "${image}" ] || die "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] [--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] <image> [-- <qemu-args>]"
+    [ -n "${image}" ] || die \
+        "usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] \
+[--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] <image> [-- <qemu-args>]"
     [ -f "${image}" ] || die "image not found: ${image}"
-
     [ -n "${arch}" ] || arch="$(host_arch)"
-
     qemu_bin="qemu-system-$(arch_to_qemu "${arch}")"
     require "${qemu_bin}"
 
-    case "${arch}" in
-        amd64|i386)
-            machine_flags='-machine q35 -global ICH9-LPC.disable_s3=1' ;;
-        arm64|armhf|riscv64)
-            machine_flags='-machine virt' ;;
-        *)
-            machine_flags='' ;;
-    esac
+    # Assemble machine and KVM flags
+    _build_machine_flags
 
-    kvm_flags=''
-    if [ "${arch}" = "$(host_arch)" ] && [ -e /dev/kvm ]; then
-        kvm_flags='-enable-kvm -cpu host'
-    fi
-
-    fw_flags=''
-    tpm_flags=''
-
+    # Set up working directory for firmware/TPM state files
     if [ "${sb}" -eq 1 ] || [ "${tpm}" -eq 1 ]; then
-        if [ -n "${state_dir}" ]; then
-            mkdir -p "${state_dir}"
-            workdir="${state_dir}"
-        else
-            workdir="$(mktemp -d)"
-            trap 'rm -rf "${workdir}"' EXIT INT TERM HUP
-        fi
+        _setup_workdir
     fi
 
-    if [ "${sb}" -eq 1 ]; then
-        setup_firmware "${arch}"
-        fw_vars="${workdir}/fw_vars.fd"
-        # Reuse existing vars if present (allows persistent SB state across runs)
-        [ -f "${fw_vars}" ] || cp "${fw_vars_template}" "${fw_vars}"
-        fw_flags="-drive if=pflash,format=raw,unit=0,readonly=on,file=${fw_code} -drive if=pflash,format=raw,unit=1,file=${fw_vars}"
-    fi
+    # Build firmware and TPM flags
+    _build_fw_flags
+    _build_tpm_flags
 
-    if [ "${tpm}" -eq 1 ]; then
-        require swtpm "install the swtpm package"
-        tpm_sock="${workdir}/swtpm.sock"
-        swtpm socket \
-            --tpmstate "dir=${workdir}" \
-            --ctrl "type=unixio,path=${tpm_sock}" \
-            --tpm2 --daemon
-        tpm_dev="$(tpm_device_for_arch "${arch}")"
-        tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock} -tpmdev emulator,id=tpm0,chardev=chrtpm -device ${tpm_dev},tpmdev=tpm0"
-    fi
-
-    if [ "${no_gfx}" -eq 1 ]; then
-        display_flags='-nographic'
-    else
-        display_flags='-serial mon:stdio'
-    fi
+    [ "${no_gfx}" -eq 1 ] \
+        && display_flags='-nographic' \
+        || display_flags='-serial mon:stdio'
 
     [ -n "${state_dir}" ] && say "State directory: ${BOLD}${state_dir}${RESET}"
-
     net_user="user,hostfwd=tcp::${ssh_port}-:22${extra_fwds}"
 
     # shellcheck disable=SC2086
