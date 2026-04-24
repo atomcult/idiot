@@ -28,6 +28,7 @@ idiot_help() {
     help_heading "Usage:" "idiot <command> [args...]"
     echo >&2
     help_heading "Store & environment:"
+    help_command "status"  "Show current environment at a glance"
     help_command "auth"    "Manage snap store credentials"
     help_command "store"   "Select which snap store to use"
     help_command "arch"    "Set the target build architecture"
@@ -76,6 +77,9 @@ main() {
             ;;
         -V|--version|version)
             exec "${IDIOT_CMD_DIR}/version" "$@"
+            ;;
+        status)
+            exec "${IDIOT_CMD_DIR}/status" "$@"
             ;;
         *)
             cmd_file="${IDIOT_CMD_DIR}/${cmd}"
