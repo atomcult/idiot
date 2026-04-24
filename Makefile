@@ -32,12 +32,12 @@ fmt-check:
 	@shfmt -d $(SHELL_FILES) || { printf '  \033[1;33m%-12s\033[0m %s\n' "HINT" "run: make fmt"; exit 1; }
 
 install:
+	@$(LOG) "VERSION" "$(VERSION)"
 	@$(LOG) "MKDIR" "$(LIBDIR)"
 	@install -d '$(LIBDIR)' '$(BINDIR)'
 	@$(LOG) "COPY" "cmd lib -> $(LIBDIR)/"
 	@rm -rf '$(LIBDIR)/cmd' '$(LIBDIR)/share'
 	@cp -rp cmd share '$(LIBDIR)/'
-	@$(LOG) "VERSION" "$(VERSION)"
 	@printf '%s\n' '$(VERSION)' > '$(LIBDIR)/share/version'
 	@$(LOG) "INSTALL" "$(LIBDIR)/idiot"
 	@install -m755 idiot '$(LIBDIR)/idiot'
