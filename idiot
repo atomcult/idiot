@@ -59,6 +59,20 @@ idiot_help() {
 	say "Run ${DIM}idiot <command> help${RESET} for subcommand details."
 }
 
+_increment_count() {
+	mkdir -p "${IDIOT_CACHE_DIR}"
+	_ic=0
+	_ic_file="${IDIOT_CACHE_DIR}/invoke-count"
+	if [ -f "${_ic_file}" ]; then
+		_ic="$(cat "${_ic_file}" 2>/dev/null || :)"
+		case "${_ic}" in
+		'' | *[!0-9]*) _ic=0 ;;
+		esac
+	fi
+	printf '%s\n' "$((_ic + 1))" >"${_ic_file}"
+	unset _ic _ic_file
+}
+
 main() {
 	while [ $# -gt 0 ]; do
 		case "${1}" in
@@ -79,17 +93,23 @@ main() {
 		exec "${IDIOT_CMD_DIR}/version" "$@"
 		;;
 	status)
+		_increment_count
 		exec "${IDIOT_CMD_DIR}/status" "$@"
 		;;
 	*)
 		cmd_file="${IDIOT_CMD_DIR}/${cmd}"
 		if [ -d "${cmd_file}" ]; then
+			case "${1:-}" in
+			"" | -h | --help | help) ;;
+			*) _increment_count ;;
+			esac
 			dispatch_subcmd "${cmd}" "${cmd_file}" "$@"
 		elif [ -x "${cmd_file}" ]; then
 			case "${cmd}" in
 			init) exec "${cmd_file}" "$@" ;;
 			*)
 				[ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+				_increment_count
 				exec "${cmd_file}" "$@"
 				;;
 			esac

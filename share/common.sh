@@ -36,11 +36,41 @@ else
     RESET=''
 fi
 
+# Resolve IDIOT_LOGO from invoke count, or Nerd Fonts glyph when IDIOT_NERD=1.
 # shellcheck disable=SC2034
 if [ -n "${IDIOT_NERD:-}" ]; then
     IDIOT_LOGO="${GREEN}${RESET}"
 else
-    IDIOT_LOGO='🌱'
+    _idiot_count=0
+    _idiot_count_file="${IDIOT_CACHE_DIR}/invoke-count"
+    if [ -f "${_idiot_count_file}" ]; then
+        _idiot_count="$(cat "${_idiot_count_file}" 2>/dev/null || :)"
+        case "${_idiot_count}" in
+        '' | *[!0-9]*) _idiot_count=0 ;;
+        esac
+    fi
+    if [ "${_idiot_count}" -ge 10000 ]; then
+        IDIOT_LOGO='🌌'
+    elif [ "${_idiot_count}" -ge 5000 ]; then
+        IDIOT_LOGO='🪐'
+    elif [ "${_idiot_count}" -ge 2500 ]; then
+        IDIOT_LOGO='☀️'
+    elif [ "${_idiot_count}" -ge 1000 ]; then
+        IDIOT_LOGO='🌍'
+    elif [ "${_idiot_count}" -ge 500 ]; then
+        IDIOT_LOGO='🌲'
+    elif [ "${_idiot_count}" -ge 200 ]; then
+        IDIOT_LOGO='🌳'
+    elif [ "${_idiot_count}" -ge 75 ]; then
+        IDIOT_LOGO='🌿'
+    elif [ "${_idiot_count}" -ge 25 ]; then
+        IDIOT_LOGO='🌱'
+    elif [ "${_idiot_count}" -ge 10 ]; then
+        IDIOT_LOGO='🥚'
+    else
+        IDIOT_LOGO='💀'
+    fi
+    unset _idiot_count _idiot_count_file
 fi
 
 # Display output goes to stderr — it bypasses eval in the shell wrapper and
