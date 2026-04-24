@@ -119,6 +119,18 @@ do_remove() {
 }
 
 do_drop() {
+    case "${1:-}" in
+        --all)
+            [ -d "${EXAMPLES_CACHE}" ] || die "no cached examples found"
+            entries=$(find "${EXAMPLES_CACHE}" -maxdepth 1 -mindepth 1 -type d | sort)
+            [ -n "${entries}" ] || die "no cached examples found"
+            printf '%s\n' "${entries}" | while IFS= read -r path; do
+                name="$(basename "${path}")"
+                rm -rf "${path}"
+                say "Dropped cache for ${BOLD}${name}${RESET}"
+            done
+            return ;;
+    esac
     name="${1:-}"
     [ -n "${name}" ] || {
         command -v fzf > /dev/null 2>&1 \
@@ -195,7 +207,7 @@ main() {
             help_command "list"   "List examples  (✓ before URL = locally cached)"
             help_command "add"    "Save a new example"
             help_command "remove" "Remove a saved example"
-            help_command "drop"   "Delete a cached example mirror"
+            help_command "drop"   "Delete a cached example mirror (--all to clear cache)"
             help_command "update" "Refresh cached example(s) from remote"
             echo >&2
             help_heading "Examples:"
