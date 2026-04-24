@@ -20,10 +20,8 @@ kernel_url() {
 _list_data() {
     _ld_file="${1}"; _ld_col="${2:-20}"
     [ -f "${_ld_file}" ] || die "data file not found: ${_ld_file}"
-    while IFS= read -r _ld_line; do
-        case "${_ld_line}" in ''|'#'*) continue ;; esac
-        _ld_name="${_ld_line%% *}"
-        _ld_rest="${_ld_line#* }"
+    while read -r _ld_name _ld_rest; do
+        case "${_ld_name}" in ''|'#'*) continue ;; esac
         _ld_gap=$(( _ld_col - ${#_ld_name} ))
         [ "${_ld_gap}" -lt 2 ] && _ld_gap=2
         say "  ${CYAN}${_ld_name}${RESET}$(printf '%*s' "${_ld_gap}" '')${DIM}${_ld_rest}${RESET}"
