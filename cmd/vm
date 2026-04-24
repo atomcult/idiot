@@ -139,8 +139,12 @@ do_scp() {
                 help_heading "Options:"
                 help_option "--port <port>" "SCP port on the host (default: 8022)"
                 echo >&2
-                say "The Launchpad username is used as the SSH user."
-                say "Set it with: ${CYAN}eval \"\$(idiot lp set <username>)\"${RESET}"
+                say "Use ${BOLD}vm:${RESET} as an alias for the guest host. The Launchpad username"
+                say "is used as the SSH user (set with ${CYAN}idiot lp set${RESET})."
+                echo >&2
+                help_heading "Examples:"
+                say "  ${CYAN}idiot vm scp${RESET} ./gadget.snap ${BOLD}vm${RESET}:/home/user/"
+                say "  ${CYAN}idiot vm scp${RESET} ${BOLD}vm${RESET}:/var/log/syslog ."
                 exit 0 ;;
             --) shift; break ;;
             --port)
@@ -156,6 +160,16 @@ do_scp() {
 
     lp_user="${IDIOT_LP_USER:-$(cat "${IDIOT_LP_USER_FILE}" 2>/dev/null || true)}"
     [ -n "${lp_user}" ] || die "no Launchpad username set — run: eval \"\$(idiot lp set <username>)\""
+
+    # Rewrite vm: → localhost: in all path arguments
+    _orig=$#
+    for _arg in "$@"; do
+        case "${_arg}" in
+            vm:*) set -- "$@" "localhost:${_arg#vm:}" ;;
+            *)    set -- "$@" "${_arg}" ;;
+        esac
+    done
+    shift "${_orig}"
 
     exec scp \
         -P "${port}" \
