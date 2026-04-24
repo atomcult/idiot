@@ -93,7 +93,6 @@ main() {
 		exec "${IDIOT_CMD_DIR}/version" "$@"
 		;;
 	status)
-		_increment_count
 		exec "${IDIOT_CMD_DIR}/status" "$@"
 		;;
 	*)
