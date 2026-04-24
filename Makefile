@@ -1,14 +1,18 @@
 .POSIX:
 
-PREFIX   ?= $(HOME)/.local
-BINDIR    = $(PREFIX)/bin
-LIBDIR    = $(PREFIX)/lib/idiot
+PREFIX    ?= $(HOME)/.local
+BINDIR     = $(PREFIX)/bin
+LIBDIR     = $(PREFIX)/lib/idiot
+DATA_HOME ?= $(HOME)/.local/share
+CACHE_HOME ?= $(HOME)/.cache
+USER_DIR   = $(DATA_HOME)/idiot
+CACHE_DIR  = $(CACHE_HOME)/idiot
 
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
 
 SHELL_FILES := idiot lib/common.sh $(shell find cmd -type f)
 
-.PHONY: check fmt fmt-check install uninstall
+.PHONY: check fmt fmt-check install uninstall purge
 
 check: fmt-check
 	@rc=0; \
@@ -35,3 +39,6 @@ install:
 uninstall:
 	rm -rf '$(LIBDIR)'
 	rm -f '$(BINDIR)/idiot'
+
+purge: uninstall
+	rm -rf '$(USER_DIR)' '$(CACHE_DIR)'
