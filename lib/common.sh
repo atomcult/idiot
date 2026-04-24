@@ -20,9 +20,6 @@ IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/share}"
 # Launchpad username file
 IDIOT_LP_USER_FILE="${IDIOT_LP_USER_FILE:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/lp-user}"
 
-# Per-user todo lists directory
-IDIOT_TODO_DIR="${IDIOT_TODO_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/todo}"
-
 # User-defined example repo aliases (supplements bundled share/examples/)
 IDIOT_EXAMPLES_DIR="${IDIOT_EXAMPLES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/examples}"
 
