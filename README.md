@@ -1,8 +1,8 @@
 # 🌱 idiot
 
-**Interactive Devtools for IoT** — a shell environment manager for Snap Store
-development. Switch credentials, stores, and architectures with a single
-command; everything takes effect in your current shell session.
+**Interactive Devtools for IoT** — a shell environment manager and introspection
+tool for Snap and Core development. Switch credentials, stores, and architectures
+with a single command; everything takes effect in your current shell session.
 
 ```
 $ idiot store use staging
