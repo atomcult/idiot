@@ -77,7 +77,7 @@ Commands that write eval-able output add an `# Outputs:` line after that:
 #!/usr/bin/env sh
 # cmd/arch/set - set the target architecture for store operations
 # Usage: idiot arch set [<architecture>]
-# Outputs: eval-able export statement
+# Outputs: eval-able export statements (via the eval file)
 ```
 
 When more context is essential (e.g. `cmd/init`), additional comment lines
@@ -277,16 +277,18 @@ Blank lines between sections use `echo >&2`, never `say ""`.
 
 ## Output discipline
 
-All user-visible text goes to **stderr** so it reaches the terminal directly
-without being eval'd by the shell wrapper.
+Messages, progress and errors go to **stderr**. **stdout** carries only data
+the user asked a command to print, so it stays usable in pipes. Environment
+changes go to neither: they are queued in the eval file.
 
 | Situation | How to output |
 |---|---|
 | Message to the user | `say "text"` |
 | Blank line | `echo >&2` |
 | Error + exit | `die "message"` |
-| Eval-able env change | `printf 'export VAR=%s\n' "$(shell_quote "${val}")"` to **stdout** |
-| Eval-able env unset | `emit_unset VARNAME` to **stdout** |
+| Data output (`auth export`, `version --short`) | `printf`/`cat` to **stdout** |
+| Eval-able env change | `emit_export VAR "${val}"` to the **eval file** |
+| Eval-able env unset | `emit_unset VARNAME` to the **eval file** |
 
 Never use bare `printf ... >&2` for user messages — use `say`. The only
 legitimate `printf` to stderr calls are inside helpers in `lib/common.sh`
@@ -296,18 +298,29 @@ itself.
 
 ## Eval-able output
 
-Commands that modify the shell environment write to **stdout** only. The shell
-wrapper (`idiot()` function installed by `idiot init`) evals this output so
-changes take effect in the current shell session.
+The shell wrapper (`idiot()` function installed by `idiot init`) runs each
+command with `IDIOT_EVAL_FILE` set to a fresh 0600 temp file, sources that
+file when the command exits, and deletes it. Commands that modify the shell
+environment append their statements there through two helpers, never by
+writing to stdout.
+
+**Guard first.** Call `require_wrapper` right after help handling, before
+any side effect (writing files, prompting), so an outdated wrapper — one that
+still evals stdout and sets no `IDIOT_EVAL_FILE` — changes nothing:
+
+```sh
+	esac
+	require_wrapper
+```
 
 **Setting a variable:**
 
 ```sh
-printf 'export UBUNTU_STORE_ID=%s\n' "$(shell_quote "${store_id}")"
+emit_export UBUNTU_STORE_ID "${store_id}"
 ```
 
-Always use `shell_quote` for values — credentials, paths, and names can
-contain characters that would break unquoted eval.
+`emit_export` single-quotes the value with `shell_quote`, so credentials,
+paths and names with spaces, quotes or `$` round-trip literally.
 
 **Unsetting a variable:**
 
@@ -315,11 +328,13 @@ contain characters that would break unquoted eval.
 emit_unset UBUNTU_STORE_ID
 ```
 
-`emit_unset` in `lib/common.sh` emits `unset VAR` for bash/zsh and
+`emit_unset` in `share/common.sh` writes `unset VAR` for bash/zsh and
 `set --erase VAR` for fish, keyed on `$IDIOT_SHELL`.
 
-Commands that only display information (no env changes) produce no stdout
-output at all.
+`share/common.sh` also sets `trap 'exit 130' INT`: a command killed by
+SIGINT would make the shell abort the wrapper before it cleans up. A command
+that installs its own INT trap must still end by exiting, not by
+re-raising the signal.
 
 ---
 
@@ -453,7 +468,9 @@ display-only and cannot modify the shell environment.
 | `die` | `die "message"` | Print error to stderr and exit 1 |
 | `require` | `require cmd ["hint"]` | Die if `cmd` not in PATH |
 | `shell_quote` | `shell_quote "${val}"` | POSIX single-quote escaping for eval |
-| `emit_unset` | `emit_unset VARNAME` | Write shell-appropriate unset to stdout |
+| `require_wrapper` | `require_wrapper` | Die unless `IDIOT_EVAL_FILE` is usable (call before side effects) |
+| `emit_export` | `emit_export VARNAME "${val}"` | Queue a quoted export in the eval file |
+| `emit_unset` | `emit_unset VARNAME` | Queue a shell-appropriate unset in the eval file |
 | `snap_app` | `snap_app cmd [args...]` | Run snap-bundled or system binary |
 | `file_preview_cmd` | `file_preview_cmd VARNAME` | Return fzf `--preview` string for a directory |
 | `help_heading` | `help_heading "Label:" ["text"]` | Section heading |

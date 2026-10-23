@@ -11,9 +11,11 @@ context: |
   Architecture: `idiot` dispatches to executable files under `cmd/` (one file
   per leaf command, directories for groups, `help` files for group usage);
   `share/*.sh` are sourced helper modules (`include module.sh`). A shell
-  function installed by `idiot init <bash|zsh|fish>` evals what the command
-  writes to stdout, so stdout carries only eval-able export/unset statements;
-  everything user-visible goes to stderr. Shipped via `make install` (~/.local)
+  function installed by `idiot init <bash|zsh|fish>` passes each command a
+  private eval file (`IDIOT_EVAL_FILE`) and sources it afterwards; commands
+  queue export/unset statements there with `emit_export`/`emit_unset`.
+  stdout is plain data output and is never eval'd; messages and errors go to
+  stderr. Shipped via `make install` (~/.local)
   and as a snap (snap/snapcraft.yaml, core24).
 
   Stack: POSIX sh only (no bashisms), fzf for pickers, git, python3 for small
@@ -31,7 +33,7 @@ context: |
 
 rules:
   proposal:
-    - State whether the change alters what any command writes to stdout (the eval contract)
+    - State whether the change alters what any command writes to stdout or queues in the eval file
     - Call out new runtime dependencies and whether the snap must stage them
   design:
     - Keep the POSIX sh core; justify any non-shell component (e.g. a Rust helper) explicitly

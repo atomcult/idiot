@@ -1,9 +1,11 @@
 # idiot
 
-Shell environment manager for Snap Store development. Commands output
-eval-able `export`/`unset` statements to stdout; the shell wrapper function
-captures and evals them so environment changes take effect in the current
-shell. All user-visible output (progress, errors) goes to stderr.
+Shell environment manager for Snap Store development. The shell wrapper
+function (from `idiot init`) runs each command with `IDIOT_EVAL_FILE`
+pointing at a private temp file; commands append `export`/`unset` statements
+there and the wrapper sources it, so environment changes take effect in the
+current shell. stdout is ordinary data output (never eval'd); messages,
+progress and errors go to stderr.
 
 ## Commands
 
@@ -93,15 +95,18 @@ because `include` itself is not available yet.
 | User messages | `say "text"` → stderr |
 | Blank lines | `echo >&2` |
 | Errors + exit | `die "message"` |
-| Export an env var | `printf 'export VAR=%s\n' "$(shell_quote "${val}")"` → stdout |
-| Unset an env var | `emit_unset VARNAME` → stdout (fish-aware) |
+| Export an env var | `emit_export VAR "${val}"` → eval file (quoted for you) |
+| Unset an env var | `emit_unset VARNAME` → eval file (fish-aware) |
+| Data the user asked for | plain `printf`/`cat` → stdout |
 
-**Never** write display output to stdout. The shell wrapper evals everything
-on stdout; stray output breaks the user's shell session.
+Commands that change the environment call `require_wrapper` right after
+their help handling, before any side effect: it refuses to run under an
+outdated wrapper (one without `IDIOT_EVAL_FILE`).
 
-**Always** use `shell_quote` when building export statements. Bare variable
-expansion in printf format strings breaks on values with spaces or special
-characters.
+**Never** write `export`/`unset` statements to stdout, and never write
+messages there: stdout is for data the command was asked to print
+(`auth export`, `version --short`, child tools under `idiot run`), so it
+must stay clean for pipes.
 
 ## Shell dialect
 
@@ -120,7 +125,9 @@ die "message"                   # say error + exit 1
 require cmd ["install hint"]    # die unless cmd is in PATH
 include module.sh               # source share/<module.sh> via IDIOT_ROOT
 shell_quote "${val}"            # POSIX single-quote escape for eval-safe output
-emit_unset VARNAME              # unset (bash/zsh) or set --erase (fish)
+require_wrapper                 # die unless IDIOT_EVAL_FILE is usable
+emit_export VARNAME "${val}"    # queue a quoted export in the eval file
+emit_unset VARNAME              # queue unset (bash/zsh) or set --erase (fish)
 snap_app cmd [args]             # run cmd, resolving into $SNAP/bin if in snap
 dispatch_subcmd name dir [args] # exec cmd/<group>/<subcommand>
 ```

@@ -20,5 +20,5 @@
 
 ## 4. Documentation
 
-- [ ] 4.1 Update CLAUDE.md ("How it works", output-discipline table) and STYLE.md ("Output discipline", "Eval-able output", helpers reference) to describe the eval file and `emit_export`/`require_wrapper`; update README "How it works"; verify no doc still says stdout is eval'd (`grep -rn "stdout" CLAUDE.md STYLE.md README.md`)
-- [ ] 4.2 Run `make check` and commit (`docs: describe the eval file contract`)
+- [x] 4.1 Update CLAUDE.md ("How it works", output-discipline table) and STYLE.md ("Output discipline", "Eval-able output", helpers reference) to describe the eval file and `emit_export`/`require_wrapper`; update README "How it works"; verify no doc still says stdout is eval'd (`grep -rn "stdout" CLAUDE.md STYLE.md README.md`)
+- [x] 4.2 Run `make check` and commit (`docs: describe the eval file contract`)

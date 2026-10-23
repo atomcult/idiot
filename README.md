@@ -36,9 +36,16 @@ The `iot` shorthand is also available.
 
 ## How it works
 
-`idiot` commands output shell code to stdout. The shell wrapper eval's that
-output so environment changes land in your current shell, not a subprocess.
-All user-visible output goes to stderr and is never eval'd.
+The shell wrapper hands each `idiot` command a private temp file; commands
+that change your environment write `export`/`unset` lines there, and the
+wrapper sources the file afterwards, so the changes land in your current
+shell, not a subprocess. Nothing a command prints is ever eval'd: stdout and
+stderr reach your terminal or pipe as-is (`idiot auth export work | …`,
+`idiot run …`).
+
+After upgrading from a version that eval'd stdout, reload the integration
+once in already-open shells (`eval "$(idiot init bash)"`); idiot tells you
+when it's needed.
 
 ---
 
