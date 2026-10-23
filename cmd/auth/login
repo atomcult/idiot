@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/auth/login - set store credential environment variables from a credential file
 # Usage: idiot auth login [<name>]
-# Outputs: eval-able export statements
+# Outputs: eval-able export statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
 include creds.sh
@@ -14,6 +14,7 @@ main() {
 		exit 0
 		;;
 	esac
+	require_wrapper
 	name="${1:-}"
 
 	[ -n "${name}" ] || {
@@ -31,8 +32,8 @@ main() {
 	require_cred "${name}"
 	cred_file="${IDIOT_AUTH_DIR}/${name}"
 	contents="$(cat "${cred_file}")"
-	printf 'export UBUNTU_STORE_AUTH=%s\n' "$(shell_quote "${contents}")"
-	printf 'export SNAPCRAFT_STORE_CREDENTIALS=%s\n' "$(shell_quote "${contents}")"
-	printf 'export IDIOT_ACTIVE_CRED=%s\n' "$(shell_quote "${name}")"
+	emit_export UBUNTU_STORE_AUTH "${contents}"
+	emit_export SNAPCRAFT_STORE_CREDENTIALS "${contents}"
+	emit_export IDIOT_ACTIVE_CRED "${name}"
 }
 main "$@"

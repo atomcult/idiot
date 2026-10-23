@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/auth/logout - unset store credential environment variables
 # Usage: idiot auth logout
-# Outputs: eval-able unset statements
+# Outputs: eval-able unset statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
 
@@ -12,6 +12,7 @@ main() {
 		exit 0
 		;;
 	esac
+	require_wrapper
 	emit_unset SNAPCRAFT_STORE_CREDENTIALS
 	emit_unset UBUNTU_STORE_AUTH
 	emit_unset IDIOT_ACTIVE_CRED

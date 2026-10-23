@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/arch/set - set the target architecture for store operations
 # Usage: idiot arch set [<architecture>]
-# Outputs: eval-able export statement
+# Outputs: eval-able export statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
 
@@ -12,6 +12,7 @@ main() {
 		exit 0
 		;;
 	esac
+	require_wrapper
 	arch="${1:-}"
 
 	[ -n "${arch}" ] || {
@@ -21,7 +22,7 @@ main() {
 
 	case "${arch}" in
 	amd64 | arm64 | armhf | i386 | ppc64el | riscv64 | s390x)
-		printf 'export UBUNTU_STORE_ARCH=%s\n' "$(shell_quote "${arch}")"
+		emit_export UBUNTU_STORE_ARCH "${arch}"
 		;;
 	*) die "invalid architecture: '${arch}' (valid: amd64, arm64, armhf, i386, ppc64el, riscv64, s390x)" ;;
 	esac

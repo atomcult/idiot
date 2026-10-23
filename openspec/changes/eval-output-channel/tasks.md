@@ -8,9 +8,9 @@
 
 ## 2. Env-setting commands
 
-- [ ] 2.1 Switch `auth login/logout`, `store use/unset`, `arch set/unset` and `lp set/unset` to `require_wrapper` + `emit_export`/`emit_unset`; verify each through the new wrapper in bash and fish, and verify that with `IDIOT_SHELL` set but `IDIOT_EVAL_FILE` unset `idiot store use <name>` fails with the re-run-init hint and changes nothing
-- [ ] 2.2 Grep `cmd/` and `share/` for remaining `printf 'export` and confirm none is left
-- [ ] 2.3 Run `make check` and commit (`refactor: write exports to the eval file`)
+- [x] 2.1 Switch `auth login/logout`, `store use/unset`, `arch set/unset` and `lp set/unset` to `require_wrapper` + `emit_export`/`emit_unset`; verify each through the new wrapper in bash and fish, and verify that with `IDIOT_SHELL` set but `IDIOT_EVAL_FILE` unset `idiot store use <name>` fails with the re-run-init hint and changes nothing
+- [x] 2.2 Grep `cmd/` and `share/` for remaining `printf 'export` and confirm none is left
+- [x] 2.3 Run `make check` and commit (`refactor: write exports to the eval file`)
 
 ## 3. Printing commands use stdout
 

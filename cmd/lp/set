@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/lp/set - save Launchpad username
 # Usage: idiot lp set [<username>]
-# Outputs: eval-able export statement
+# Outputs: eval-able export statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
 include lp.sh
@@ -13,6 +13,7 @@ main() {
 		exit 0
 		;;
 	esac
+	require_wrapper
 	username="${1:-}"
 
 	[ -n "${username}" ] || {
@@ -24,6 +25,6 @@ main() {
 
 	mkdir -p "$(dirname "${IDIOT_LP_USER_FILE}")"
 	printf '%s\n' "${username}" >"${IDIOT_LP_USER_FILE}"
-	printf 'export IDIOT_LP_USER=%s\n' "$(shell_quote "${username}")"
+	emit_export IDIOT_LP_USER "${username}"
 }
 main "$@"

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/lp/unset - clear the saved Launchpad username
 # Usage: idiot lp unset
-# Outputs: eval-able unset statement
+# Outputs: eval-able unset statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
 include lp.sh
@@ -13,6 +13,7 @@ main() {
 		exit 0
 		;;
 	esac
+	require_wrapper
 	rm -f "${IDIOT_LP_USER_FILE}"
 	emit_unset IDIOT_LP_USER
 }

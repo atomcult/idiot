@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/store/unset - unset UBUNTU_STORE_ID
 # Usage: idiot store unset
-# Outputs: eval-able unset statement
+# Outputs: eval-able unset statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
 
@@ -12,6 +12,7 @@ main() {
 		exit 0
 		;;
 	esac
+	require_wrapper
 	emit_unset UBUNTU_STORE_ID
 }
 main "$@"

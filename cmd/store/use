@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/store/use - set UBUNTU_STORE_ID to the named store's ID
 # Usage: idiot store use [<name>]
-# Outputs: eval-able export statement
+# Outputs: eval-able export statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
 include stores.sh
@@ -14,6 +14,7 @@ main() {
 		exit 0
 		;;
 	esac
+	require_wrapper
 	name="${1:-}"
 
 	[ -n "${name}" ] || {
@@ -28,6 +29,6 @@ main() {
 	store_file="${IDIOT_STORES_DIR}/${name}"
 
 	store_id="$(cat "${store_file}")"
-	printf 'export UBUNTU_STORE_ID=%s\n' "$(shell_quote "${store_id}")"
+	emit_export UBUNTU_STORE_ID "${store_id}"
 }
 main "$@"
