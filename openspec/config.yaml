@@ -1,0 +1,41 @@
+schema: spec-driven
+
+context: |
+  idiot ("Interactive Devtools for IoT") is a shell environment manager and
+  introspection tool for Snap Store and Ubuntu Core development. It switches
+  store credentials, dedicated stores, target arch and Launchpad identity in
+  the user's current shell, and wraps day-to-day tasks: cloning kernels and
+  examples, picking model assertions, inspecting Core images and snaps,
+  launching QEMU VMs (secure boot, swtpm), cleaning build leftovers.
+
+  Architecture: `idiot` dispatches to executable files under `cmd/` (one file
+  per leaf command, directories for groups, `help` files for group usage);
+  `share/*.sh` are sourced helper modules (`include module.sh`). A shell
+  function installed by `idiot init <bash|zsh|fish>` evals what the command
+  writes to stdout, so stdout carries only eval-able export/unset statements;
+  everything user-visible goes to stderr. Shipped via `make install` (~/.local)
+  and as a snap (snap/snapcraft.yaml, core24).
+
+  Stack: POSIX sh only (no bashisms), fzf for pickers, git, python3 for small
+  JSON/binary parsing, standard Ubuntu tools (sfdisk, debugfs, mtools, qemu,
+  swtpm). User state follows XDG (~/.local/share/idiot, ~/.cache/idiot).
+
+  Conventions: CLAUDE.md (layout, output discipline, helpers) and STYLE.md
+  (naming, formatting, error phrasing) are authoritative; read them before
+  designing or implementing. `make check` (shfmt + shellcheck) must pass.
+  Conventional Commits, enforced by .githooks/commit-msg.
+
+  Related prototype: ~/work/idiot-v2 is a Rust implementation of the Snap
+  Store macaroon login (login.ubuntu.com discharge) and whoami, intended to
+  replace idiot's dependency on `snapcraft export-login`/`snapcraft whoami`.
+
+rules:
+  proposal:
+    - State whether the change alters what any command writes to stdout (the eval contract)
+    - Call out new runtime dependencies and whether the snap must stage them
+  design:
+    - Keep the POSIX sh core; justify any non-shell component (e.g. a Rust helper) explicitly
+    - Credentials must never be printed to the terminal, eval'd, logged, or written with group/world permissions
+  tasks:
+    - Include running `make check` as a task
+    - One Conventional Commit per logical task group

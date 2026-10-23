@@ -16,6 +16,15 @@ make uninstall
 make purge      # uninstall + delete user data dirs
 ```
 
+## Spec-driven changes (OpenSpec)
+
+Non-trivial changes go through OpenSpec: propose with the `openspec-propose`
+skill, implement with `openspec-apply-change`, then `openspec-archive-change`
+(explore ideas first with `openspec-explore`). Changes live in
+`openspec/changes/<name>/`; accepted behaviour in `openspec/specs/`. Project
+context and artifact rules are in `openspec/config.yaml`. Check with
+`openspec validate --all`.
+
 ## Git workflow
 
 - **Always commit after making changes.** Do not leave the working tree dirty.
