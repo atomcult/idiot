@@ -14,9 +14,9 @@
 
 ## 3. Printing commands use stdout
 
-- [ ] 3.1 `cmd/run` needs no code change (the tool already inherits stdout; only the wrapper used to capture it); verify `idiot run cat <file containing "touch /tmp/pwned">` prints the line and does not create the file, and `idiot run --shell` is interactive
-- [ ] 3.2 `cmd/auth/export` (no `-f`), `cmd/model/pick -o -` and `cmd/version --short` write to stdout; verify `idiot auth export <name> | wc -c` matches the credential's size and prints nothing else, and `idiot version --short > v && cat v` shows the version
-- [ ] 3.3 Run `make check` and commit (`fix: print data output on stdout`)
+- [x] 3.1 `cmd/run` needs no code change (the tool already inherits stdout; only the wrapper used to capture it); verify `idiot run cat <file containing "touch /tmp/pwned">` prints the line and does not create the file, and `idiot run --shell` is interactive
+- [x] 3.2 `cmd/auth/export` (no `-f`), `cmd/model/pick -o -` and `cmd/version --short` write to stdout; verify `idiot auth export <name> | wc -c` matches the credential's size and prints nothing else, and `idiot version --short > v && cat v` shows the version
+- [x] 3.3 Run `make check` and commit (`fix: print data output on stdout`)
 
 ## 4. Documentation
 

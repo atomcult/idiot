@@ -23,7 +23,7 @@ main() {
 
 	case "${1:-}" in
 	--short)
-		say "${version}"
+		printf '%s\n' "${version}"
 		exit 0
 		;;
 	esac

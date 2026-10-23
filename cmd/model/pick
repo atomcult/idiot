@@ -83,7 +83,7 @@ main() {
 	src="${IDIOT_MODELS_DIR}/${selection}"
 
 	if [ "${output}" = "-" ]; then
-		say "$(cat "${src}")"
+		cat "${src}"
 	elif [ -n "${output}" ]; then
 		cp "${src}" "${output}"
 		say "Saved '${BOLD}${selection}${RESET}' → '${BOLD}${output}${RESET}'"
