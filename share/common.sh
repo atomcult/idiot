@@ -2,6 +2,10 @@
 # share/common.sh - shared helpers for idiot subcommands
 # Source this file; do not execute directly.
 
+# Exit normally on Ctrl-C. A command killed by SIGINT makes bash, zsh and fish
+# abort the calling wrapper function before it cleans up its eval file.
+trap 'exit 130' INT
+
 # Cache directory
 IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
 
@@ -202,13 +206,29 @@ snap_app() {
     fi
 }
 
-# Emit a shell-appropriate unset statement for a variable.
-# Fish uses "set -e VAR"; bash/zsh use "unset VAR".
+# Die unless the shell wrapper handed us a writable eval file. Commands that
+# change the environment call this before doing anything else, so an outdated
+# wrapper (one that still evals stdout) changes nothing.
+require_wrapper() {
+    [ -n "${IDIOT_EVAL_FILE:-}" ] && [ -f "${IDIOT_EVAL_FILE}" ] &&
+        [ -w "${IDIOT_EVAL_FILE}" ] ||
+        die "shell integration is out of date — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+}
+
+# Queue an export of $1=$2 for the shell wrapper to evaluate.
+emit_export() {
+    require_wrapper
+    printf 'export %s=%s\n' "${1}" "$(shell_quote "${2}")" >>"${IDIOT_EVAL_FILE}"
+}
+
+# Queue a shell-appropriate unset of $1 for the shell wrapper to evaluate.
+# Fish uses "set --erase VAR"; bash/zsh use "unset VAR".
 emit_unset() {
+    require_wrapper
     if [ "${IDIOT_SHELL:-}" = "fish" ]; then
-        printf 'set --erase %s\n' "${1}"
+        printf 'set --erase %s\n' "${1}" >>"${IDIOT_EVAL_FILE}"
     else
-        printf 'unset %s\n' "${1}"
+        printf 'unset %s\n' "${1}" >>"${IDIOT_EVAL_FILE}"
     fi
 }
 

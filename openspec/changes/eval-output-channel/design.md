@@ -66,10 +66,14 @@ the file in env-setting commands only (not in printing commands) keeps
 
 - [Credential briefly on disk] → tmpfs location, 0600, deleted immediately;
   same exposure as the existing credential files, which already live on disk.
-- [Interrupted wrapper leaves a file] → bash/zsh: `trap` inside the function
-  is awkward, so delete before returning on every path and accept that a
-  SIGKILL of the parent shell can leave a 0600 file in the runtime dir
-  (cleared at logout). Fish: same.
+- [Interrupted wrapper leaves a file] → tested: when the command dies from
+  SIGINT, bash and fish abort the wrapper function before its cleanup; when
+  the command catches INT and exits 130, the function carries on. So
+  `share/common.sh` sets `trap 'exit 130' INT` for every command, and the
+  wrapper also deletes a leftover file from an earlier call (tracked in a
+  global `_idiot_ef`) before starting a new one. A SIGKILL'd command or
+  parent shell can still leave a 0600 file in the runtime dir until the next
+  call or logout.
 - [Users in long-lived shells] → the outdated-wrapper error tells them the
   one command to run.
 

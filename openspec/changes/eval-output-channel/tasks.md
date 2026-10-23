@@ -2,9 +2,9 @@
 
 ## 1. Eval file plumbing
 
-- [ ] 1.1 Add `emit_export` and `require_wrapper` to `share/common.sh` and make `emit_unset` append to `"${IDIOT_EVAL_FILE}"`; verify with a sh snippet that sources common.sh, sets `IDIOT_EVAL_FILE` to a temp file, and checks the file holds `export X='a b'\''c'` and `unset Y`
-- [ ] 1.2 Rewrite the bash/zsh and fish wrappers in `cmd/init` to create the file with `mktemp`, pass it in `IDIOT_EVAL_FILE`, source it, delete it on every path, and return the command's status; verify in bash and fish that `idiot arch set arm64` sets the variable, `idiot arch set bogus` returns 1, and no `idiot` temp files remain afterwards
-- [ ] 1.3 Run `make check` and commit (`feat(init)!: evaluate a private file instead of stdout`)
+- [x] 1.1 Add `emit_export` and `require_wrapper` to `share/common.sh` and make `emit_unset` append to `"${IDIOT_EVAL_FILE}"`; verify with a sh snippet that sources common.sh, sets `IDIOT_EVAL_FILE` to a temp file, and checks the file holds `export X='a b'\''c'` and `unset Y`
+- [x] 1.2 Rewrite the bash/zsh and fish wrappers in `cmd/init` to create the file with `mktemp`, pass it in `IDIOT_EVAL_FILE`, source it, delete it on every path, and return the command's status; verify in bash and fish that `idiot arch set arm64` sets the variable, `idiot arch set bogus` returns 1, and no `idiot` temp files remain afterwards
+- [x] 1.3 Run `make check` and commit (`feat(init)!: evaluate a private file instead of stdout`)
 
 ## 2. Env-setting commands
 
