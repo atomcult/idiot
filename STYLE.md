@@ -25,17 +25,24 @@ Target 80 characters. Hard limit 100 — no line should exceed it except:
   error messages with embedded quotes, heredoc bodies)
 - `# shellcheck disable` pragmas
 
-When a command invocation or condition would push past the limit, break it with
-a trailing `\` and indent the continuation by four spaces:
+When a command invocation or condition would push past the limit, break it
+after the operator (`|`, `||`, `&&`) or with a trailing `\`, and indent the
+continuation one level. shfmt enforces this (`binary_next_line = false`, so
+operators end the line rather than start the next one):
 
 ```sh
-GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null \
-    | sed 's|.*refs/heads/||' \
-    | sort
+GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${url}" 2>/dev/null |
+	sed 's|.*refs/heads/||' | sort
 
-[ -n "${name}" ] && [ -n "${store_id}" ] \
-    || die "usage: idiot store add <name> <store-id>"
+[ -n "${name}" ] && [ -n "${store_id}" ] ||
+	die "usage: idiot store add <name> <store-id>"
 ```
+
+## Indentation
+
+shfmt decides, via `.editorconfig`: files ending in `.sh` (the `share/`
+modules) use 4 spaces; `idiot` and everything under `cmd/` (no extension)
+use tabs. Run `make fmt` rather than indenting by hand.
 
 Multi-option `fzf` calls always use one flag per line:
 
@@ -85,17 +92,17 @@ follow the header block before the first blank line.
 
 ---
 
-## Sourcing `lib/common.sh`
+## Sourcing `share/common.sh`
 
-Every command sources `lib/common.sh` immediately after the header, using a
+Every command sources `share/common.sh` immediately after the header, using a
 path relative to its own location:
 
 ```sh
 # One level deep (cmd/<command>):
-. "$(dirname "${0}")/../lib/common.sh"
+. "$(dirname "${0}")/../share/common.sh"
 
 # Two levels deep (cmd/<group>/<subcommand>):
-. "$(dirname "${0}")/../../lib/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 ```
 
 ---
@@ -119,7 +126,7 @@ Bad (restates the code):
 git clone "${url}" "${dest}"
 ```
 
-**Function headers in `lib/common.sh`** use a short prose description followed
+**Function headers in `share/common.sh`** use a short prose description followed
 by `# $N:` lines for each parameter when the argument contract is not obvious
 from the name alone:
 
@@ -161,11 +168,20 @@ Every script wraps its logic in `main()` and calls it at the end of the file:
 
 ```sh
 main() {
-    set -eu
-    ...
+	case "${1:-}" in
+	-h | --help | help)
+		...
+		exit 0
+		;;
+	esac
+	...
 }
 main "$@"
 ```
+
+Commands do not use `set -e`/`set -u`: failures are handled explicitly with
+`|| die`. The `idiot` dispatcher is the one exception (`set -e` at the top);
+it does little more than locate and `exec` the command.
 
 ### `main()` should read as a high-level narrative
 
@@ -262,7 +278,7 @@ main "$@"
 
 ### Help formatting functions
 
-All help output goes through the helpers in `lib/common.sh`:
+All help output goes through the helpers in `share/common.sh`:
 
 | Function | Purpose | Column width |
 |---|---|---|
@@ -291,7 +307,7 @@ changes go to neither: they are queued in the eval file.
 | Eval-able env unset | `emit_unset VARNAME` to the **eval file** |
 
 Never use bare `printf ... >&2` for user messages — use `say`. The only
-legitimate `printf` to stderr calls are inside helpers in `lib/common.sh`
+legitimate `printf` to stderr calls are inside helpers in `share/common.sh`
 itself.
 
 ---
@@ -385,7 +401,7 @@ value is known safe.
 
 ## Colors
 
-Color variables are defined in `lib/common.sh` and are empty strings when
+Color variables are defined in `share/common.sh` and are empty strings when
 output is not a TTY or `NO_COLOR` is set. Never hardcode ANSI escape sequences
 — always use the variables.
 
@@ -437,13 +453,14 @@ cmd/                Command implementations
   <group>/          Command group (directory)
     help            Required: usage text for the group
     <subcommand>    Leaf subcommand (executable file)
-lib/                Shared libraries (sourced, not executed)
+share/              Sourced helper modules and bundled read-only data
   common.sh         Core helpers — every command sources this
-share/              Bundled read-only data (keyed by data type)
+  <module>.sh       Topic helpers, loaded with `include <module>.sh`
+  examples/ …       Bundled data (keyed by data type)
 ```
 
 Every command group directory **must** have a `help` executable. The
-`dispatch_subcmd` router in `lib/common.sh` calls it when the user runs
+`dispatch_subcmd` router in `share/common.sh` calls it when the user runs
 `idiot <group>` with no arguments or with `help`/`-h`/`--help`.
 
 ---
@@ -460,7 +477,7 @@ display-only and cannot modify the shell environment.
 
 ---
 
-## `lib/common.sh` helpers reference
+## `share/common.sh` helpers reference
 
 | Helper | Signature | Notes |
 |---|---|---|

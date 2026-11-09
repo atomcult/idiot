@@ -48,9 +48,12 @@ idiot            # main dispatcher; sets IDIOT_ROOT, sources share/common.sh
 cmd/             # one file per leaf command; dirs for subcommand groups
 share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
-                 #   dispatch_subcmd, snap_app, git(), emit_unset, shell_quote
+                 #   dispatch_subcmd, snap_app, git(), shell_quote,
+                 #   require_wrapper, emit_export, emit_unset
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu()
-  creds.sh       # IDIOT_AUTH_DIR, require_cred/no_cred, whoami_cache_path
+  clean.sh       # clean_list_*/clean_remove_*, clean_show, clean_confirm
+  creds.sh       # IDIOT_AUTH_DIR, validate_cred_name, ensure_auth_dir,
+                 #   require_cred/no_cred, whoami_cache_path
   examples.sh    # IDIOT_EXAMPLES_DIR, resolve_example_url
   fzf.sh         # file_preview_cmd, fzf_pick_from_dir
   lp.sh          # IDIOT_LP_USER_FILE, lp_user_value, require_lp_user
@@ -112,10 +115,15 @@ must stay clean for pipes.
 
 POSIX `sh` only — no bashisms. Specifically:
 - No `[[`, `local`, `$'...'`, process substitution `<(...)`, or `(( ))`
-- No `set -e` at the top of files
+- No `set -e` in commands or modules (handle failures with `|| die`); the
+  `idiot` dispatcher alone has `set -e`
 - Always double-quote expansions: `"${VAR}"`, not `$VAR`
 - Use `${VAR:-}` for optional variables to avoid unbound-variable errors
-- 4-space indent; enforced by shfmt (`.editorconfig` carries the config)
+- Indentation is shfmt's call (`make fmt`): 4 spaces in `share/*.sh`
+  (`.editorconfig`), tabs in `idiot` and `cmd/*` (no extension, shfmt's
+  default)
+- `die` inside `$(…)` only exits the command substitution: write
+  `var=$(helper_that_may_die) || exit 1`
 
 ## Key helpers (from share/common.sh)
 
