@@ -63,13 +63,18 @@ not copied). Existing files are left alone; the migration is a one-off
   would need maintaining.
 - `setup_firmware` takes `sb`: secure-boot paths as today; non-SB paths
   `OVMF_CODE_4M.fd`/`OVMF_VARS_4M.fd`, `AAVMF_CODE.no-secboot.fd` (falling
-  back to `AAVMF_CODE.fd`, then `qemu-efi-aarch64/QEMU_EFI.fd`)/
-  `AAVMF_VARS.fd`, `AAVMF32_CODE.fd`/`AAVMF32_VARS.fd`, and the riscv64
-  files. `_build_fw_flags` then always runs on non-x86 arches; on amd64
-  `--no-sb` keeps QEMU's default BIOS as today.
-- swtpm is started with `--pid file="${workdir}/swtpm.pid"` and the
-  existing EXIT/INT/TERM/HUP trap kills that pid before removing the
-  workdir; with `--state-dir` a trap is installed for the kill alone.
+  back to `AAVMF_CODE.fd`)/`AAVMF_VARS.fd`, `AAVMF32_CODE.fd`/
+  `AAVMF32_VARS.fd`, and the riscv64 files. `qemu-efi-aarch64/QEMU_EFI.fd`
+  is not a fallback: it is 2 MiB, and the virt machine needs 64 MiB pflash
+  images. Firmware is used for `--no-sb` on amd64 too (as the spec
+  requires; Ubuntu Core images need UEFI); only i386 keeps QEMU's BIOS.
+- swtpm is started with `--pid file="${workdir}/swtpm.pid"`; an EXIT trap
+  (`_cleanup`, installed with or without `--state-dir`) kills that pid and
+  removes a temporary workdir, and INT/TERM/HUP traps turn signals into
+  exits so it runs. A failed swtpm start now dies (it was ignored, and
+  QEMU then failed too); the usual cause is a socket path over the 107-byte
+  UNIX limit with a long `--state-dir`. `vm` exits with QEMU's status (it
+  used to exit 1 after a normal run without `--state-dir`).
 
 ### clean asks on the terminal
 The prompt reads from `/dev/tty` (stdin may be a pipe, and the wrapper

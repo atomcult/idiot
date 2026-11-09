@@ -14,10 +14,10 @@
 
 ## 3. VM
 
-- [ ] 3.1 Use `-cpu max` when not using KVM; verify `idiot vm --arch arm64 <arm64 Core image>` on an amd64 host reaches the UEFI/GRUB output on the console
-- [ ] 3.2 Give `setup_firmware` non-secure-boot paths and use firmware for `--no-sb` on non-x86 arches; verify `idiot vm --arch arm64 --no-sb <image>` starts firmware, and that `idiot vm --arch riscv64 <image>` (firmware not installed on the dev host) fails naming `qemu-efi-riscv64`
-- [ ] 3.3 Start swtpm with a pid file and kill it from the exit trap (also with `--state-dir`); verify `pgrep swtpm` is empty after a `--tpm` VM is shut down and after it is interrupted with Ctrl-A X
-- [ ] 3.4 Update `idiot vm --help` if option descriptions change; run `make check` and commit (`fix(vm): boot cross-arch and non-secure-boot guests, stop swtpm`)
+- [x] 3.1 Use `-cpu max` when not using KVM; verify `idiot vm --arch arm64 <arm64 Core image>` on an amd64 host reaches the UEFI/GRUB output on the console
+- [x] 3.2 Give `setup_firmware` non-secure-boot paths and use firmware for `--no-sb` on non-x86 arches; verify `idiot vm --arch arm64 --no-sb <image>` starts firmware, and that `idiot vm --arch riscv64 <image>` (firmware not installed on the dev host) fails naming `qemu-efi-riscv64`
+- [x] 3.3 Start swtpm with a pid file and kill it from the exit trap (also with `--state-dir`); verify `pgrep swtpm` is empty after a `--tpm` VM is shut down and after it is interrupted with Ctrl-A X
+- [x] 3.4 Update `idiot vm --help` if option descriptions change; run `make check` and commit (`fix(vm): boot cross-arch and non-secure-boot guests, stop swtpm`)
 
 ## 4. Clean
 

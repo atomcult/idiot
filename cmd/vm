@@ -16,8 +16,12 @@ find_first() {
 	return 1
 }
 
-# Sets fw_code and fw_vars_template for the given arch
+# Sets fw_code and fw_vars_template for arch $1, with secure boot when $2 is 1
 setup_firmware() {
+	[ "${2}" -eq 1 ] || {
+		_setup_firmware_nosb "${1}"
+		return
+	}
 	case "${1}" in
 	amd64)
 		fw_code=$(find_first \
@@ -59,6 +63,38 @@ setup_firmware() {
 		;;
 	*)
 		die "secure boot is not supported for architecture: ${1}"
+		;;
+	esac
+}
+
+# Sets fw_code and fw_vars_template for plain (non-secure-boot) UEFI on
+# arch $1. These must be 64 MiB pflash images: qemu-efi-aarch64's 2 MiB
+# QEMU_EFI.fd cannot be used as pflash on the virt machine.
+_setup_firmware_nosb() {
+	case "${1}" in
+	amd64)
+		fw_code=$(find_first /usr/share/OVMF/OVMF_CODE_4M.fd) ||
+			die "UEFI firmware not found — install the ovmf package"
+		fw_vars_template=$(find_first /usr/share/OVMF/OVMF_VARS_4M.fd) ||
+			die "UEFI vars not found — install the ovmf package"
+		;;
+	arm64)
+		fw_code=$(find_first \
+			/usr/share/AAVMF/AAVMF_CODE.no-secboot.fd \
+			/usr/share/AAVMF/AAVMF_CODE.fd) ||
+			die "UEFI firmware not found — install the qemu-efi-aarch64 package"
+		fw_vars_template=$(find_first /usr/share/AAVMF/AAVMF_VARS.fd) ||
+			die "UEFI vars not found — install the qemu-efi-aarch64 package"
+		;;
+	armhf)
+		fw_code=$(find_first /usr/share/AAVMF/AAVMF32_CODE.fd) ||
+			die "UEFI firmware not found — install the qemu-efi-arm package"
+		fw_vars_template=$(find_first /usr/share/AAVMF/AAVMF32_VARS.fd) ||
+			die "UEFI vars not found — install the qemu-efi-arm package"
+		;;
+	*)
+		# riscv64 firmware has no secure-boot variant
+		setup_firmware "${1}" 1
 		;;
 	esac
 }
@@ -266,29 +302,52 @@ _build_machine_flags() {
 		;;
 	esac
 
-	kvm_flags=''
+	# Without KVM, emulate the most capable CPU: QEMU's default for arm64
+	# virt is the 32-bit cortex-a15, which cannot boot a 64-bit guest.
 	if [ "${arch}" = "$(uname_to_snap_arch)" ] && [ -e /dev/kvm ]; then
 		kvm_flags='-enable-kvm -cpu host'
+	else
+		kvm_flags='-cpu max'
 	fi
 }
 
+# Stops the VM's swtpm (if started) and removes a temporary workdir.
+_cleanup() {
+	if [ -n "${tpm_pidfile:-}" ] && [ -f "${tpm_pidfile}" ]; then
+		kill "$(cat "${tpm_pidfile}")" 2>/dev/null
+		rm -f "${tpm_pidfile}"
+	fi
+	[ "${workdir_is_tmp:-0}" -eq 0 ] || rm -rf "${workdir}"
+}
+
 # Creates or reuses a working directory for firmware/TPM state.
-# Sets workdir; installs a cleanup trap when using a temporary directory.
+# Sets workdir and installs the cleanup trap.
 _setup_workdir() {
 	if [ -n "${state_dir}" ]; then
 		mkdir -p "${state_dir}"
 		workdir="${state_dir}"
 	else
 		workdir="$(mktemp -d)"
-		trap 'rm -rf "${workdir}"' EXIT INT TERM HUP
+		workdir_is_tmp=1
 	fi
+	trap _cleanup EXIT
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	trap 'exit 129' HUP
 }
 
-# Sets fw_flags for UEFI secure boot. No-ops when sb=0.
+# Whether the VM boots from UEFI firmware we provide: always with secure
+# boot, and without it on every arch but i386 (which keeps QEMU's BIOS).
+_needs_firmware() {
+	[ "${sb}" -eq 1 ] || [ "${arch}" != "i386" ]
+}
+
+# Sets fw_flags for UEFI (secure boot or not). No-ops when the VM uses the
+# BIOS.
 _build_fw_flags() {
 	fw_flags=''
-	[ "${sb}" -eq 1 ] || return
-	setup_firmware "${arch}"
+	_needs_firmware || return 0
+	setup_firmware "${arch}" "${sb}"
 	fw_vars="${workdir}/fw_vars.fd"
 	# Reuse existing vars if present (allows persistent SB state across runs)
 	[ -f "${fw_vars}" ] || cp "${fw_vars_template}" "${fw_vars}"
@@ -302,11 +361,15 @@ _build_tpm_flags() {
 	[ "${tpm}" -eq 1 ] || return
 	require swtpm "install the swtpm package"
 	tpm_sock="${workdir}/swtpm.sock"
+	# _cleanup kills it by this pid when the VM exits
+	tpm_pidfile="${workdir}/swtpm.pid"
 	swtpm socket \
 		--tpmstate "dir=${workdir}" \
 		--ctrl "type=unixio,path=${tpm_sock}" \
 		--tpm2 \
-		--daemon
+		--pid "file=${tpm_pidfile}" \
+		--daemon ||
+		die "swtpm failed to start (UNIX socket paths are limited to 107 bytes: ${tpm_sock})"
 	tpm_dev="$(tpm_device_for_arch "${arch}")"
 	tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock}"
 	tpm_flags="${tpm_flags} -tpmdev emulator,id=tpm0,chardev=chrtpm"
@@ -407,7 +470,7 @@ do_run() {
 	_build_machine_flags
 
 	# Set up working directory for firmware/TPM state files
-	if [ "${sb}" -eq 1 ] || [ "${tpm}" -eq 1 ]; then
+	if _needs_firmware || [ "${tpm}" -eq 1 ]; then
 		_setup_workdir
 	fi
 
@@ -436,8 +499,10 @@ do_run() {
 		${tpm_flags} \
 		${display_flags} \
 		"$@" >&2
+	qemu_rc=$?
 
-	[ -n "${state_dir}" ] && say "State saved to ${BOLD}${state_dir}${RESET}"
+	[ -z "${state_dir}" ] || say "State saved to ${BOLD}${state_dir}${RESET}"
+	exit "${qemu_rc}"
 }
 
 main() {
