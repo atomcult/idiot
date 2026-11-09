@@ -232,10 +232,14 @@ emit_unset() {
     fi
 }
 
+# Run git with its output dimmed (colours on stderr only), returning git's
+# own exit status so callers' `|| die` works.
 git() {
     printf '%s' "${DIM}" >&2
     command git "$@"
+    _git_rc=$?
     printf '%s' "${RESET}" >&2
+    return "${_git_rc}"
 }
 
 # Source a share/ module by name.

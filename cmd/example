@@ -91,14 +91,20 @@ do_remove() {
 		[ -d "${IDIOT_EXAMPLES_DIR}" ] || die "no saved examples found"
 		files=$(find "${IDIOT_EXAMPLES_DIR}" -maxdepth 1 -type f ! -name '.*' | sort)
 		[ -n "${files}" ] || die "no saved examples found"
-		printf '%s\n' "${files}" | while IFS= read -r alias_file; do
+		failed=0
+		while IFS= read -r alias_file; do
 			name="$(basename "${alias_file}")"
-			rm "${alias_file}"
 			cache="$(_cache_path "${name}")"
-			[ -d "${cache}" ] && rm -rf "${cache}"
-			say "Removed ${BOLD}${name}${RESET}"
-		done
-		return
+			if rm "${alias_file}" && { [ ! -d "${cache}" ] || rm -rf "${cache}"; }; then
+				say "Removed ${BOLD}${name}${RESET}"
+			else
+				say "${YELLOW}warning:${RESET} failed to remove '${name}'"
+				failed=1
+			fi
+		done <<EOF
+${files}
+EOF
+		exit "${failed}"
 		;;
 	esac
 	name="${1:-}"
@@ -126,12 +132,19 @@ do_drop() {
 		[ -d "${EXAMPLES_CACHE}" ] || die "no cached examples found"
 		entries=$(find "${EXAMPLES_CACHE}" -maxdepth 1 -mindepth 1 -type d | sort)
 		[ -n "${entries}" ] || die "no cached examples found"
-		printf '%s\n' "${entries}" | while IFS= read -r path; do
+		failed=0
+		while IFS= read -r path; do
 			name="$(basename "${path}")"
-			rm -rf "${path}"
-			say "Dropped cache for ${BOLD}${name}${RESET}"
-		done
-		return
+			if rm -rf "${path}"; then
+				say "Dropped cache for ${BOLD}${name}${RESET}"
+			else
+				say "${YELLOW}warning:${RESET} failed to drop cache for '${name}'"
+				failed=1
+			fi
+		done <<EOF
+${entries}
+EOF
+		exit "${failed}"
 		;;
 	esac
 	name="${1:-}"
@@ -152,7 +165,7 @@ do_drop() {
 do_update() {
 	name="${1:-}"
 	if [ -n "${name}" ]; then
-		url=$(resolve_example_url "${name}")
+		url=$(resolve_example_url "${name}") || exit 1
 		path="$(_cache_path "${name}")"
 		if [ -d "${path}" ]; then
 			say "Updating ${BOLD}${name}${RESET}..."
@@ -165,6 +178,7 @@ do_update() {
 		fi
 	else
 		found=0
+		failed=0
 		for ex_dir in "${IDIOT_DATA_DIR}/examples" "${IDIOT_EXAMPLES_DIR}"; do
 			[ -d "${ex_dir}" ] || continue
 			for f in "${ex_dir}"/*; do
@@ -175,16 +189,21 @@ do_update() {
 				path="$(_cache_path "${alias_name}")"
 				if [ -d "${path}" ]; then
 					say "Updating ${BOLD}${alias_name}${RESET}..."
-					git -C "${path}" remote update --prune >&2 ||
+					git -C "${path}" remote update --prune >&2 || {
 						say "${YELLOW}warning:${RESET} failed to update '${alias_name}'"
+						failed=1
+					}
 				else
 					say "Fetching ${BOLD}${alias_name}${RESET} into cache..."
-					git clone --mirror "${url}" "${path}" >&2 ||
+					git clone --mirror "${url}" "${path}" >&2 || {
 						say "${YELLOW}warning:${RESET} failed to fetch '${alias_name}'"
+						failed=1
+					}
 				fi
 			done
 		done
 		[ "${found}" -eq 1 ] || die "no examples found"
+		exit "${failed}"
 	fi
 }
 
@@ -273,7 +292,8 @@ _resolve_dest() {
 
 # Clone a saved example (alias) from the local mirror cache.
 _clone_from_cache() {
-	cpath=$(ensure_cached "${repo}" "${url}")
+	# ensure_cached dies inside the command substitution, so exit here too
+	cpath=$(ensure_cached "${repo}" "${url}") || exit 1
 
 	# Interactive ref picker (works offline from local mirror)
 	if [ -n "${pick_ref}" ]; then
@@ -322,7 +342,8 @@ _clone_from_cache() {
 		[ -e "${dest}" ] && die "destination '${dest}' already exists"
 		mkdir -p "${dest}"
 		if [ -n "${subdirs}" ]; then
-			printf '%s\n' "${subdirs}" | while IFS= read -r sd; do
+			# here-document, not a pipe, so die stops the whole command
+			while IFS= read -r sd; do
 				[ -n "${sd}" ] || continue
 				sdbase="${sd##*/}"
 				git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${sd}" | grep -q '^' ||
@@ -331,9 +352,11 @@ _clone_from_cache() {
 				mkdir -p "${dest}/${sdbase}"
 				git -C "${cpath}" archive "${ref:-HEAD}" -- "${sd}" |
 					tar -x --strip-components="${strip}" -C "${dest}/${sdbase}" ||
-					die "extraction failed"
+					die "extraction of '${sd}' failed"
 				say "Extracted ${DIM}${sd}${RESET} → ${BOLD}${dest}/${sdbase}${RESET} ${DIM}(no git history)${RESET}"
-			done
+			done <<EOF
+${subdirs}
+EOF
 		elif [ -n "${subdir}" ]; then
 			git -C "${cpath}" ls-tree "${ref:-HEAD}" -- "${subdir}" | grep -q '^' ||
 				die "subdirectory '${subdir}' not found"
@@ -475,7 +498,7 @@ main() {
 
 	_parse_clone_args "$@"
 	require git
-	url=$(resolve_example_url "${repo}")
+	url=$(resolve_example_url "${repo}") || exit 1
 	repo_name="${repo##*/}"
 	[ -n "${subdir}" ] && bare=1
 

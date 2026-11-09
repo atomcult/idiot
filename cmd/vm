@@ -101,7 +101,7 @@ do_ssh() {
 		shift
 	done
 
-	lp_user="$(require_lp_user)"
+	lp_user="$(require_lp_user)" || exit 1
 
 	exec ssh \
 		-p "${port}" \
@@ -148,7 +148,7 @@ do_scp() {
 
 	[ $# -ge 2 ] || die "usage: idiot vm scp [--port <port>] <src> <dst>"
 
-	lp_user="$(require_lp_user)"
+	lp_user="$(require_lp_user)" || exit 1
 
 	# Rewrite vm: → localhost: in all path arguments
 	_orig=$#

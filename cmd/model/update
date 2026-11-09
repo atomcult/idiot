@@ -41,21 +41,27 @@ main() {
 
 	if [ -n "${1:-}" ]; then
 		_target="${1}"
-		_url="$(resolve_model_repo_url "${_target}")"
-		_update_repo "${_target}" "${_url}"
+		_url="$(resolve_model_repo_url "${_target}")" || exit 1
+		_update_repo "${_target}" "${_url}" ||
+			die "failed to update '${_target}'"
 	else
 		_updated=0
+		_failed=0
 		for _dir in "${IDIOT_DATA_DIR}/models" "${IDIOT_MODEL_REPOS_DIR}"; do
 			[ -d "${_dir}" ] || continue
 			for _f in "${_dir}"/*; do
 				[ -f "${_f}" ] || continue
 				_name="$(basename "${_f}")"
 				_url="$(head -1 "${_f}")"
-				_update_repo "${_name}" "${_url}"
+				_update_repo "${_name}" "${_url}" || {
+					say "${YELLOW}warning:${RESET} failed to update '${_name}'"
+					_failed=1
+				}
 				_updated=$((_updated + 1))
 			done
 		done
 		[ "${_updated}" -gt 0 ] || die "no model repos configured — use idiot model add <name> <url>"
+		exit "${_failed}"
 	fi
 }
 main "$@"

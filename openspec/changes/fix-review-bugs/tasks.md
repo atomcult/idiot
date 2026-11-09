@@ -2,9 +2,9 @@
 
 ## 1. Git failures
 
-- [ ] 1.1 Make `git()` in `share/common.sh` return git's status; verify `sh -c '. ./share/common.sh; git clone https://invalid.example/x /nonexistent/x; echo $?'` prints a non-zero status
-- [ ] 1.2 In `cmd/model/update` and `cmd/example` (`update`, `remove --all`, `drop --all`, multi-subdir extraction) collect per-item failures and exit non-zero at the end; replace pipe-fed `while` loops that call `die` with here-document loops; verify `idiot kernel noble --dest /nonexistent/x` (or with networking off) exits non-zero without "Cloned to", and `idiot example <alias> --subdir` with a missing second subdir exits non-zero naming it
-- [ ] 1.3 Run `make check` and commit (`fix: report git failures`)
+- [x] 1.1 Make `git()` in `share/common.sh` return git's status; verify `sh -c '. ./share/common.sh; git clone https://invalid.example/x /nonexistent/x; echo $?'` prints a non-zero status
+- [x] 1.2 In `cmd/model/update` and `cmd/example` (`update`, `remove --all`, `drop --all`, multi-subdir extraction) collect per-item failures and exit non-zero at the end; replace pipe-fed `while` loops that call `die` with here-document loops; verify `idiot kernel noble --dest /nonexistent/x` (or with networking off) exits non-zero without "Cloned to", and `idiot example <alias> --subdir` with a missing second subdir exits non-zero naming it
+- [x] 1.3 Run `make check` and commit (`fix: report git failures`)
 
 ## 2. Credentials
 
