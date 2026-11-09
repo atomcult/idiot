@@ -2,17 +2,20 @@
 name = "idiot-store"
 version = "0.1.0"
 edition = "2021"
-
-[lib]
-crate-type = ["lib"]
+description = "Snap Store login and whoami for idiot"
+publish = false
 
 [dependencies]
 base64 = "0.22.1"
 clap = { version = "4", features = ["derive"] }
 macaroon = "0.3.0"
-reqwest = { version = "0.12.12", features = ["json", "http2", "gzip", "deflate"]}
+# blocking client, rustls: two sequential requests need no async runtime, and
+# the binary runs host-side on hosts of any age, so no system OpenSSL
+reqwest = { version = "0.12.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 rpassword = "7"
-serde = { version = "1.0.217", features = ["derive"]}
+serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.139"
-tokio = { version = "1.43.0", features = ["full"] }
 
+[profile.release]
+strip = true
+lto = true

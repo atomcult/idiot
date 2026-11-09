@@ -1,249 +1,216 @@
+//! The store's macaroon login, as craft-store does it: ask the dashboard
+//! for a root macaroon with the wanted restrictions, then have
+//! login.ubuntu.com discharge its third-party caveat with the user's
+//! email, password and (if needed) one-time password.
+
+use super::{client, credential, error_message};
 use crate::error::StoreError;
 use base64::prelude::*;
 use macaroon::{Caveat, Macaroon};
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
-use std::error::Error;
 
-const SNAPCRAFT_ACL_ENDPOINT: &str = "https://dashboard.snapcraft.io/dev/api/acl/";
-const LOGIN_UBUNTU_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/discharge";
+const ACL_ENDPOINT: &str = "https://dashboard.snapcraft.io/dev/api/acl/";
+const DISCHARGE_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/discharge";
+const SSO_LOCATION: &str = "login.ubuntu.com";
 
+/// What the credential may do.
 #[derive(Debug, Serialize)]
-struct Package {
-    r#type: String,
-    name: String,
+pub struct Restrictions {
+    pub permissions: Vec<String>,
+    /// Shown on the store dashboard next to the credential.
+    pub description: String,
+    /// RFC 3339.
+    pub expires: String,
+    #[serde(rename = "packages", serialize_with = "snaps")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub snaps: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub channels: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
-struct MacaroonCredential {
-    #[serde(rename = "t")]
-    token_type: String,
-    #[serde(rename = "v")]
-    value: MacaroonPair,
-}
-
-#[derive(Debug, Serialize)]
-struct MacaroonPair {
-    #[serde(rename = "r")]
-    root: String,
-    #[serde(rename = "d")]
-    discharge: String,
+fn snaps<S: serde::Serializer>(names: &[String], s: S) -> Result<S::Ok, S::Error> {
+    #[derive(Serialize)]
+    struct Package<'a> {
+        r#type: &'a str,
+        name: &'a str,
+    }
+    s.collect_seq(names.iter().map(|name| Package {
+        r#type: "snap",
+        name,
+    }))
 }
 
 #[derive(Serialize)]
-struct MacaroonRequest {
-    permissions: Vec<String>,
-    description: String,
-    expires: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    packages: Vec<Package>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    channels: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct DischargeRequest {
-    email: String,
-    password: String,
-    caveat_id: String,
+struct DischargeRequest<'a> {
+    email: &'a str,
+    password: &'a str,
+    caveat_id: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    otp: Option<String>,
+    otp: Option<&'a str>,
 }
 
-/// Parsed details from a stored credential.
-pub struct CredentialInfo {
-    pub token_type: String,
-    pub caveats: Vec<String>,
+/// A login in progress: the root macaroon, waiting for its discharge.
+pub struct Login {
+    client: Client,
+    root: Macaroon,
+    caveat_id: String,
 }
 
-/// Decodes a base64 credential string (as produced by `login`) and returns its details.
-pub fn parse_credential(credential: &str) -> Result<CredentialInfo, Box<dyn Error>> {
-    let decoded = BASE64_STANDARD.decode(credential.trim())?;
-    let json: Value = serde_json::from_slice(&decoded)?;
-
-    let token_type = json["t"]
-        .as_str()
-        .ok_or(StoreError::InvalidCredential)?
-        .to_string();
-
-    let root_str = json["v"]["r"]
-        .as_str()
-        .ok_or(StoreError::InvalidCredential)?;
-
-    let root_macaroon = Macaroon::deserialize(root_str)?;
-
-    let caveats = root_macaroon
-        .first_party_caveats()
-        .into_iter()
-        .filter_map(|c| match c {
-            Caveat::FirstParty(fp) => {
-                Some(String::from_utf8_lossy(fp.predicate().as_ref()).into_owned())
-            }
-            _ => None,
-        })
-        .collect();
-
-    Ok(CredentialInfo { token_type, caveats })
-}
-
-/// Logs in to the Snapcraft store and returns a base64 encoded macaroon credential.
-///
-/// Pass `otp` when two-factor authentication is required; use `None` for the first attempt.
-pub async fn login(
-    email: String,
-    password: String,
-    otp: Option<String>,
-) -> Result<String, Box<dyn Error>> {
-    let client = reqwest::ClientBuilder::new()
-        .user_agent("snapcraft/8.6.3 ubuntu/24.04 (x86_64)")
-        .build()?;
-
-    let root_macaroon = get_root_macaroon(&client).await?;
-    let discharge_macaroon =
-        get_discharge_macaroon(&client, email, password, otp, &root_macaroon).await?;
-    let credential = build_macaroon_credential(&root_macaroon, &discharge_macaroon)?;
-
-    Ok(BASE64_STANDARD.encode(&credential))
-}
-
-/// Requests the root macaroon from the Snapcraft store.
-async fn get_root_macaroon(client: &Client) -> Result<Macaroon, Box<dyn Error>> {
-    // FIXME: dynamic expiration, packages, and channels (among other optional fields)
-    let payload = MacaroonRequest {
-        permissions: vec![String::from("package_access")],
-        description: String::from("snapcraft@ubuntu"),
-        expires: String::from("2026-02-22T17:47:58+00:00"),
-        packages: Vec::new(),
-        channels: Vec::new(),
-    };
-
-    let resp = client
-        .post(SNAPCRAFT_ACL_ENDPOINT)
-        .header("Accept", "application/json")
-        .header("Connection", "keep-alive")
-        .json(&payload)
-        .send()
-        .await?;
-
-    let json = resp.json::<Value>().await?;
-
-    let macaroon_str = json
-        .get("macaroon")
-        .ok_or(StoreError::MissingRootMacaroon)?
-        .as_str()
-        .ok_or(StoreError::MissingRootMacaroon)?;
-
-    Ok(Macaroon::deserialize(macaroon_str)?)
-}
-
-/// Discharges the third-party caveat to obtain a discharge macaroon from login.ubuntu.com.
-async fn get_discharge_macaroon(
-    client: &Client,
-    email: String,
-    password: String,
-    otp: Option<String>,
-    root_macaroon: &Macaroon,
-) -> Result<Macaroon, Box<dyn Error>> {
-    let caveat_id = extract_caveat_id(root_macaroon)?;
-
-    let payload = DischargeRequest {
-        email,
-        password,
-        caveat_id,
-        otp,
-    };
-
-    let resp = client
-        .post(LOGIN_UBUNTU_ENDPOINT)
-        .header("Accept", "application/json")
-        .header("Connection", "keep-alive")
-        .json(&payload)
-        .send()
-        .await?;
-
-    let status = resp.status();
-    let json = resp.json::<Value>().await?;
-
-    if !status.is_success() {
-        if two_factor_required(&json) {
-            return Err(Box::new(StoreError::TwoFactorRequired));
+impl Login {
+    /// Requests the root macaroon for `restrictions`.
+    pub fn start(restrictions: &Restrictions) -> Result<Self, StoreError> {
+        let client = client()?;
+        let resp = client
+            .post(ACL_ENDPOINT)
+            .header("Accept", "application/json")
+            .json(restrictions)
+            .send()?;
+        let status = resp.status();
+        let json: Value = resp.json()?;
+        if !status.is_success() {
+            return Err(StoreError::Store(error_message(&json)));
         }
-        return Err(Box::new(StoreError::AuthenticationFailed(
-            extract_error_message(&json),
-        )));
-    }
-
-    let discharge_str = json["discharge_macaroon"]
-        .as_str()
-        .ok_or(StoreError::MissingDischargeMacaroon)?;
-
-    Ok(Macaroon::deserialize(discharge_str)?)
-}
-
-/// Returns true if the response body indicates that TOTP is required.
-///
-/// Ubuntu SSO may report this at the top level (`{"code": "TWOFACTOR_REQUIRED"}`) or
-/// nested inside an `error_list` array.
-fn two_factor_required(json: &Value) -> bool {
-    if json.get("code").and_then(Value::as_str) == Some("TWOFACTOR_REQUIRED") {
-        return true;
-    }
-    json.get("error_list")
-        .and_then(Value::as_array)
-        .map_or(false, |errors| {
-            errors
-                .iter()
-                .any(|e| e.get("code").and_then(Value::as_str) == Some("TWOFACTOR_REQUIRED"))
+        let root = json
+            .get("macaroon")
+            .and_then(Value::as_str)
+            .and_then(|m| Macaroon::deserialize(m).ok())
+            .ok_or_else(|| StoreError::Store("no macaroon in the store's response".into()))?;
+        let caveat_id = sso_caveat_id(&root)?;
+        Ok(Login {
+            client,
+            root,
+            caveat_id,
         })
+    }
+
+    /// Discharges the root macaroon and returns the credential. Fails with
+    /// `TwoFactorRequired` when the account needs `otp` and none was given.
+    pub fn finish(
+        &self,
+        email: &str,
+        password: &str,
+        otp: Option<&str>,
+    ) -> Result<String, StoreError> {
+        let resp = self
+            .client
+            .post(DISCHARGE_ENDPOINT)
+            .header("Accept", "application/json")
+            .json(&DischargeRequest {
+                email,
+                password,
+                caveat_id: &self.caveat_id,
+                otp,
+            })
+            .send()?;
+        let status = resp.status();
+        let json: Value = resp.json()?;
+        if !status.is_success() {
+            return Err(sso_error(&json));
+        }
+        let discharge = json
+            .get("discharge_macaroon")
+            .and_then(Value::as_str)
+            .and_then(|m| Macaroon::deserialize(m).ok())
+            .ok_or_else(|| StoreError::Store("no discharge macaroon in SSO's response".into()))?;
+        credential::encode(&self.root, &discharge)
+    }
 }
 
-/// Extracts a human-readable message from an Ubuntu SSO error response.
-fn extract_error_message(json: &Value) -> String {
-    if let Some(msg) = json.get("message").and_then(Value::as_str) {
-        return msg.to_string();
-    }
-    if let Some(first) = json
+/// Maps an Ubuntu SSO error body to an error. SSO reports a missing OTP as
+/// `TWOFACTOR_REQUIRED`, at the top level or inside `error_list`.
+fn sso_error(json: &Value) -> StoreError {
+    let code = |v: &Value| v.get("code").and_then(Value::as_str) == Some("TWOFACTOR_REQUIRED");
+    let nested = json
         .get("error_list")
         .and_then(Value::as_array)
-        .and_then(|e| e.first())
-    {
-        if let Some(msg) = first.get("message").and_then(Value::as_str) {
-            return msg.to_string();
-        }
+        .is_some_and(|errors| errors.iter().any(code));
+    if code(json) || nested {
+        StoreError::TwoFactorRequired
+    } else {
+        StoreError::AuthenticationFailed(error_message(json))
     }
-    "unknown error".to_string()
 }
 
-/// Extracts and decodes the login.ubuntu.com caveat ID from the root macaroon.
-fn extract_caveat_id(macaroon: &Macaroon) -> Result<String, Box<dyn Error>> {
-    for caveat in macaroon.third_party_caveats() {
-        let caveat = match caveat {
-            Caveat::ThirdParty(c) => c,
-            _ => continue,
+/// The id of the root macaroon's login.ubuntu.com caveat, which SSO wants
+/// back as text.
+fn sso_caveat_id(root: &Macaroon) -> Result<String, StoreError> {
+    root.third_party_caveats()
+        .into_iter()
+        .find_map(|c| match c {
+            Caveat::ThirdParty(tp) if tp.location() == SSO_LOCATION => Some(tp),
+            _ => None,
+        })
+        .and_then(|tp| BASE64_STANDARD.decode(tp.id().to_string()).ok())
+        .and_then(|id| String::from_utf8(id).ok())
+        .ok_or_else(|| StoreError::Store("no login.ubuntu.com caveat in the root macaroon".into()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::credential::tests::macaroon;
+    use macaroon::MacaroonKey;
+    use serde_json::json;
+
+    #[test]
+    fn caveat_id() {
+        let mut root = macaroon("dashboard.snapcraft.io", "root-id");
+        let key: MacaroonKey = (&[9u8; 32]).into();
+        root.add_first_party_caveat("expires < 2099".into());
+        root.add_third_party_caveat("elsewhere.example", &key, "not-this".into());
+        root.add_third_party_caveat(SSO_LOCATION, &key, "{\"sso\":\"caveat\"}".into());
+        assert_eq!(sso_caveat_id(&root).unwrap(), "{\"sso\":\"caveat\"}");
+    }
+
+    #[test]
+    fn caveat_missing() {
+        let root = macaroon("dashboard.snapcraft.io", "root-id");
+        assert!(matches!(sso_caveat_id(&root), Err(StoreError::Store(_))));
+    }
+
+    // recorded Ubuntu SSO response bodies
+    #[test]
+    fn two_factor_top_level() {
+        let body = json!({"code": "TWOFACTOR_REQUIRED", "message": "2-factor authentication required.", "extra": {}});
+        assert!(matches!(sso_error(&body), StoreError::TwoFactorRequired));
+    }
+
+    #[test]
+    fn two_factor_nested() {
+        let body = json!({"error_list": [{"code": "TWOFACTOR_REQUIRED", "message": "2-factor authentication required."}]});
+        assert!(matches!(sso_error(&body), StoreError::TwoFactorRequired));
+    }
+
+    #[test]
+    fn bad_password() {
+        let body = json!({"code": "INVALID_CREDENTIALS", "message": "Provided email/password is not correct.", "extra": {}});
+        match sso_error(&body) {
+            StoreError::AuthenticationFailed(msg) => {
+                assert_eq!(msg, "Provided email/password is not correct.")
+            }
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[test]
+    fn restrictions_json() {
+        let r = Restrictions {
+            permissions: vec!["package_push".into()],
+            description: "idiot@host".into(),
+            expires: "2027-01-01T00:00:00+00:00".into(),
+            snaps: vec!["my-gadget".into()],
+            channels: vec![],
         };
-
-        if caveat.location() == "login.ubuntu.com" {
-            let decoded = BASE64_STANDARD.decode(caveat.id().to_string())?;
-            return Ok(String::from_utf8(decoded)?);
-        }
+        assert_eq!(
+            serde_json::to_value(&r).unwrap(),
+            json!({
+                "permissions": ["package_push"],
+                "description": "idiot@host",
+                "expires": "2027-01-01T00:00:00+00:00",
+                "packages": [{"type": "snap", "name": "my-gadget"}],
+            })
+        );
     }
-
-    Err(Box::new(StoreError::NoCaveatForLoginUbuntu))
-}
-
-/// Combines the root and discharge macaroons into a serialized JSON credential string.
-fn build_macaroon_credential(
-    root: &Macaroon,
-    discharge: &Macaroon,
-) -> Result<String, Box<dyn Error>> {
-    let credential = MacaroonCredential {
-        token_type: String::from("u1-macaroon"),
-        value: MacaroonPair {
-            root: root.serialize(macaroon::Format::V1)?,
-            discharge: discharge.serialize(macaroon::Format::V1)?,
-        },
-    };
-
-    Ok(serde_json::to_string(&credential)?)
 }

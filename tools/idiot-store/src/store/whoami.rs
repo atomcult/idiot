@@ -1,124 +1,121 @@
+//! Account details behind a credential.
+
+use super::{client, credential, error_message};
 use crate::error::StoreError;
-use base64::prelude::*;
-use macaroon::Macaroon;
-use reqwest::Client;
+use reqwest::StatusCode;
 use serde_json::Value;
-use std::error::Error;
 
 const WHOAMI_ENDPOINT: &str = "https://dashboard.snapcraft.io/api/v2/tokens/whoami";
 
-#[derive(Debug)]
-pub struct Account {
-    pub email: String,
-    pub id: String,
-    pub name: String,
-    pub username: String,
-}
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct WhoAmI {
-    pub account: Account,
+    pub email: String,
+    pub username: String,
+    pub id: String,
     pub permissions: Vec<String>,
     pub channels: Vec<String>,
-    /// Expiry timestamp from the server, with a trailing `Z` appended.
+    /// As the store reports it, with the `Z` it leaves off (as snapcraft).
     pub expires: Option<String>,
 }
 
-/// Authenticates with the Snap Store using the given credential and returns account details.
-///
-/// `credential` is the base64 string as stored in `UBUNTU_STORE_AUTH`.
-pub async fn whoami(credential: &str) -> Result<WhoAmI, Box<dyn Error>> {
-    let auth_header = build_auth_header(credential)?;
-
-    let client = Client::builder()
-        .user_agent("snapcraft/8.6.3 ubuntu/24.04 (x86_64)")
-        .build()?;
-
-    let resp = client
-        .get(WHOAMI_ENDPOINT)
-        .header("Authorization", auth_header)
-        .header("Accept", "application/json")
-        .send()
-        .await?;
-
-    if !resp.status().is_success() {
-        return Err(Box::new(StoreError::AuthenticationFailed(
-            "credential may be expired".to_string(),
-        )));
+impl WhoAmI {
+    /// The report, line for line as `snapcraft whoami` prints it.
+    pub fn report(&self) -> String {
+        let list = |v: &[String]| {
+            if v.is_empty() {
+                "no restrictions".to_string()
+            } else {
+                v.join(", ")
+            }
+        };
+        format!(
+            "email: {}\nusername: {}\nid: {}\npermissions: {}\nchannels: {}\nexpires: {}\n",
+            self.email,
+            self.username,
+            self.id,
+            list(&self.permissions),
+            list(&self.channels),
+            self.expires.as_deref().unwrap_or("N/A"),
+        )
     }
-
-    let json = resp.json::<Value>().await?;
-    parse_response(&json)
 }
 
-/// Builds the `Macaroon` Authorization header value from a stored credential.
-///
-/// The stored credential format is `base64({"t":"u1-macaroon","v":{"r":"...","d":"..."}})`.
-/// The Snap Store expects `Macaroon <base64({"r":"...","d":"..."})>`.
-fn build_auth_header(credential: &str) -> Result<String, Box<dyn Error>> {
-    let decoded = BASE64_STANDARD.decode(credential.trim())?;
-    let json: Value = serde_json::from_slice(&decoded)?;
-
-    let root_str = json["v"]["r"]
-        .as_str()
-        .ok_or(StoreError::InvalidCredential)?;
-    let discharge_str = json["v"]["d"]
-        .as_str()
-        .ok_or(StoreError::InvalidCredential)?;
-
-    let root_macaroon = Macaroon::deserialize(root_str)?;
-    let mut discharge_macaroon = Macaroon::deserialize(discharge_str)?;
-    root_macaroon.bind(&mut discharge_macaroon);
-    let bound_discharge = discharge_macaroon.serialize(macaroon::Format::V1)?;
-
-    Ok(format!("Macaroon root={root_str}, discharge={bound_discharge}"))
+/// Asks the store who `credential` belongs to.
+pub fn whoami(credential: &str) -> Result<WhoAmI, StoreError> {
+    let header = credential::auth_header(credential)?;
+    let resp = client()?
+        .get(WHOAMI_ENDPOINT)
+        .header("Authorization", header)
+        .header("Accept", "application/json")
+        .send()?;
+    match resp.status() {
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(StoreError::Rejected),
+        s if s.is_success() => parse(&resp.json()?),
+        _ => {
+            let json: Value = resp.json().unwrap_or(Value::Null);
+            Err(StoreError::Store(error_message(&json)))
+        }
+    }
 }
 
-fn parse_response(json: &Value) -> Result<WhoAmI, Box<dyn Error>> {
-    let account_json = json.get("account").ok_or(StoreError::InvalidResponse)?;
-
-    let account = Account {
-        email: account_json["email"]
-            .as_str()
-            .ok_or(StoreError::InvalidResponse)?
-            .to_string(),
-        id: account_json["id"]
-            .as_str()
-            .ok_or(StoreError::InvalidResponse)?
-            .to_string(),
-        name: account_json["name"]
-            .as_str()
-            .ok_or(StoreError::InvalidResponse)?
-            .to_string(),
-        username: account_json["username"]
-            .as_str()
-            .ok_or(StoreError::InvalidResponse)?
-            .to_string(),
+fn parse(json: &Value) -> Result<WhoAmI, StoreError> {
+    let bad = || StoreError::Store("unexpected whoami response".into());
+    let account = json.get("account").ok_or_else(bad)?;
+    let field = |k: &str| {
+        account
+            .get(k)
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(bad)
     };
-
-    let permissions = string_array(&json["permissions"]);
-    let channels = string_array(&json["channels"]);
-    let expires = json
-        .get("expires")
-        .and_then(Value::as_str)
-        .map(|s| format!("{s}Z"));
-
+    let strings = |k: &str| -> Vec<String> {
+        json.get(k)
+            .and_then(Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
     Ok(WhoAmI {
-        account,
-        permissions,
-        channels,
-        expires,
+        email: field("email")?,
+        username: field("username")?,
+        id: field("id")?,
+        permissions: strings("permissions"),
+        channels: strings("channels"),
+        expires: json
+            .get("expires")
+            .and_then(Value::as_str)
+            .map(|s| format!("{s}Z")),
     })
 }
 
-fn string_array(value: &Value) -> Vec<String> {
-    value
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(Value::as_str)
-                .map(str::to_owned)
-                .collect()
-        })
-        .unwrap_or_default()
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn report_matches_snapcraft() {
+        let body = json!({
+            "account": {"email": "you@example.com", "id": "abc123", "name": "You", "username": "you"},
+            "channels": null,
+            "expires": "2027-11-09T18:00:00.000",
+            "packages": null,
+            "permissions": ["package_access", "package_push"],
+        });
+        assert_eq!(
+            parse(&body).unwrap().report(),
+            "email: you@example.com\nusername: you\nid: abc123\n\
+             permissions: package_access, package_push\nchannels: no restrictions\n\
+             expires: 2027-11-09T18:00:00.000Z\n"
+        );
+    }
+
+    #[test]
+    fn missing_account() {
+        assert!(matches!(parse(&json!({})), Err(StoreError::Store(_))));
+    }
 }
