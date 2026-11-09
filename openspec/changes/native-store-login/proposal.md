@@ -54,6 +54,8 @@ lets idiot scope credentials properly.
   (helper lookup), `Makefile` (build + install the helper, `make check` runs
   `cargo fmt --check`/`clippy`), `snap/snapcraft.yaml` (rust part),
   `.gitignore` (`target/`), README/CLAUDE.md.
-- Depends on `fix-review-bugs` (credential name validation and 0600 files)
-  and `fix-snap-packaging` (classic snap layout). Apply after both.
+- Depends on `host-handoff` (`auth add` and `auth status` become host
+  commands: the helper needs the network, so it only ever runs outside
+  confinement) and `fix-snap-packaging` (strict snap, state in
+  `~/snap/<instance>/common`). Apply after both.
 - idiot-v2 is left as is (archived by Lauren when she's ready).

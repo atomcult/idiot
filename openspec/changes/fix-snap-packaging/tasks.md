@@ -8,7 +8,7 @@
 ## 2. Snap
 
 - [ ] 2.1 Ask Lauren before removing the old `idiot` snap (`x1`) from the dev host, since it may hold v1 data
-- [x] 2.2 Switch `snap/snapcraft.yaml` to `confinement: classic`; set the `core` component to `type: standard` and organise the `core-packages` part into it; verify `snapcraft pack` produces `idiot_*.snap` and `idiot+core_*.comp`
-- [ ] 2.3 Install locally (`snap install --dangerous --classic idiot_*.snap`, then the component) and verify: `idiot status` runs through the wrapper; `idiot store use` uses the snap's fzf with host fzf hidden from PATH (add `environment: PATH` if not); `idiot run debugfs -V` names `idiot+core` without the component and works with it (fix `snap_app` lookup if needed)
-- [ ] 2.4 Refresh to a second locally built revision, remove the first, and verify an already-open shell still runs `idiot status`
-- [ ] 2.5 Update README install instructions (`--classic`, `idiot+core`); run `make check` and commit (`build(snap): classic confinement and populated core component`)
+- [x] 2.2 Set the `core` component to `type: standard` and organise the `core-packages` part into it; verify `snapcraft pack` produces `idiot_*.snap` and `idiot+core_*.comp`
+- [ ] 2.3 Revert to `confinement: strict` with no plugs (keep the rest of 3e2491e); repack and check bundled binaries' interpreter and RPATH with `readelf -l -d`; with Lauren installing (`snap install --dangerous`, then the component), verify: `snap connections idiot` is empty; `idiot store use` uses the snap's fzf with host fzf hidden; `idiot auth list` reads `~/snap/idiot/common`; `idiot run debugfs -V` (host-side) names `idiot+core` without the component and works with it; record the component mount path in design.md and `snap_app`
+- [ ] 2.4 Refresh to a second locally built revision, remove the first, and verify an already-open shell still runs `idiot status` and a host command (`idiot run fzf --version`)
+- [ ] 2.5 Update README (snap and component install, separate state and the one-time copy from a source install); run `make check` and commit (`build(snap): strict confinement with no interfaces`)

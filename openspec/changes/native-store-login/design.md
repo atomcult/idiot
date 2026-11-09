@@ -86,7 +86,8 @@ names, files, caching, messages), the binary only talks to the store.
 ### Rust changes while porting
 - `reqwest` blocking client with `rustls-tls`, no tokio: two sequential
   requests don't need an async runtime, and rustls avoids linking the
-  host's libssl (matters for the classic snap and older hosts).
+  host's libssl (the binary runs host-side, outside the snap, on hosts of
+  any age).
 - User agent `idiot-store/<version>` instead of impersonating snapcraft.
   If the store rejects unknown agents (task 2.3 checks), fall back to a
   snapcraft-style agent and record why in a comment.
@@ -96,11 +97,21 @@ names, files, caching, messages), the binary only talks to the store.
   JSON parsing (`two_factor_required`, `extract_error_message`) using
   recorded response bodies, so `cargo test` needs no network.
 
+### Where it runs
+The helper talks to the network, so it never runs confined: `auth add`
+and `auth status` carry the `# idiot: host` marker (`host-handoff`) and,
+under the snap, run from `/snap/<instance>/current` in the user's shell.
+`auth add` writes the credential into the snap's common directory
+(`IDIOT_AUTH_DIR` follows `IDIOT_DATA_HOME`), where the confined
+`auth login` reads it. The helper gets no environment from idiot beyond
+`UBUNTU_STORE_AUTH` for `whoami`; the user's shell is never touched.
+
 ### Snap
 A `idiot-store` part with `plugin: rust`, `source: tools/idiot-store`,
-organised into `lib/idiot/libexec/`. Being a classic snap, the binary
-gets `build-attributes: [enable-patchelf]` so it uses core24's loader
-and libc instead of the host's.
+organised into `lib/idiot/libexec/`, with
+`build-attributes: [enable-patchelf]` so the binary loads core24's loader
+and libc when run on the host (same as the other bundled binaries in
+`fix-snap-packaging`).
 
 ## Risks / Trade-offs
 
