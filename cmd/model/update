@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/model/update - clone or pull model repositories
+# idiot: host
 # Usage: idiot model update [<name>]
 
 . "$(dirname "${0}")/../../share/common.sh"

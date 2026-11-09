@@ -6,8 +6,39 @@
 # abort the calling wrapper function before it cleans up its eval file.
 trap 'exit 130' INT
 
-# Cache directory
-IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
+# The snap's instance name (parallel installs: idiot_foo) and its
+# refresh-proof directory. Only meaningful inside the snap ($SNAP set).
+snap_instance() {
+    printf '%s' "${SNAP_INSTANCE_NAME:-${SNAP_NAME:-idiot}}"
+}
+snap_current() {
+    printf '/snap/%s/current' "$(snap_instance)"
+}
+
+# Where idiot keeps its state. Confined in the snap: the snap's common
+# directory (per-revision $SNAP_USER_DATA would multiply credentials across
+# refreshes). Host side of the snap: what `idiot init` exported. Source
+# install: XDG.
+if [ -n "${SNAP:-}" ]; then
+    IDIOT_DATA_HOME="${IDIOT_DATA_HOME:-${SNAP_USER_COMMON}}"
+    IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${SNAP_USER_COMMON}/cache}"
+else
+    IDIOT_DATA_HOME="${IDIOT_DATA_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot}"
+    IDIOT_CACHE_DIR="${IDIOT_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/idiot}"
+fi
+
+# The snap's files run on the host only through a shell whose integration
+# came from the snap (it exports IDIOT_SNAP and the state directories).
+# Without it this copy would read the wrong state, so refuse.
+if [ -z "${SNAP:-}" ] && [ -z "${IDIOT_SNAP:-}" ]; then
+    case "${IDIOT_ROOT:-}" in
+    /snap/*)
+        # shellcheck disable=SC2016
+        printf 'error: shell integration is out of date — run: eval "$(idiot init bash)"  or: idiot init fish | source\n' >&2
+        exit 1
+        ;;
+    esac
+fi
 
 # Bundled data directory (examples, kernels, etc.)
 IDIOT_DATA_DIR="${IDIOT_DATA_DIR:-${IDIOT_ROOT}/share}"
@@ -90,9 +121,21 @@ die() {
 
 # Die unless the given command is found in PATH.
 # $1: command name, $2: optional install hint appended after " — "
+# Make sure a tool can be run by name. On the host side of the snap, a tool
+# the host lacks but the snap bundles becomes a function running the
+# bundled copy through snap_app (so the user's PATH is never changed).
 require() {
-    command -v "${1}" >/dev/null 2>&1 ||
-        die "${1} is required but not found${2:+ — ${2}}"
+    command -v "${1}" >/dev/null 2>&1 && return 0
+    if [ -z "${SNAP:-}" ] && [ -n "${IDIOT_SNAP:-}" ] && snap_tool "${1}" >/dev/null; then
+        case "${1}" in
+        *[!A-Za-z0-9_]*) ;;
+        *)
+            eval "${1}() { snap_app ${1} \"\$@\"; }"
+            return 0
+            ;;
+        esac
+    fi
+    die "${1} is required but not found${2:+ — ${2}}"
 }
 
 # POSIX-safe single-quote escaping
@@ -171,14 +214,14 @@ dispatch_subcmd() {
             *)
                 subsubcmd_file="${subcmd_file}/${subsubcmd}"
                 if [ -x "${subsubcmd_file}" ]; then
-                    exec "${subsubcmd_file}" "$@"
+                    run_cmd "${subsubcmd_file}" 3 "${cmd}" "${subcmd}" "${subsubcmd}" "$@"
                 else
                     die "unknown subcommand: ${cmd} ${subcmd} ${subsubcmd}"
                 fi
                 ;;
             esac
         elif [ -x "${subcmd_file}" ]; then
-            exec "${subcmd_file}" "$@"
+            run_cmd "${subcmd_file}" 2 "${cmd}" "${subcmd}" "$@"
         else
             die "unknown subcommand: ${cmd} ${subcmd}"
         fi
@@ -186,20 +229,98 @@ dispatch_subcmd() {
     esac
 }
 
-# Run a binary that may be bundled inside the snap.
-# When $SNAP is set, resolves to $SNAP/usr/bin/<cmd> or $SNAP/bin/<cmd>.
-# Falls back to the system PATH when not running inside a snap.
+# True if the command file is a host command: one that needs tools, the
+# network or the user's files, and so runs outside the snap's confinement.
+is_host_cmd() {
+    grep -qx '# idiot: host' "${1}"
+}
+
+# Run a resolved command file. Under the snap (confined), a host command
+# that isn't asked for help is handed to the user's shell instead.
+# Usage: run_cmd <file> <n> <word>... — the first <n> words are the command
+# path (e.g. inspect image), the rest its arguments.
+run_cmd() {
+    _rc_file="${1}"
+    _rc_n="${2}"
+    shift 2
+    if [ -n "${SNAP:-}" ] && is_host_cmd "${_rc_file}"; then
+        _rc_first=''
+        eval "_rc_first=\${$((_rc_n + 1)):-}"
+        case "${_rc_first}" in
+        -h | --help | help) ;;
+        *)
+            emit_handoff "$@"
+            exit 0
+            ;;
+        esac
+    fi
+    shift "${_rc_n}"
+    exec "${_rc_file}" "$@"
+}
+
+# Queue a command for the shell wrapper to run in the user's shell, outside
+# confinement, from the snap's refresh-proof directory. Sets nothing: the
+# host side's environment comes from `idiot init`.
+emit_handoff() {
+    require_wrapper
+    _eh_line="$(shell_quote "$(snap_current)/lib/idiot/idiot")"
+    [ -z "${FORCE_COLOR:-}" ] || _eh_line="${_eh_line} --color"
+    for _eh_word in "$@"; do
+        _eh_line="${_eh_line} $(shell_quote "${_eh_word}")"
+    done
+    printf '%s\n' "${_eh_line}" >>"${IDIOT_EVAL_FILE}"
+}
+
+# The snap's root as seen from here: $SNAP when confined, the exported
+# refresh-proof IDIOT_SNAP on the host side, nothing for a source install.
+snap_root() {
+    printf '%s' "${SNAP:-${IDIOT_SNAP:-}}"
+}
+
+# The `core` component's files for the snap revision in use. snapd mounts
+# components per snap revision, outside $SNAP.
+# TODO(fix-snap-packaging 2.3): confirm this path on a real install.
+snap_component_dir() {
+    if [ -n "${SNAP:-}" ]; then
+        printf '/snap/%s/components/%s/core' "$(snap_instance)" "${SNAP_REVISION:-}"
+    else
+        _scd_rev="$(readlink "${IDIOT_SNAP}" 2>/dev/null || :)"
+        printf '/snap/%s/components/%s/core' "$(snap_instance)" "${_scd_rev##*/}"
+    fi
+}
+
+# Directories holding the snap's bundled tools, one per line (snap first,
+# then the core component). Prints nothing for a source install.
+snap_tool_dirs() {
+    _std_root="$(snap_root)"
+    [ -n "${_std_root}" ] || return 0
+    _std_comp="$(snap_component_dir)"
+    printf '%s\n' "${_std_root}/usr/bin" "${_std_root}/bin" \
+        "${_std_comp}/usr/bin" "${_std_comp}/bin" "${_std_comp}/usr/sbin" "${_std_comp}/sbin"
+}
+
+# Path of a tool bundled in the snap or its component, or fail.
+snap_tool() {
+    for _st_dir in $(snap_tool_dirs); do
+        if [ -x "${_st_dir}/${1}" ]; then
+            printf '%s' "${_st_dir}/${1}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Run a tool bundled in the snap (or its core component). Anything it needs
+# set up is set for its own process only, never in the user's shell; the
+# binaries are patched to find core24's libraries, so today that's nothing.
+# Without a snap, runs the tool from PATH.
 snap_app() {
     _sa_cmd="${1}"
     shift
-    if [ -n "${SNAP:-}" ]; then
-        if [ -x "${SNAP}/usr/bin/${_sa_cmd}" ]; then
-            "${SNAP}/usr/bin/${_sa_cmd}" "$@"
-        elif [ -x "${SNAP}/bin/${_sa_cmd}" ]; then
-            "${SNAP}/bin/${_sa_cmd}" "$@"
-        else
+    if [ -n "$(snap_root)" ]; then
+        _sa_bin="$(snap_tool "${_sa_cmd}")" ||
             die "${_sa_cmd}: not found in snap (install the core component: snap install idiot+core)"
-        fi
+        "${_sa_bin}" "$@"
     else
         command -v "${_sa_cmd}" >/dev/null 2>&1 || die "${_sa_cmd} is required but not found"
         "${_sa_cmd}" "$@"

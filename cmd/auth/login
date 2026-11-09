@@ -19,6 +19,8 @@ main() {
 
 	[ -n "${name}" ] || {
 		status_cmd="$(dirname "${0}")/status"
+		# confined in the snap, the preview can't reach the store
+		[ -z "${SNAP:-}" ] || status_cmd="${status_cmd} --cached"
 		export IDIOT_AUTH_DIR
 		# shellcheck disable=SC2016
 		preview_cmd='export FORCE_COLOR=1; export SNAPCRAFT_STORE_CREDENTIALS="$(cat "$IDIOT_AUTH_DIR/{}")"; export IDIOT_ACTIVE_CRED="{}"; '"${status_cmd}"' 2>&1'

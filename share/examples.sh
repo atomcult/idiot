@@ -3,7 +3,7 @@
 # Source this file; do not execute directly.
 
 # User-defined example repo aliases (supplements bundled share/examples/)
-IDIOT_EXAMPLES_DIR="${IDIOT_EXAMPLES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/examples}"
+IDIOT_EXAMPLES_DIR="${IDIOT_EXAMPLES_DIR:-${IDIOT_DATA_HOME}/examples}"
 
 # Resolve an example argument to a clone URL.
 # Accepts: full URL, <user>/<repo> (GitHub shorthand), or a saved alias name.

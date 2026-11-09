@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/inspect/snap - print snap/snapcraft.yaml or meta/snap.yaml from a snap file
+# idiot: host
 
 . "$(dirname "${0}")/../../share/common.sh"
 

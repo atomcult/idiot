@@ -109,7 +109,7 @@ main() {
 			*)
 				[ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
 				_increment_count
-				exec "${cmd_file}" "$@"
+				run_cmd "${cmd_file}" 1 "${cmd}" "$@"
 				;;
 			esac
 		else

@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/auth/add - create new credentials using snapcraft export-login
+# idiot: host
 # Usage: idiot auth add <name>
 
 . "$(dirname "${0}")/../../share/common.sh"

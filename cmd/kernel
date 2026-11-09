@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/kernel - clone an Ubuntu kernel from Launchpad
+# idiot: host
 
 . "$(dirname "${0}")/../share/common.sh"
 

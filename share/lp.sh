@@ -2,7 +2,7 @@
 # share/lp.sh - Launchpad user helpers
 # Source this file; do not execute directly.
 
-IDIOT_LP_USER_FILE="${IDIOT_LP_USER_FILE:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/lp-user}"
+IDIOT_LP_USER_FILE="${IDIOT_LP_USER_FILE:-${IDIOT_DATA_HOME}/lp-user}"
 
 # Print the active LP username (from env or saved file), or empty if not set.
 lp_user_value() {

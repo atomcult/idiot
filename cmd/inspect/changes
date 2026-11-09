@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/inspect/changes - browse snap changes interactively
+# idiot: host
 # Usage: idiot inspect changes
 
 . "$(dirname "${0}")/../../share/common.sh"

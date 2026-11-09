@@ -58,6 +58,7 @@ set as needed, only in the process that runs a bundled tool.
 ### New Capabilities
 
 ### Modified Capabilities
+- `auth`: under the snap the login/remove picker previews show cached status only (`auth status --cached`), since they run confined.
 - `shell-integration`: eval file location and evaluation order, the exit status rule for handoffs, the confined/host command split, the variables `init` exports under the snap, and PATH/LD_LIBRARY_PATH set only per process, as needed.
 
 ## Impact

@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/auth/export - print a credential file to stdout or write to a file
+# idiot: host
 # Usage: idiot auth export [<name>] [-f|--file <file>]
 
 . "$(dirname "${0}")/../../share/common.sh"

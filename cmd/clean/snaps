@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/clean/snaps - remove all dangerously-installed (unasserted) snaps
+# idiot: host
 
 . "$(dirname "${0}")/../../share/common.sh"
 include clean.sh

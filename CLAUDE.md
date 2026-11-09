@@ -7,6 +7,26 @@ there and the wrapper sources it, so environment changes take effect in the
 current shell. stdout is ordinary data output (never eval'd); messages,
 progress and errors go to stderr.
 
+## Confined and host commands
+
+The snap is strictly confined with no interfaces. Confined, idiot only
+changes its own state (plus the bundled fzf). **A command runs confined only
+if it touches nothing but idiot's state and needs no tool but fzf;
+everything else is a host command** and carries a `# idiot: host` line in
+its header. Under the snap the dispatcher hands a host command (unless it
+is asked for help) to the user's shell with `emit_handoff`: the eval file
+gets one quoted invocation of `/snap/<instance>/current/lib/idiot/idiot`,
+which runs outside confinement. Outside a snap every command runs directly.
+
+- `idiot init` (from the snap) exports `IDIOT_SNAP`, `IDIOT_DATA_HOME` and
+  `IDIOT_CACHE_DIR`: that is the host side's environment. Never `SNAP`.
+- **Never** export PATH or LD_LIBRARY_PATH into the user's shell. A bundled
+  tool gets whatever it needs only in its own process (`snap_app`,
+  `require`'s fallback); host tools run with the user's environment.
+- Host commands can't set variables (they run after the eval file is
+  read). A command that needs to both use host tools and export must be
+  split.
+
 ## Commands
 
 ```sh
@@ -130,13 +150,14 @@ POSIX `sh` only — no bashisms. Specifically:
 ```sh
 say "message"                   # printf to stderr
 die "message"                   # say error + exit 1
-require cmd ["install hint"]    # die unless cmd is in PATH
+require cmd ["install hint"]    # die unless cmd is in PATH (or bundled, host side)
 include module.sh               # source share/<module.sh> via IDIOT_ROOT
 shell_quote "${val}"            # POSIX single-quote escape for eval-safe output
 require_wrapper                 # die unless IDIOT_EVAL_FILE is usable
 emit_export VARNAME "${val}"    # queue a quoted export in the eval file
 emit_unset VARNAME              # queue unset (bash/zsh) or set --erase (fish)
-snap_app cmd [args]             # run cmd, resolving into $SNAP/bin if in snap
+snap_app cmd [args]             # run a bundled tool (snap, then core component)
+emit_handoff word...            # queue a host-side run of idiot <word...>
 dispatch_subcmd name dir [args] # exec cmd/<group>/<subcommand>
 ```
 
@@ -148,18 +169,21 @@ help_option  "--flag" "desc"      # bold, 22-char name column
 help_env     "VAR" "desc"         # bold, 22-char name column
 ```
 
-## XDG paths
+## State paths
 
 ```
-~/.local/share/idiot/    IDIOT_AUTH_DIR, IDIOT_STORES_DIR, IDIOT_MODELS_DIR,
-                         IDIOT_EXAMPLES_DIR, IDIOT_LP_USER_FILE
-~/.cache/idiot/          IDIOT_CACHE_DIR (whoami cache, example mirrors)
+IDIOT_DATA_HOME          IDIOT_AUTH_DIR, IDIOT_STORES_DIR, IDIOT_MODELS_DIR,
+                         IDIOT_EXAMPLES_DIR, IDIOT_LP_USER_FILE live here
+                         source: ~/.local/share/idiot  snap: ~/snap/idiot/common
+IDIOT_CACHE_DIR          whoami cache, example mirrors
+                         source: ~/.cache/idiot        snap: ~/snap/idiot/common/cache
 ~/.local/lib/idiot/      installed cmd/ and share/ (IDIOT_ROOT when installed)
 ```
 
-All path variables follow the pattern:
+`share/common.sh` sets `IDIOT_DATA_HOME`/`IDIOT_CACHE_DIR`; the per-item
+variables follow the pattern:
 ```sh
-IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/auth}"
+IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${IDIOT_DATA_HOME}/auth}"
 ```
 
 ## The `git()` wrapper

@@ -2,7 +2,7 @@
 # share/stores.sh - store configuration helpers
 # Source this file; do not execute directly.
 
-IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/stores}"
+IDIOT_STORES_DIR="${IDIOT_STORES_DIR:-${IDIOT_DATA_HOME}/stores}"
 
 # Die unless a store named $1 exists.
 require_store() {

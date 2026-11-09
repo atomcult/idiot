@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/examples - clone an example repository
+# idiot: host
 # Usage: idiot example [list | add | remove | update | <repo> [options]]
 
 . "$(dirname "${0}")/../share/common.sh"

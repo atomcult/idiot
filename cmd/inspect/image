@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/inspect/image - inspect an Ubuntu Core disk image
+# idiot: host
 
 . "$(dirname "${0}")/../../share/common.sh"
 

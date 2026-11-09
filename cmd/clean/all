@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/clean/all - remove all LXD containers and dangerously-installed snaps
+# idiot: host
 
 . "$(dirname "${0}")/../../share/common.sh"
 include clean.sh

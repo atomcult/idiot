@@ -87,6 +87,16 @@ Commands that write eval-able output add an `# Outputs:` line after that:
 # Outputs: eval-able export statements (via the eval file)
 ```
 
+Host commands (see CLAUDE.md: anything needing tools other than fzf, the
+network, or the user's files) add `# idiot: host` on the line after the
+name line; the dispatcher reads it, so spell it exactly:
+
+```sh
+#!/usr/bin/env sh
+# cmd/vm - launch and connect to a QEMU VM
+# idiot: host
+```
+
 When more context is essential (e.g. `cmd/init`), additional comment lines
 follow the header block before the first blank line.
 
@@ -315,8 +325,10 @@ itself.
 ## Eval-able output
 
 The shell wrapper (`idiot()` function installed by `idiot init`) runs each
-command with `IDIOT_EVAL_FILE` set to a fresh 0600 temp file, sources that
-file when the command exits, and deletes it. Commands that modify the shell
+command with `IDIOT_EVAL_FILE` set to a fresh 0600 temp file; when the
+command exits it reads the file, deletes it, and evaluates what it read.
+It returns the command's status, or, if that was zero, the evaluation's
+(so a handed-off host command's status comes back). Commands that modify the shell
 environment append their statements there through two helpers, never by
 writing to stdout.
 
@@ -483,12 +495,13 @@ display-only and cannot modify the shell environment.
 |---|---|---|
 | `say` | `say "text"` | Print to stderr |
 | `die` | `die "message"` | Print error to stderr and exit 1 |
-| `require` | `require cmd ["hint"]` | Die if `cmd` not in PATH |
+| `require` | `require cmd ["hint"]` | Die if `cmd` not in PATH; host side of the snap falls back to the bundled copy |
 | `shell_quote` | `shell_quote "${val}"` | POSIX single-quote escaping for eval |
 | `require_wrapper` | `require_wrapper` | Die unless `IDIOT_EVAL_FILE` is usable (call before side effects) |
 | `emit_export` | `emit_export VARNAME "${val}"` | Queue a quoted export in the eval file |
 | `emit_unset` | `emit_unset VARNAME` | Queue a shell-appropriate unset in the eval file |
-| `snap_app` | `snap_app cmd [args...]` | Run snap-bundled or system binary |
+| `snap_app` | `snap_app cmd [args...]` | Run a bundled tool (snap, then `core` component); setup only in its process |
+| `emit_handoff` | `emit_handoff word...` | Queue a host-side `idiot word...` (the dispatcher's job) |
 | `file_preview_cmd` | `file_preview_cmd VARNAME` | Return fzf `--preview` string for a directory |
 | `help_heading` | `help_heading "Label:" ["text"]` | Section heading |
 | `help_command` | `help_command "name" "desc"` | Command row (14-char column) |

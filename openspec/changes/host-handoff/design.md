@@ -121,6 +121,13 @@ starts `sh` for previews; an inherited LD_LIBRARY_PATH would load core24's
 libc into the host's sh). `snap_app` falls back to `env
 LD_LIBRARY_PATH=…` for that one tool only if patching isn't possible.
 
+Host commands call tools by name after `require`. On the host side of the
+snap, `require` turns a tool the host lacks but the snap bundles (fzf on a
+bare host, debugfs/mcopy/python3 from `core` on Ubuntu Core) into a shell
+function that runs the bundled copy through `snap_app`, so callers don't
+change and the user's PATH is never touched. The host's own copy wins when
+it exists.
+
 `idiot run --shell` execs `$SHELL` with the bundled tool directories
 prepended to PATH (the user asked for exactly that), and LD_LIBRARY_PATH
 only if bundled binaries need it (see above); it is a child shell, so the
@@ -133,6 +140,12 @@ defaults to `$SNAP_USER_COMMON` in the confined snap, comes from `init`'s
 export on the host side, and defaults to `${XDG_DATA_HOME:-~/.local/share}/idiot`
 for a source install; `IDIOT_CACHE_DIR` likewise. The per-item overrides
 (`IDIOT_AUTH_DIR`, …) keep working.
+
+### Pickers that preview account status
+`auth login` and `auth remove` stay confined (login exports), but their
+fzf preview ran `auth status`, which contacts the store. Under the snap the
+preview runs `auth status --cached`: cached details, or a note that they
+haven't been fetched. Source installs keep the live preview.
 
 ## Risks / Trade-offs
 

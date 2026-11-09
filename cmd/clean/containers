@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/clean/containers - remove all LXD containers in the snapcraft project
+# idiot: host
 
 . "$(dirname "${0}")/../../share/common.sh"
 include clean.sh

@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/model/pick - interactively select a model assertion and copy it
+# idiot: host
 # Usage: idiot model pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]
 #
 # Signed model assertions:   *.model

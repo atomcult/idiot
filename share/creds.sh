@@ -2,7 +2,7 @@
 # share/creds.sh - credential storage helpers
 # Source this file; do not execute directly.
 
-IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/auth}"
+IDIOT_AUTH_DIR="${IDIOT_AUTH_DIR:-${IDIOT_DATA_HOME}/auth}"
 
 # Die unless $1 is a safe credential name: letters, digits, '.', '-', '_',
 # not starting with '.' (so no '/', '..' or hidden files).

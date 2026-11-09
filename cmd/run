@@ -1,17 +1,18 @@
 #!/usr/bin/env sh
 # cmd/run - run a snap-bundled tool directly
+# idiot: host
 # Usage: idiot run [--shell] [<binary> [args...]]
 
 . "$(dirname "${0}")/../share/common.sh"
 
+# A child shell with the bundled tools first on PATH. Only that shell's
+# PATH changes; the caller's is untouched.
 _snap_shell() {
-	if [ -n "${SNAP:-}" ]; then
-		PATH="${SNAP}/usr/bin:${SNAP}/bin:${PATH}"
-		export PATH
-		exec "${SHELL:-sh}"
-	else
-		exec "${SHELL:-sh}"
-	fi
+	_ss_path=''
+	for _ss_dir in $(snap_tool_dirs); do
+		[ -d "${_ss_dir}" ] && _ss_path="${_ss_path}${_ss_dir}:"
+	done
+	PATH="${_ss_path}${PATH}" exec "${SHELL:-sh}"
 }
 
 main() {

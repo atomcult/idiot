@@ -3,10 +3,10 @@
 # Source this file; do not execute directly.
 
 # Parent directory for cloned model repos (one subdirectory per named repo)
-IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/models}"
+IDIOT_MODELS_DIR="${IDIOT_MODELS_DIR:-${IDIOT_DATA_HOME}/models}"
 
 # User-defined model repo registry (supplements bundled share/models/)
-IDIOT_MODEL_REPOS_DIR="${IDIOT_MODEL_REPOS_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/idiot/model-repos}"
+IDIOT_MODEL_REPOS_DIR="${IDIOT_MODEL_REPOS_DIR:-${IDIOT_DATA_HOME}/model-repos}"
 
 # Print one section of the model repo list (built-in or user).
 # $1: registry directory to scan

@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/vm - launch and connect to a QEMU VM
+# idiot: host
 
 . "$(dirname "${0}")/../share/common.sh"
 include arch.sh

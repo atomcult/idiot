@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 # cmd/auth/status - show login status
+# idiot: host
 # Usage: idiot auth status [--refresh]
 
 . "$(dirname "${0}")/../../share/common.sh"
@@ -25,14 +26,17 @@ map_permission() {
 
 main() {
 	refresh=0
+	cached=0
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot auth status [--refresh]"
+		help_heading "Usage:" "idiot auth status [--refresh | --cached]"
 		echo >&2
 		help_option "--refresh" "Bypass cache and fetch fresh status"
+		help_option "--cached" "Show only cached status; never contact the store"
 		exit 0
 		;;
 	--refresh) refresh=1 ;;
+	--cached) cached=1 ;;
 	esac
 	[ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || {
 		say "${DIM}Not logged in${RESET}"
@@ -46,6 +50,9 @@ main() {
 
 		if [ -f "${whoami_cache}" ]; then
 			raw="$(cat "${whoami_cache}")"
+		elif [ "${cached}" -eq 1 ]; then
+			say "${DIM}Status not fetched yet — run: idiot auth status${RESET}"
+			exit 0
 		else
 			raw="$(snapcraft whoami 2>&1)"
 			rc=$?
@@ -56,6 +63,9 @@ main() {
 			mkdir -p "$(dirname "${whoami_cache}")"
 			printf '%s\n' "${raw}" >"${whoami_cache}"
 		fi
+	elif [ "${cached}" -eq 1 ]; then
+		say "${DIM}Status not cached for an unnamed credential${RESET}"
+		exit 0
 	else
 		raw="$(snapcraft whoami 2>&1)"
 		rc=$?
