@@ -57,7 +57,9 @@ the active credential (email, username, id, permissions, channels and
 expiry) fetched from the Snap Store by idiot itself, with permission codes
 translated to readable descriptions. When the credential was activated by name
 the result SHALL be cached per credential under `IDIOT_CACHE_DIR` and reused
-until `--refresh` is given. With no active credential it SHALL report
+until `--refresh` is given. With `--cached` it SHALL show only a cached
+result, and otherwise say the status hasn't been fetched yet, without
+contacting the store. With no active credential it SHALL report
 `Not logged in` and exit zero. A rejected or expired credential SHALL be
 reported as such with a non-zero exit, and SHALL NOT be cached.
 
@@ -72,6 +74,10 @@ reported as such with a non-zero exit, and SHALL NOT be cached.
 #### Scenario: Not logged in
 - **WHEN** no credential is active
 - **THEN** `Not logged in` is printed and the exit status is zero
+
+#### Scenario: Cached only
+- **WHEN** no status is cached for the active credential `work` and the user runs `idiot auth status --cached`
+- **THEN** it says the status hasn't been fetched yet, exits zero, and contacts nothing
 
 #### Scenario: Expired credential
 - **WHEN** the active credential has expired
