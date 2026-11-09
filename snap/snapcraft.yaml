@@ -10,11 +10,14 @@ description: |
   to-do lists for common IoT development tasks.
 
 grade: devel
-confinement: strict
+# idiot drives host tools (qemu, lxc, snap, snapcraft, git), writes wherever
+# the user points it, and changes the calling shell: strict confinement
+# can't express that.
+confinement: classic
 
 components:
   core:
-    type: app
+    type: standard
     summary: Core device inspection tools
     description: |
       Additional tools for running idiot directly on an Ubuntu Core device,
@@ -32,16 +35,27 @@ parts:
   idiot:
     plugin: nil
     source: .
+    build-packages:
+      - git
+      - make
     override-build: |
+      # the snap's own version comes from `version: git`; this is the one
+      # `idiot version` prints
       VERSION=$(git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
-      craftctl set-version "$VERSION"
       make VERSION="$VERSION" PREFIX="${CRAFT_PART_INSTALL}" install
   packages:
     plugin: nil
+    # classic snap: point bundled ELF binaries at core24's loader and libs
+    build-attributes:
+      - enable-patchelf
     stage-packages:
       - fzf
   core-packages:
     plugin: nil
+    build-attributes:
+      - enable-patchelf
+    organize:
+      '*': (component/core)/
     stage-packages:
       - e2fsprogs
       - mtools
