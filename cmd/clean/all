@@ -2,31 +2,63 @@
 # cmd/clean/all - remove all LXD containers and dangerously-installed snaps
 
 . "$(dirname "${0}")/../../share/common.sh"
+include clean.sh
 
 main() {
 	dry_run=0
+	yes=0
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
-			help_heading "Usage:" "idiot clean all [-n]"
+			help_heading "Usage:" "idiot clean all [-n] [-y]"
 			echo >&2
 			help_heading "Options:"
 			help_option "-n, --dry-run" "Print what would be removed without deleting"
+			help_option "-y, --yes" "Remove without asking for confirmation"
 			exit 0
 			;;
 		-n | --dry-run) dry_run=1 ;;
+		-y | --yes) yes=1 ;;
 		*) die "unknown option: ${1}" ;;
 		esac
 		shift
 	done
 
-	dir="$(dirname "${0}")"
-	if [ "${dry_run}" -eq 1 ]; then
-		"${dir}/containers" --dry-run
-		"${dir}/snaps" --dry-run
+	# Each half is skipped (not fatal) when its tool is missing
+	containers=''
+	if command -v lxc >/dev/null 2>&1; then
+		containers="$(clean_list_containers)"
 	else
-		"${dir}/containers"
-		"${dir}/snaps"
+		say "${DIM}lxc not found — skipping containers${RESET}"
 	fi
+	snaps=''
+	if command -v snap >/dev/null 2>&1; then
+		snaps="$(clean_list_snaps)"
+	else
+		say "${DIM}snap not found — skipping snaps${RESET}"
+	fi
+
+	[ -n "${containers}${snaps}" ] || {
+		say "Nothing to clean."
+		exit 0
+	}
+
+	if [ "${dry_run}" -eq 1 ]; then
+		clean_show "Would delete these containers in the snapcraft project:" "${containers}"
+		clean_show "Would remove these sideloaded snaps:" "${snaps}"
+		exit 0
+	fi
+
+	clean_show "These containers in the snapcraft project will be deleted:" "${containers}"
+	clean_show "These sideloaded snaps will be removed:" "${snaps}"
+	[ "${yes}" -eq 1 ] || clean_confirm "Remove them all?" || {
+		say "Nothing removed."
+		exit 0
+	}
+
+	failed=0
+	clean_remove_containers "${containers}" || failed=1
+	clean_remove_snaps "${snaps}" || failed=1
+	[ "${failed}" -eq 0 ] || die "some items could not be removed"
 }
 main "$@"

@@ -2,19 +2,23 @@
 # cmd/clean/snaps - remove all dangerously-installed (unasserted) snaps
 
 . "$(dirname "${0}")/../../share/common.sh"
+include clean.sh
 
 main() {
 	dry_run=0
+	yes=0
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
-			help_heading "Usage:" "idiot clean snaps [-n]"
+			help_heading "Usage:" "idiot clean snaps [-n] [-y]"
 			echo >&2
 			help_heading "Options:"
 			help_option "-n, --dry-run" "Print what would be removed without deleting"
+			help_option "-y, --yes" "Remove without asking for confirmation"
 			exit 0
 			;;
 		-n | --dry-run) dry_run=1 ;;
+		-y | --yes) yes=1 ;;
 		*) die "unknown option: ${1}" ;;
 		esac
 		shift
@@ -22,20 +26,23 @@ main() {
 
 	require snap
 
-	# Dangerously-installed snaps have sideloaded revisions (x<N>)
-	snaps=$(snap list 2>/dev/null | awk 'NR>1 && $3 ~ /^x[0-9]+$/ {print $1}')
+	snaps="$(clean_list_snaps)"
 	[ -n "${snaps}" ] || {
 		say "No unasserted snaps found."
 		exit 0
 	}
 
-	printf '%s\n' "${snaps}" | while IFS= read -r name; do
-		if [ "${dry_run}" -eq 1 ]; then
-			say "${DIM}would remove${RESET} ${BOLD}${name}${RESET}"
-		else
-			say "Removing ${BOLD}${name}${RESET}..."
-			snap remove "${name}" >/dev/null 2>&1
-		fi
-	done
+	if [ "${dry_run}" -eq 1 ]; then
+		clean_show "Would remove these sideloaded snaps:" "${snaps}"
+		exit 0
+	fi
+
+	clean_show "These sideloaded snaps will be removed:" "${snaps}"
+	[ "${yes}" -eq 1 ] || clean_confirm "Remove them?" || {
+		say "Nothing removed."
+		exit 0
+	}
+	clean_remove_snaps "${snaps}" ||
+		die "some snaps could not be removed"
 }
 main "$@"

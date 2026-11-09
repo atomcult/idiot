@@ -21,8 +21,8 @@
 
 ## 4. Clean
 
-- [ ] 4.1 Add a `/dev/tty` confirmation (default no) and `-y/--yes` to `clean containers`, `clean snaps` and `clean all` (one combined question); show removal errors and exit non-zero if any item failed; update each help text; verify: declining removes nothing, `--yes` removes without asking, `--dry-run` lists only, and `idiot clean snaps --yes` as a non-root user shows snapd's refusal and exits non-zero
-- [ ] 4.2 Run `make check` and commit (`feat(clean)!: confirm before removing`)
+- [x] 4.1 Add a `/dev/tty` confirmation (default no) and `-y/--yes` to `clean containers`, `clean snaps` and `clean all` (one combined question); show removal errors and exit non-zero if any item failed; update each help text; verify: declining removes nothing, `--yes` removes without asking, `--dry-run` lists only, and `idiot clean snaps --yes` as a non-root user shows snapd's refusal and exits non-zero
+- [x] 4.2 Run `make check` and commit (`feat(clean)!: confirm before removing`)
 
 ## 5. Docs and tooling
 

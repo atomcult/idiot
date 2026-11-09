@@ -2,19 +2,23 @@
 # cmd/clean/containers - remove all LXD containers in the snapcraft project
 
 . "$(dirname "${0}")/../../share/common.sh"
+include clean.sh
 
 main() {
 	dry_run=0
+	yes=0
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
-			help_heading "Usage:" "idiot clean containers [-n]"
+			help_heading "Usage:" "idiot clean containers [-n] [-y]"
 			echo >&2
 			help_heading "Options:"
 			help_option "-n, --dry-run" "Print what would be removed without deleting"
+			help_option "-y, --yes" "Delete without asking for confirmation"
 			exit 0
 			;;
 		-n | --dry-run) dry_run=1 ;;
+		-y | --yes) yes=1 ;;
 		*) die "unknown option: ${1}" ;;
 		esac
 		shift
@@ -22,19 +26,23 @@ main() {
 
 	require lxc
 
-	containers=$(lxc list --project snapcraft --format csv --columns n 2>/dev/null)
+	containers="$(clean_list_containers)"
 	[ -n "${containers}" ] || {
 		say "No containers in snapcraft project."
 		exit 0
 	}
 
-	printf '%s\n' "${containers}" | while IFS= read -r name; do
-		if [ "${dry_run}" -eq 1 ]; then
-			say "${DIM}would delete${RESET} ${BOLD}${name}${RESET}"
-		else
-			say "Deleting ${BOLD}${name}${RESET}..."
-			lxc delete --project snapcraft --force "${name}" >/dev/null 2>&1
-		fi
-	done
+	if [ "${dry_run}" -eq 1 ]; then
+		clean_show "Would delete these containers in the snapcraft project:" "${containers}"
+		exit 0
+	fi
+
+	clean_show "These containers in the snapcraft project will be deleted:" "${containers}"
+	[ "${yes}" -eq 1 ] || clean_confirm "Delete them?" || {
+		say "Nothing removed."
+		exit 0
+	}
+	clean_remove_containers "${containers}" ||
+		die "some containers could not be deleted"
 }
 main "$@"
