@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # cmd/auth/import - import a credential file into IDIOT_AUTH_DIR
-# Usage: idiot auth import <file> [<name>]
+# Usage: idiot auth import <name> <file>
 
 . "$(dirname "${0}")/../../share/common.sh"
 include creds.sh
@@ -15,16 +15,18 @@ main() {
 	name="${1:-}"
 	src="${2:-}"
 
-	{ [ -n "${name}" ] || [ -n "${src}" ]; } ||
+	{ [ -n "${name}" ] && [ -n "${src}" ]; } ||
 		die "usage: idiot auth import <name> <file>"
+	validate_cred_name "${name}"
 
 	[ -f "${src}" ] || die "file not found: ${src}"
 
-	mkdir -p "${IDIOT_AUTH_DIR}"
+	ensure_auth_dir
 	require_no_cred "${name}"
 	dest="${IDIOT_AUTH_DIR}/${name}"
 
-	cp "${src}" "${dest}"
+	# install, not cp: cp would carry over the source file's mode
+	install -m 600 "${src}" "${dest}"
 	say "Imported '${BOLD}${src}${RESET}' as '${BOLD}${name}${RESET}'"
 }
 main "$@"

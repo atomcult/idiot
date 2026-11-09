@@ -15,12 +15,14 @@ main() {
 	name="${1:-}"
 
 	[ -n "${name}" ] || die "usage: idiot auth add <name>"
+	validate_cred_name "${name}"
 
-	mkdir -p "${IDIOT_AUTH_DIR}"
+	ensure_auth_dir
 	require_no_cred "${name}"
 	dest="${IDIOT_AUTH_DIR}/${name}"
 
-	tmpfile="$(mktemp)"
+	# hidden temp file in the private auth dir, so the rename keeps it there
+	tmpfile="$(mktemp "${IDIOT_AUTH_DIR}/.new.XXXXXX")"
 	trap 'rm -f "${tmpfile}"' EXIT INT TERM
 
 	snapcraft export-login "${tmpfile}" >&2 ||

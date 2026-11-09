@@ -46,7 +46,7 @@ main() {
 	cred_file="${IDIOT_AUTH_DIR}/${name}"
 
 	if [ -n "${outfile}" ]; then
-		cp "${cred_file}" "${outfile}"
+		install -m 600 "${cred_file}" "${outfile}"
 		say "Exported '${BOLD}${name}${RESET}' to '${BOLD}${outfile}${RESET}'"
 	else
 		cat "${cred_file}"

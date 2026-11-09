@@ -8,9 +8,9 @@
 
 ## 2. Credentials
 
-- [ ] 2.1 Add `validate_cred_name` to `share/creds.sh`; use it in `auth add` and `auth import`; fix `auth import`'s argument check (`&&`) and header comment; verify `idiot auth import ci` and `idiot auth import ../x ./f` both fail and write nothing
-- [ ] 2.2 Create the auth dir 0700 and write credentials 0600 (`umask 077`, `install -m 600`) in `auth add`, `auth import` and `auth export -f`; verify with `stat -c %a` after importing a 0664 file and after `export -f`
-- [ ] 2.3 Run `make check` and commit (`fix(auth): validate names and keep credentials private`)
+- [x] 2.1 Add `validate_cred_name` to `share/creds.sh`; use it in `auth add` and `auth import`; fix `auth import`'s argument check (`&&`) and header comment; verify `idiot auth import ci` and `idiot auth import ../x ./f` both fail and write nothing
+- [x] 2.2 Create the auth dir 0700 and write credentials 0600 (`umask 077`, `install -m 600`) in `auth add`, `auth import` and `auth export -f`; verify with `stat -c %a` after importing a 0664 file and after `export -f`
+- [x] 2.3 Run `make check` and commit (`fix(auth): validate names and keep credentials private`)
 
 ## 3. VM
 
