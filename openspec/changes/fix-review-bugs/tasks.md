@@ -27,5 +27,5 @@
 ## 5. Docs and tooling
 
 - [ ] 5.1 Correct CLAUDE.md (indent style, the dispatcher's `set -e`) and STYLE.md (`lib/` → `share/`, tabs) to match the code and `.editorconfig`/shfmt; verify `grep -n 'lib/common\|4-space' CLAUDE.md STYLE.md` returns nothing stale
-- [ ] 5.2 Replace the hand-written `share/*.sh` lists in the Makefile with a glob; verify `make check` lints a new empty `share/tmp.sh` (then delete it)
+- [x] 5.2 Replace the hand-written `share/*.sh` lists in the Makefile with a glob; verify `make check` lints a new empty `share/tmp.sh` (then delete it)
 - [ ] 5.3 Run `make check` and commit (`docs: align CLAUDE.md and STYLE.md with the code`, `build: lint every share module`)

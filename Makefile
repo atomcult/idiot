@@ -10,7 +10,8 @@ CACHE_DIR  = $(CACHE_HOME)/idiot
 
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
 
-SHELL_FILES := idiot share/common.sh share/fzf.sh share/arch.sh share/creds.sh share/stores.sh share/lp.sh share/models.sh share/examples.sh $(shell find cmd -type f)
+SHARE_FILES := $(wildcard share/*.sh)
+SHELL_FILES := idiot $(SHARE_FILES) $(shell find cmd -type f)
 
 LOG := printf '  \033[1;36m%-12s\033[0m %s\n'
 
@@ -23,7 +24,7 @@ hooks:
 check: fmt-check
 	@$(LOG) "SHELLCHECK" "idiot share/*.sh cmd/**"
 	@rc=0; \
-	shellcheck idiot share/common.sh share/fzf.sh share/arch.sh share/creds.sh share/stores.sh share/lp.sh share/models.sh share/examples.sh || rc=1; \
+	shellcheck idiot $(SHARE_FILES) || rc=1; \
 	find cmd -type f | xargs shellcheck -x || rc=1; \
 	exit $$rc
 
