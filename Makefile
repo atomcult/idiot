@@ -47,8 +47,8 @@ install:
 	@$(LOG) "INSTALL" "$(LIBDIR)/idiot"
 	@install -m755 idiot '$(LIBDIR)/idiot'
 	@$(LOG) "WRITE" "$(BINDIR)/idiot"
-	@printf '#!/usr/bin/env sh\n: "$${IDIOT_ROOT:=%s}"\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
-	    '$(LIBDIR)' > '$(BINDIR)/idiot'
+	@printf '#!/usr/bin/env sh\n: "$${IDIOT_ROOT:=%s}"\nexport IDIOT_LAUNCHER="%s"\nexec "$${IDIOT_ROOT}/idiot" "$$@"\n' \
+	    '$(LIBDIR)' '$(BINDIR)/idiot' > '$(BINDIR)/idiot'
 	@chmod 755 '$(BINDIR)/idiot'
 
 uninstall:

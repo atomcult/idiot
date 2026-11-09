@@ -7,9 +7,18 @@
 # so env changes take effect in the current shell. stdout and stderr pass
 # through untouched.
 
-IDIOT_BIN="$(cd "$(dirname "${0}")/.." && pwd)/idiot"
-
 . "$(dirname "${0}")/../share/common.sh"
+
+# The command path baked into the user's shell must outlive upgrades: the
+# snap's /snap/bin entry (never a path inside one revision, which goes away
+# on refresh), else the installed launcher, else this checkout's script.
+if [ -n "${SNAP:-}" ]; then
+	IDIOT_BIN="/snap/bin/${SNAP_INSTANCE_NAME:-${SNAP_NAME:-idiot}}"
+elif [ -n "${IDIOT_LAUNCHER:-}" ]; then
+	IDIOT_BIN="${IDIOT_LAUNCHER}"
+else
+	IDIOT_BIN="$(cd "$(dirname "${0}")/.." && pwd)/idiot"
+fi
 
 bin_quoted="$(shell_quote "${IDIOT_BIN}")"
 

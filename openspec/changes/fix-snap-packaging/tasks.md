@@ -2,8 +2,8 @@
 
 ## 1. Stable entry point
 
-- [ ] 1.1 Make the Makefile launcher export `IDIOT_LAUNCHER`, and make `cmd/init` emit `/snap/bin/${SNAP_INSTANCE_NAME}` under a snap, else `IDIOT_LAUNCHER`, else the computed path; verify `make install PREFIX=$(mktemp -d)` then `<prefix>/bin/idiot init bash` embeds `<prefix>/bin/idiot`, and `SNAP=/snap/idiot/x9 SNAP_INSTANCE_NAME=idiot ./idiot init fish` embeds `/snap/bin/idiot`
-- [ ] 1.2 Run `make check` and commit (`fix(init): embed a stable command path`)
+- [x] 1.1 Make the Makefile launcher export `IDIOT_LAUNCHER`, and make `cmd/init` emit `/snap/bin/${SNAP_INSTANCE_NAME}` under a snap, else `IDIOT_LAUNCHER`, else the computed path; verify `make install PREFIX=$(mktemp -d)` then `<prefix>/bin/idiot init bash` embeds `<prefix>/bin/idiot`, and `SNAP=/snap/idiot/x9 SNAP_INSTANCE_NAME=idiot ./idiot init fish` embeds `/snap/bin/idiot`
+- [x] 1.2 Run `make check` and commit (`fix(init): embed a stable command path`)
 
 ## 2. Snap
 
