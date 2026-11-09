@@ -11,10 +11,11 @@ plugs, and shouldn't need to: idiot already hands work back to the user's
 shell through the eval file. That same channel can hand a command over to a
 host-side copy of idiot, run from the snap's files, outside confinement.
 
-Doing that must not leak into the user's environment. `idiot init` and every
-command leave PATH, LD_LIBRARY_PATH and the rest of the shell as they were;
-the snap's tools get their library and lookup setup only in the process
-that runs them.
+`idiot init` is how the host side gets its environment: it exports the
+variables idiot's host-side code needs (where the snap is, where its state
+lives) into the user's shell. What it must not do is put the snap's tools
+on PATH or its libraries on LD_LIBRARY_PATH for the whole shell; those are
+set as needed, only in the process that runs a bundled tool.
 
 ## What Changes
 
@@ -22,16 +23,20 @@ that runs them.
   and **host** (anything else). A host command marks itself with a
   `# idiot: host` line; the dispatcher reads that marker.
 - Under the snap, the confined entry point (`/snap/bin/idiot`, which the
-  shell wrapper calls) answers a host command by writing one `env …`
+  shell wrapper calls) answers a host command by writing one quoted
   invocation of `/snap/<instance>/current/lib/idiot/idiot` to the eval file
   and exiting; the wrapper runs it in the user's shell. Help for a host
   command still runs confined. Outside a snap nothing changes: every
   command runs directly.
-- The handoff sets only idiot's own variables (`IDIOT_ROOT`, `IDIOT_SNAP`,
-  the data and cache directories). It never sets PATH or LD_LIBRARY_PATH.
+- Under the snap, `idiot init` also exports `IDIOT_SNAP`
+  (`/snap/<instance>/current`), `IDIOT_DATA_HOME` and `IDIOT_CACHE_DIR`
+  (the snap's common directory), so host-side code finds the snap and the
+  same state as the confined side. The handoff line itself sets nothing.
+  Neither ever sets PATH or LD_LIBRARY_PATH.
 - Host-side, `snap_app` runs a bundled tool (from the snap or its `core`
-  component) with whatever it needs set for that one process; host tools
-  (qemu, lxc, git, snap, ssh) run with the user's environment untouched.
+  component) with PATH/LD_LIBRARY_PATH set as needed for that one process;
+  host tools (qemu, lxc, git, snap, ssh) run with the user's PATH and
+  libraries.
   `idiot run --shell` gives a child shell where bundled tools come first on
   PATH; the calling shell is unchanged.
 - The wrapper:
@@ -53,7 +58,7 @@ that runs them.
 ### New Capabilities
 
 ### Modified Capabilities
-- `shell-integration`: eval file location and evaluation order, the exit status rule for handoffs, confined/host command split, and the guarantee that idiot never changes tool-lookup variables in the user's shell.
+- `shell-integration`: eval file location and evaluation order, the exit status rule for handoffs, the confined/host command split, the variables `init` exports under the snap, and PATH/LD_LIBRARY_PATH set only per process, as needed.
 
 ## Impact
 

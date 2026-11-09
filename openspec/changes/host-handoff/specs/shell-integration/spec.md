@@ -63,16 +63,28 @@ a handoff. Outside a snap every command SHALL run directly.
 - **WHEN** the user runs `idiot vm --help` under the snap
 - **THEN** the usage is shown and nothing is handed off
 
-### Requirement: User environment left alone
-Neither `idiot init` nor any command SHALL set, change or unset PATH,
-LD_LIBRARY_PATH or any other variable that affects how programs are found or
-loaded in the user's shell. Only the variables a command exists to manage
-(store, credential, architecture, Launchpad and `IDIOT_*` variables) SHALL
-change. A handoff SHALL set idiot's own variables for the host-side process
-only. Tools bundled in the snap SHALL get any path or library setup only in
-their own process; host tools SHALL run with the user's environment.
-`idiot run --shell` SHALL start a child shell with the bundled tools first
-on PATH, leaving the calling shell unchanged.
+### Requirement: Host environment from init
+Under the snap, the integration printed by `idiot init` SHALL also export
+`IDIOT_SNAP` (`/snap/<instance>/current`), `IDIOT_DATA_HOME` and
+`IDIOT_CACHE_DIR` (in the snap's per-user common directory), so host
+commands find the snap's files and the same state as confined ones. It
+SHALL NOT export `SNAP`. A host command run without `IDIOT_SNAP` SHALL fail
+telling the user to re-run `idiot init`.
+
+#### Scenario: Snap integration
+- **WHEN** the user loads the integration from the snap
+- **THEN** `IDIOT_SNAP` is `/snap/idiot/current`, `IDIOT_DATA_HOME` is `~/snap/idiot/common`, and `SNAP` is unset
+
+#### Scenario: Source integration
+- **WHEN** the user loads the integration from a source install
+- **THEN** only `IDIOT_SHELL` is exported
+
+### Requirement: PATH and LD_LIBRARY_PATH only as needed
+Neither `idiot init` nor any command SHALL change PATH or LD_LIBRARY_PATH in
+the user's shell. A tool bundled in the snap SHALL get any PATH or library
+setup it needs only in its own process; host tools SHALL run with the
+user's PATH and libraries. `idiot run --shell` SHALL start a child shell
+with the bundled tools first on PATH, leaving the calling shell unchanged.
 
 #### Scenario: After init
 - **WHEN** the user runs `eval "$(idiot init bash)"`
@@ -80,7 +92,7 @@ on PATH, leaving the calling shell unchanged.
 
 #### Scenario: After a host command
 - **WHEN** the user runs `idiot vm` under the snap and it exits
-- **THEN** PATH and LD_LIBRARY_PATH in the shell are exactly as before, and no `IDIOT_HOST`, `IDIOT_SNAP` or `SNAP` variable is set
+- **THEN** PATH and LD_LIBRARY_PATH in the shell are exactly as before
 
 #### Scenario: Host tools see the user's environment
 - **WHEN** a host command runs `qemu-system-x86_64` or `lxc`

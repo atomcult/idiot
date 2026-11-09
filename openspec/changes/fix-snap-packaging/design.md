@@ -34,14 +34,16 @@ snapcraft or qemu; more surface for no gain).
 ### Entry point
 The wrapper calls `/snap/bin/<instance>`, so management commands run
 confined. snapd sets `SNAP`, `SNAP_USER_COMMON` and its PATH (bundled fzf
-first) for that process only; none of it reaches the user's shell.
+first) for that process only. What the host side needs in the user's shell
+(`IDIOT_SNAP`, `IDIOT_DATA_HOME`, `IDIOT_CACHE_DIR`) comes from `idiot init`
+(`host-handoff`); PATH and LD_LIBRARY_PATH are never among it.
 
 ### State
 `IDIOT_DATA_HOME=$SNAP_USER_COMMON` and
 `IDIOT_CACHE_DIR=$SNAP_USER_COMMON/cache` (defaults in `host-handoff`).
 `$SNAP_USER_DATA` is per revision and copied on refresh; `common` isn't, so
 credentials don't multiply across revisions. Host-side commands get the
-same directories through the handoff. A source-install user moving to the
+same directories from the variables `idiot init` exports. A source-install user moving to the
 snap copies `~/.local/share/idiot/.` into `~/snap/idiot/common/` once
 (README).
 
