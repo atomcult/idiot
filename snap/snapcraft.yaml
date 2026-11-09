@@ -10,10 +10,11 @@ description: |
   to-do lists for common IoT development tasks.
 
 grade: devel
-# idiot drives host tools (qemu, lxc, snap, snapcraft, git), writes wherever
-# the user points it, and changes the calling shell: strict confinement
-# can't express that.
-confinement: classic
+# Strict with no plugs: confined, idiot only touches its own state and the
+# bundled fzf. Anything else (host tools, network, devices, user files) is
+# handed back to the user's shell and runs there from /snap/idiot/current
+# (see `# idiot: host` and emit_handoff in share/common.sh).
+confinement: strict
 
 components:
   core:
@@ -45,21 +46,35 @@ parts:
       make VERSION="$VERSION" PREFIX="${CRAFT_PART_INSTALL}" install
   packages:
     plugin: nil
-    # classic snap: point bundled ELF binaries at core24's loader and libs
-    build-attributes:
-      - enable-patchelf
+    build-packages:
+      - patchelf
+    # fzf runs confined as packaged (core24 is / there). Host commands get a
+    # patched copy in host/bin: a patched binary looks in /snap/core24/<rev>,
+    # which AppArmor won't let a confined process read.
+    override-build: |
+      craftctl default
+      mkdir -p "${CRAFT_PART_INSTALL}/host/bin"
+      cp -p "${CRAFT_PART_INSTALL}/usr/bin/fzf" "${CRAFT_PART_INSTALL}/host/bin/"
+      "${CRAFT_PROJECT_DIR}/snap/local/patchelf-host" \
+          "${CRAFT_PART_INSTALL}" "${CRAFT_ARCH_TRIPLET_BUILD_FOR}" host
     stage-packages:
       - fzf
   core-packages:
     plugin: nil
-    build-attributes:
-      - enable-patchelf
+    build-packages:
+      - patchelf
+    # the component's tools only run host-side: patch them all (snapcraft's
+    # enable-patchelf skips files organised into a component)
+    override-build: |
+      craftctl default
+      "${CRAFT_PROJECT_DIR}/snap/local/patchelf-host" \
+          "${CRAFT_PART_INSTALL}" "${CRAFT_ARCH_TRIPLET_BUILD_FOR}"
     organize:
       '*': (component/core)/
+    # no python3: core24 ships it (confined) and every host has its own
     stage-packages:
       - e2fsprogs
       - mtools
-      - python3-minimal
       - util-linux
       - dosfstools
       - tpm2-tools

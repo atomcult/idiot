@@ -9,7 +9,7 @@ puts the tree in `lib/idiot/` and a launcher in `bin/idiot`; the app sets
 3e2491e switched to classic confinement; that was a misreading of how idiot
 runs and is reverted here, keeping the rest of that commit (component type
 `standard`, `organize` into the component, `version: git`, patchelf). The
-dev host has snapcraft 9.2 and snapd 2.77; an older idiot snap (`x1`, from
+dev host has snapcraft 9.2 and snapd 2.78; an older idiot snap (`x1`, from
 v1) is installed there.
 
 ## Goals / Non-Goals
@@ -48,29 +48,44 @@ snap copies `~/.local/share/idiot/.` into `~/snap/idiot/common/` once
 (README).
 
 ### Bundled binaries on the host
-Inside confinement core24 is `/`, so bundled ELF binaries just work. On the
-host they would load the host's libc. `enable-patchelf` on every part that
-stages binaries sets their interpreter to
-`/snap/core24/current/lib64/ld-linux-x86-64.so.2` (per arch) and their
-RPATH into the snap and core24, so they run correctly in both places with
-no environment at all, and the programs they start (fzf previews run `sh`)
-see a clean environment. Task 2.3 checks the interpreter and RPATH with
-`readelf` and runs fzf both confined and host-side. If patching isn't
-applied for a strict snap, `snap_app` sets LD_LIBRARY_PATH for that one
-tool (`host-handoff`).
+Inside confinement core24 is `/`, so bundled ELF binaries just work as
+packaged. On the host they would load the host's libc (or miss libraries
+the host lacks). `snap/local/patchelf-host` sets each executable's
+interpreter to core24's loader (`/snap/core24/current/lib64/...`, per arch)
+and gives every ELF file an RPATH into its own tree (relative to `$ORIGIN`)
+and then core24, so it runs host-side with no environment at all, and the
+programs it starts (fzf previews run `sh`) see a clean environment.
+
+Found on the real install (2.3):
+- A patched binary can't run confined: AppArmor denies a confined process
+  reading or executing `/snap/core24/<rev>/...`, and once the RPATH lookup
+  is denied the loader doesn't fall back to `/lib`. So fzf, the one tool
+  used both confined (pickers) and host-side, ships unpatched in `usr/bin`
+  with a patched copy in `host/bin`; `snap_tool_dirs` returns `$SNAP/usr/bin`
+  confined and `$IDIOT_SNAP/host/bin` plus the component host-side.
+- snapcraft's `enable-patchelf` skips files organised into a component, so
+  both parts call `patchelf-host` from `override-build` instead.
+- `python3-minimal` staged only a dangling `python3 -> python3.12` symlink
+  (snapcraft drops files core24 already has); dropped from the component.
+  Host commands use the host's python3 (Ubuntu Core 24's root is core24).
+- Without patching, nothing would set LD_LIBRARY_PATH in the user's shell
+  either way; the per-tool fallback was never needed.
 
 ### Component layout and lookup
 `core-packages` uses `organize: {'*': (component/core)/}` and the
-component type is `standard`. snapd mounts components outside `$SNAP`,
-per snap revision. Confined, `snap_app` finds them under
-`/snap/<instance>/components/<revision>/core`; host-side, through
-`current`'s revision. The exact path is read off a local install (task
-2.3) and then written down here and in `snap_app`.
+component type is `standard`. snapd mounts the component at
+`/snap/<instance>/components/mnt/core/<component revision>` and links
+`/snap/<instance>/components/<snap revision>/core` to it; confined it sets
+`SNAP_COMPONENTS=/snap/<instance>/components/<snap revision>`.
+`snap_component_dir` uses `SNAP_COMPONENTS` when set, else the snap
+revision (`SNAP_REVISION` confined, `current`'s target host-side). The
+`$ORIGIN`-relative RPATH keeps working whichever revision path is used.
 
 ## Risks / Trade-offs
 
-- [patchelf on strict snaps] → verified in 2.3; fallback is per-tool
-  LD_LIBRARY_PATH, never in the user's shell.
+- [patchelf on strict snaps] → patched binaries can't run confined
+  (AppArmor); confined tools stay unpatched, host-side copies are patched
+  (2.3).
 - [AppArmor reading `/snap/core24/current` or component mounts while
   confined] → checked in 2.3 by running fzf and `idiot run debugfs -V`
   (host-side) with and without the component.

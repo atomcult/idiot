@@ -11,7 +11,7 @@ CACHE_DIR  = $(CACHE_HOME)/idiot
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
 
 SHARE_FILES := $(wildcard share/*.sh)
-SHELL_FILES := idiot $(SHARE_FILES) $(shell find cmd -type f)
+SHELL_FILES := idiot $(SHARE_FILES) snap/local/patchelf-host $(shell find cmd -type f)
 
 LOG := printf '  \033[1;36m%-12s\033[0m %s\n'
 
@@ -22,9 +22,9 @@ hooks:
 	@git config core.hooksPath .githooks
 
 check: fmt-check
-	@$(LOG) "SHELLCHECK" "idiot share/*.sh cmd/**"
+	@$(LOG) "SHELLCHECK" "idiot share/*.sh snap/local/* cmd/**"
 	@rc=0; \
-	shellcheck idiot $(SHARE_FILES) || rc=1; \
+	shellcheck idiot $(SHARE_FILES) snap/local/patchelf-host || rc=1; \
 	find cmd -type f | xargs shellcheck -x || rc=1; \
 	exit $$rc
 

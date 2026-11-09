@@ -277,11 +277,15 @@ snap_root() {
     printf '%s' "${SNAP:-${IDIOT_SNAP:-}}"
 }
 
-# The `core` component's files for the snap revision in use. snapd mounts
-# components per snap revision, outside $SNAP.
-# TODO(fix-snap-packaging 2.3): confirm this path on a real install.
+# The `core` component's files for the snap revision in use. snapd links
+# /snap/<instance>/components/<snap revision>/core to the component's own
+# mount (components/mnt/core/<component revision>); confined, it sets
+# SNAP_COMPONENTS to that per-revision directory. Host-side, the revision
+# comes from `current`.
 snap_component_dir() {
-    if [ -n "${SNAP:-}" ]; then
+    if [ -n "${SNAP_COMPONENTS:-}" ]; then
+        printf '%s/core' "${SNAP_COMPONENTS}"
+    elif [ -n "${SNAP:-}" ]; then
         printf '/snap/%s/components/%s/core' "$(snap_instance)" "${SNAP_REVISION:-}"
     else
         _scd_rev="$(readlink "${IDIOT_SNAP}" 2>/dev/null || :)"
@@ -289,14 +293,19 @@ snap_component_dir() {
     fi
 }
 
-# Directories holding the snap's bundled tools, one per line (snap first,
-# then the core component). Prints nothing for a source install.
+# Directories holding the snap's bundled tools, one per line. Confined, the
+# packaged fzf (core24 is / there). Host-side, the copies patched to load
+# core24's libraries from /snap/core24/current, which a confined process
+# may not read: the snap's host/bin, then the core component. Prints
+# nothing for a source install.
 snap_tool_dirs() {
-    _std_root="$(snap_root)"
-    [ -n "${_std_root}" ] || return 0
-    _std_comp="$(snap_component_dir)"
-    printf '%s\n' "${_std_root}/usr/bin" "${_std_root}/bin" \
-        "${_std_comp}/usr/bin" "${_std_comp}/bin" "${_std_comp}/usr/sbin" "${_std_comp}/sbin"
+    if [ -n "${SNAP:-}" ]; then
+        printf '%s\n' "${SNAP}/usr/bin" "${SNAP}/bin"
+    elif [ -n "${IDIOT_SNAP:-}" ]; then
+        _std_comp="$(snap_component_dir)"
+        printf '%s\n' "${IDIOT_SNAP}/host/bin" \
+            "${_std_comp}/usr/bin" "${_std_comp}/bin" "${_std_comp}/usr/sbin" "${_std_comp}/sbin"
+    fi
 }
 
 # Path of a tool bundled in the snap or its component, or fail.
@@ -312,7 +321,8 @@ snap_tool() {
 
 # Run a tool bundled in the snap (or its core component). Anything it needs
 # set up is set for its own process only, never in the user's shell; the
-# binaries are patched to find core24's libraries, so today that's nothing.
+# binaries are patched to find core24's libraries (snap/local/patchelf-host),
+# so today that's nothing.
 # Without a snap, runs the tool from PATH.
 snap_app() {
     _sa_cmd="${1}"

@@ -28,8 +28,12 @@ The snap doesn't behave like the `make install` build:
 - The `core-packages` part is organised into the `core` component, so
   `snap install idiot+core` provides the device tools and the base snap
   doesn't carry them.
-- Bundled binaries are patched (`enable-patchelf`) to load core24's
-  libraries, so they run host-side without LD_LIBRARY_PATH.
+- Bundled binaries that run host-side are patched
+  (`snap/local/patchelf-host`) to load core24's libraries, so they need no
+  LD_LIBRARY_PATH. fzf, which also runs confined, ships unpatched with a
+  patched copy in `host/bin`.
+- The `core` component drops python3 (only a dangling symlink once
+  snapcraft removed what core24 already has).
 - README describes installing the snap and its component.
 - stdout: unchanged. No new runtime dependencies.
 

@@ -1,0 +1,48 @@
+#!/bin/sh
+# snap/local/patchelf-host - make bundled ELF files run host-side
+# Usage: patchelf-host <part install dir> <arch triplet> [<subdir>]
+#
+# Host commands run bundled tools outside confinement, where they'd load the
+# host's libc (or nothing, on a host without their libraries). Point each
+# executable under <dir>/<subdir> (default: all of <dir>) at core24's loader
+# and give every ELF file an RPATH into <dir> (relative to $ORIGIN, since a
+# component's mount path changes with each revision) and then core24.
+#
+# Patched files only run host-side: confined, AppArmor denies reading
+# /snap/core24/<rev>, so a tool that also runs confined (fzf) keeps its
+# packaged copy and gets a patched one in host/ (see snapcraft.yaml).
+# snapcraft's own enable-patchelf does the same patching, but skips files
+# organised into a component.
+
+set -eu
+
+usage="usage: patchelf-host <dir> <triplet> [<subdir>]"
+root="${1:?${usage}}"
+triplet="${2:?${usage}}"
+sub="${3:-.}"
+base=/snap/core24/current
+
+find "${root}/${sub}" -type f | while IFS= read -r f; do
+	# not ELF (or not dynamic): nothing to patch
+	patchelf --print-rpath "${f}" >/dev/null 2>&1 || continue
+
+	# $ORIGIN/.. up to <dir>
+	rel="$(dirname "${f#"${root}"/}")"
+	rel="${rel#./}"
+	# shellcheck disable=SC2016 # a literal $ORIGIN, for the loader
+	up='$ORIGIN'
+	while [ "${rel}" != "." ]; do
+		up="${up}/.."
+		rel="$(dirname "${rel}")"
+	done
+	rpath="${up}/usr/lib/${triplet}:${up}/lib/${triplet}"
+	rpath="${rpath}:${base}/usr/lib/${triplet}:${base}/lib/${triplet}"
+
+	if interp="$(patchelf --print-interpreter "${f}" 2>/dev/null)"; then
+		case "${interp}" in
+		"${base}"/*) ;;
+		*) patchelf --set-interpreter "${base}${interp}" "${f}" ;;
+		esac
+	fi
+	patchelf --force-rpath --set-rpath "${rpath}" "${f}"
+done
