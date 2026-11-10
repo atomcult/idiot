@@ -2,10 +2,10 @@
 
 ## 1. Extraction module (`refactor(inspect): move image extraction to share/image.sh`)
 
-- [ ] 1.1 Capture today's `idiot inspect image` stderr (with `FORCE_COLOR=1` and with `NO_COLOR=1`) for a fresh and a first-booted Core 24 image, plus `--extract-state` output, into the scratch directory as the baseline
-- [ ] 1.2 `share/image.sh`: `image_load` and its parts (`image_partitions` with one `sfdisk --json` per image and `partitions.tsv`, `image_read_model` with `model-headers.tsv` and `model-snaps.tsv` including `type` and pre-UC20 `gadget`/`kernel` headers, `image_read_seed`, `image_read_data` storing uncolored `first-boot`/`preseeded` tokens); the no-ubuntu-seed error names the image; verify with a shell that sources the module that a fresh image's work directory holds the expected files and that sfdisk runs once (`strace -f -e execve` or a PATH shim counting calls)
-- [ ] 1.3 `cmd/inspect/image`: use `image_load` into a `mktemp -d` directory, printers read it and color the tokens; verify every captured baseline matches byte for byte (`cmp`) and the existing inspect spec scenarios (not a Core image, encrypted data, `--extract-state` cases) still hold
-- [ ] 1.4 Run `make check` and commit
+- [x] 1.1 Capture today's `idiot inspect image` stderr (with `FORCE_COLOR=1` and with `NO_COLOR=1`) for a fresh and a first-booted Core 24 image, plus `--extract-state` output, into the scratch directory as the baseline
+- [x] 1.2 `share/image.sh`: `image_load` and its parts (`image_partitions` with one `sfdisk --json` per image and `partitions.tsv`, `image_read_model` with `model-headers.tsv` and `model-snaps.tsv` including `type` and pre-UC20 `gadget`/`kernel` headers, `image_read_seed`, `image_read_data` storing uncolored `first-boot`/`preseeded` tokens); the no-ubuntu-seed error names the image; verify with a shell that sources the module that a fresh image's work directory holds the expected files and that sfdisk runs once (`strace -f -e execve` or a PATH shim counting calls)
+- [x] 1.3 `cmd/inspect/image`: use `image_load` into a `mktemp -d` directory, printers read it and color the tokens; verify every captured baseline matches byte for byte (`cmp`) and the existing inspect spec scenarios (not a Core image, encrypted data, `--extract-state` cases) still hold
+- [x] 1.4 Run `make check` and commit
 
 ## 2. stdout colors (`feat(common): add stdout_colors`)
 

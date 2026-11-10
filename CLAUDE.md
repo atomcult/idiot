@@ -96,6 +96,9 @@ share/           # sourced helper modules (never executed directly)
                  #   record_cred_store, warn_store_mismatch (+ stores.sh)
   examples.sh    # IDIOT_EXAMPLES_DIR, resolve_example_url
   fzf.sh         # file_preview_cmd, fzf_pick_from_dir
+  image.sh       # image_load (an Ubuntu Core image into a work dir of
+                 #   small files: partitions, model, seed, first boot,
+                 #   state.json), image_offset
   lp.sh          # IDIOT_LP_USER_FILE, lp_user_value, require_lp_user
   models.sh      # IDIOT_MODELS_DIR, require_models_repo
   profiles.sh    # IDIOT_PROFILES_DIR, read_profile (PF_* vars, never
