@@ -1,0 +1,154 @@
+#!/usr/bin/env sh
+# cmd/inspect/assertion - summarise and verify snapd assertions
+# idiot: host
+
+. "$(dirname "${0}")/../../share/common.sh"
+include stores.sh
+include models.sh
+
+USAGE='usage: idiot inspect assertion [options] <file|->'
+
+# Print the revision header of model file $1 (0 when it has none).
+_model_revision() {
+	awk '/^$/ { exit } /^revision:/ { r = $2 } END { print (r == "" ? 0 : r) }' "${1}"
+}
+
+# Warn when model facts line $@ (index brand model authority store
+# revision copy) disagrees with the active store or a saved model.
+_cross_check() {
+	_brand="${2}"
+	_model="${3}"
+	_auth="${4}"
+	_store="${5}"
+	_rev="${6}"
+	_copy="${7}"
+	_what="model ${_brand}/${_model}"
+	_saved=''
+
+	_active="${UBUNTU_STORE_ID:-}"
+	if [ "${_store}" != "${_active}" ]; then
+		if [ -n "${_store}" ] && _saved="$(store_name_for_id "${_store}")"; then
+			_named="'${_store}' (saved as '${_saved}')"
+		else
+			_named="'${_store}'"
+		fi
+		if [ -z "${_active}" ]; then
+			say "${YELLOW}warning:${RESET} ${_what} is for store ${_named}, but the global store is active — switch: idiot store use ${_saved:-<name>}"
+		elif [ -z "${_store}" ]; then
+			say "${YELLOW}warning:${RESET} ${_what} names no store (the global store), but $(store_label "${_active}") is active"
+		else
+			say "${YELLOW}warning:${RESET} ${_what} is for store ${_named}, but $(store_label "${_active}") is active"
+		fi
+	fi
+	_saved=''
+
+	[ "${_auth}" = "${_brand}" ] ||
+		say "${YELLOW}note:${RESET} ${_what} is signed by authority '${_auth}', not by its brand"
+
+	[ -d "${IDIOT_MODELS_DIR}" ] || return 0
+	find "${IDIOT_MODELS_DIR}" -name .git -prune -o -type f -name '*.model' -print 2>/dev/null |
+		while IFS= read -r _f; do
+			awk -v b="${_brand}" -v m="${_model}" '
+				/^$/ { exit } /^brand-id:/ { bb = $2 } /^model:/ { mm = $2 }
+				END { exit !(bb == b && mm == m) }' "${_f}" || continue
+			if cmp -s "${_copy}" "${_f}"; then
+				say "${DIM}matches the saved model ${_f}${RESET}"
+			else
+				_frev="$(_model_revision "${_f}")"
+				if [ "${_frev}" = "${_rev}" ]; then
+					say "${YELLOW}warning:${RESET} ${_what} differs from the saved model ${_f} (both revision ${_rev})"
+				else
+					say "${YELLOW}warning:${RESET} ${_what} is revision ${_rev}; the saved model ${_f} is revision ${_frev}"
+				fi
+			fi
+		done
+}
+
+main() {
+	remote=''
+	no_verify=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot inspect assertion [options] <file|->"
+			echo >&2
+			say "Summarise each assertion in a file (or stdin, with -) and check its"
+			say "signature, up to a key snapd trusts or Canonical's root key. Never"
+			say "changes snapd's assertion database; needs no root."
+			echo >&2
+			help_heading "Options:"
+			help_option "--remote" "Fetch account-keys missing locally from the store"
+			help_option "--no-verify" "Only summarise; don't check signatures"
+			exit 0
+			;;
+		--remote)
+			remote=1
+			shift
+			;;
+		--no-verify)
+			no_verify=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
+		-?*)
+			die "unknown option: ${1}"
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+	[ $# -eq 1 ] || die "${USAGE}"
+	src="${1}"
+	[ "${src}" = - ] || [ -f "${src}" ] || die "file not found: ${src}"
+
+	require python3
+
+	work=$(mktemp -d) || die "can't create a temporary directory"
+	trap 'rm -rf "${work}"' EXIT INT TERM HUP
+	if [ "${src}" = - ]; then
+		cat >"${work}/input" || die "can't read stdin"
+		input="${work}/input"
+		name=stdin
+	else
+		[ -r "${src}" ] || die "can't read ${src}"
+		input="${src}"
+		name="${src}"
+	fi
+	# an unsigned model from `idiot model pick --unsigned` is JSON
+	[ "$(tr -d ' \t\r\n' <"${input}" | head -c 1)" != '{' ] ||
+		die "${name} is an unsigned model (JSON), not a signed assertion — sign it with: snap sign"
+
+	set -- --facts "${work}/facts" --name "${name}"
+	[ -z "${remote}" ] || set -- "$@" --remote
+	if [ -n "${no_verify}" ]; then
+		set -- "$@" --no-verify
+	else
+		if snap_cmd="$(command -v snap)"; then
+			set -- "$@" --snap "${snap_cmd}"
+		else
+			say "${DIM}snap isn't installed: checking with the stream's own keys and Canonical's bundled keys only${RESET}"
+			[ -z "${remote}" ] || say "${DIM}--remote needs snap; no keys will be fetched${RESET}"
+		fi
+		set -- "$@" --trusted "${IDIOT_ROOT}/share/assertions/canonical.account-keys"
+	fi
+
+	stdout_colors
+	rc=0
+	OUT_BOLD="${OUT_BOLD}" OUT_DIM="${OUT_DIM}" OUT_RED="${OUT_RED}" \
+		OUT_GREEN="${OUT_GREEN}" OUT_YELLOW="${OUT_YELLOW}" OUT_CYAN="${OUT_CYAN}" \
+		OUT_RESET="${OUT_RESET}" \
+		python3 "${IDIOT_ROOT}/share/assertion.py" "$@" - <"${input}" || rc=$?
+	[ "${rc}" -le 1 ] || exit 1
+
+	if [ -s "${work}/facts" ]; then
+		while IFS="$(printf '\037')" read -r idx brand model auth store rev copy; do
+			_cross_check "${idx}" "${brand}" "${model}" "${auth}" "${store}" "${rev}" "${copy}"
+		done <"${work}/facts"
+	fi
+	exit "${rc}"
+}
+main "$@"

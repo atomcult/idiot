@@ -110,6 +110,9 @@ share/           # sourced helper modules (never executed directly)
                  #   the snap's vm component), vm_firmware_secboot/_package
   uefi-vars.py   # run, not sourced: lists an OVMF/AAVMF variable store
                  #   (idiot vm vars); python3 standard library only
+  assertion.py   # run, not sourced: summarises and verifies an assertion
+                 #   stream (idiot inspect assertion); python3 stdlib only
+  assertions/    # bundled public account-keys: canonical/root, canonical/models
   examples/      # bundled static example alias files
   kernels/       # bundled static kernel data files
 tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft

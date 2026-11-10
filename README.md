@@ -158,6 +158,26 @@ VM; use `--in-place` if you need the image written.
 
 ---
 
+## Inspecting images and assertions
+
+```
+$ idiot inspect image core.img                 # model, first boot, seeded snaps, snapd state
+$ idiot inspect diff old.img new.img           # only what differs (--tsv, --state)
+$ idiot inspect assertion pc.model             # headers, snaps, and is the signature good?
+$ snap known model | idiot inspect assertion -
+```
+
+`inspect assertion` checks each signature up the chain of account-keys
+to one snapd trusts (this machine's assertion database) or Canonical's
+root key, which idiot bundles with Canonical's `models` key, so Canonical
+models verify offline. It never adds anything to snapd's database and
+needs no root; `--remote` fetches brand keys from the store. It also warns
+when a model's store isn't the active one, or a saved model (`idiot
+model`) with the same name has another revision. It exits 1 when a
+signature is invalid.
+
+---
+
 ## Profiles
 
 Save the whole setup once and switch it with one command:
