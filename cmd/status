@@ -113,17 +113,7 @@ main() {
 
 	# Store
 	if [ -n "${UBUNTU_STORE_ID:-}" ]; then
-		_store_name=""
-		if [ -d "${IDIOT_STORES_DIR}" ]; then
-			for _f in "${IDIOT_STORES_DIR}"/*; do
-				[ -f "${_f}" ] || continue
-				_fid="$(cat "${_f}")"
-				if [ "${_fid}" = "${UBUNTU_STORE_ID}" ]; then
-					_store_name="${_f##*/}"
-					break
-				fi
-			done
-		fi
+		_store_name="$(store_name_for_id "${UBUNTU_STORE_ID}")" || :
 		if [ -n "${_store_name}" ]; then
 			_row "store" "${BOLD}${_store_name}${RESET}" "${UBUNTU_STORE_ID}"
 		else

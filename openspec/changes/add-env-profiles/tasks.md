@@ -7,10 +7,10 @@ pointed at a fresh `mktemp -d`, and fake credentials made with
 
 ## 1. Shared emitters (no behaviour change)
 
-- [ ] 1.1 `share/creds.sh`: add `emit_cred_login <name>` (require_cred + the three exports) and `emit_cred_logout`; rewire `cmd/auth/login` and `cmd/auth/logout`; verify the auth spec's "Activating a credential" scenarios (login by name, unknown credential leaves variables unchanged, picker cancel, logout) still hold
-- [ ] 1.2 `share/stores.sh`: add `store_id <name>`, `store_name_for_id <id>`, `emit_store_use <name>`, `emit_store_unset`; rewire `cmd/store/use`, `cmd/store/unset` and the store row of `cmd/status`; verify the store spec's "Activating a store" scenarios and the status spec's named/unknown store scenarios
-- [ ] 1.3 `share/arch.sh`: add `STORE_ARCHES` and `is_store_arch`; rewire `cmd/arch/set` (picker list and error message from it); verify `idiot arch set arm64`, `idiot arch set x86` (lists valid arches, nothing changes) and the picker
-- [ ] 1.4 Run `make check`; commit (`refactor: share auth, store and arch emitters`)
+- [x] 1.1 `share/creds.sh`: add `emit_cred_login <name>` (require_cred + the three exports) and `emit_cred_logout`; rewire `cmd/auth/login` and `cmd/auth/logout`; verify the auth spec's "Activating a credential" scenarios (login by name, unknown credential leaves variables unchanged, picker cancel, logout) still hold
+- [x] 1.2 `share/stores.sh`: add `store_id <name>`, `store_name_for_id <id>`, `emit_store_use <name>`, `emit_store_unset`; rewire `cmd/store/use`, `cmd/store/unset` and the store row of `cmd/status`; verify the store spec's "Activating a store" scenarios and the status spec's named/unknown store scenarios
+- [x] 1.3 `share/arch.sh`: add `STORE_ARCHES` and `is_store_arch`; rewire `cmd/arch/set` (picker list and error message from it); verify `idiot arch set arm64`, `idiot arch set x86` (lists valid arches, nothing changes) and the picker
+- [x] 1.4 Run `make check`; commit (`refactor: share auth, store and arch emitters`)
 
 ## 2. Credential store pairing and mismatch warning
 

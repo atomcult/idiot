@@ -31,11 +31,6 @@ main() {
 			"sh -c '${preview_cmd}'") || exit 0
 	}
 
-	require_cred "${name}"
-	cred_file="${IDIOT_AUTH_DIR}/${name}"
-	contents="$(cat "${cred_file}")"
-	emit_export UBUNTU_STORE_AUTH "${contents}"
-	emit_export SNAPCRAFT_STORE_CREDENTIALS "${contents}"
-	emit_export IDIOT_ACTIVE_CRED "${name}"
+	emit_cred_login "${name}"
 }
 main "$@"

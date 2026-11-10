@@ -25,10 +25,6 @@ main() {
 	}
 
 	mkdir -p "${IDIOT_STORES_DIR}"
-	require_store "${name}"
-	store_file="${IDIOT_STORES_DIR}/${name}"
-
-	store_id="$(cat "${store_file}")"
-	emit_export UBUNTU_STORE_ID "${store_id}"
+	emit_store_use "${name}"
 }
 main "$@"

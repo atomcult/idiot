@@ -17,9 +17,7 @@ main() {
 
 	[ -n "${name}" ] && [ -n "${store_id}" ] || die "usage: idiot store add <name> <store-id>"
 
-	case "${name}" in
-	*[!A-Za-z0-9_-]*) die "invalid store name '${name}': use only letters, digits, hyphens, underscores" ;;
-	esac
+	validate_store_name "${name}"
 
 	mkdir -p "${IDIOT_STORES_DIR}"
 	require_no_store "${name}"

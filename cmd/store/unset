@@ -4,6 +4,7 @@
 # Outputs: eval-able unset statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
+include stores.sh
 
 main() {
 	case "${1:-}" in
@@ -13,6 +14,6 @@ main() {
 		;;
 	esac
 	require_wrapper
-	emit_unset UBUNTU_STORE_ID
+	emit_store_unset
 }
 main "$@"

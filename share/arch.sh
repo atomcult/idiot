@@ -2,6 +2,17 @@
 # share/arch.sh - architecture mapping helpers
 # Source this file; do not execute directly.
 
+# Architectures the store accepts in UBUNTU_STORE_ARCH, space-separated.
+STORE_ARCHES='amd64 arm64 armhf i386 ppc64el riscv64 s390x'
+
+# Succeed if $1 is one of STORE_ARCHES.
+is_store_arch() {
+    case " ${STORE_ARCHES} " in
+    *" ${1} "*) [ -n "${1}" ] ;;
+    *) return 1 ;;
+    esac
+}
+
 # Map uname -m output to the snap architecture name for the current host.
 uname_to_snap_arch() {
     case "$(uname -m)" in

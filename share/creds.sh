@@ -32,6 +32,23 @@ require_no_cred() {
     [ -f "${IDIOT_AUTH_DIR}/${1}" ] && die "credentials '${1}' already exist — remove it first"
 }
 
+# Queue the exports that activate credential $1; die if it doesn't exist.
+emit_cred_login() {
+    require_cred "${1}"
+    _ecl="$(cat "${IDIOT_AUTH_DIR}/${1}")"
+    emit_export UBUNTU_STORE_AUTH "${_ecl}"
+    emit_export SNAPCRAFT_STORE_CREDENTIALS "${_ecl}"
+    emit_export IDIOT_ACTIVE_CRED "${1}"
+    unset _ecl
+}
+
+# Queue the unsets that deactivate the active credential.
+emit_cred_logout() {
+    emit_unset SNAPCRAFT_STORE_CREDENTIALS
+    emit_unset UBUNTU_STORE_AUTH
+    emit_unset IDIOT_ACTIVE_CRED
+}
+
 # Print the path to the whoami cache file for credential $1.
 whoami_cache_path() {
     printf '%s/whoami/%s' "${IDIOT_CACHE_DIR}" "${1}"
