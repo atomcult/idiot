@@ -11,7 +11,7 @@ CACHE_DIR  = $(CACHE_HOME)/idiot
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
 
 SHARE_FILES := $(wildcard share/*.sh)
-SHELL_FILES := idiot $(SHARE_FILES) snap/local/patchelf-host $(shell find cmd -type f)
+SHELL_FILES := idiot $(SHARE_FILES) snap/local/patchelf-host snap/local/pull-tracked $(shell find cmd -type f)
 
 HELPER_DIR  = tools/idiot-store
 HELPER_BIN  = $(HELPER_DIR)/target/release/idiot-store
@@ -28,7 +28,7 @@ hooks:
 check: fmt-check
 	@$(LOG) "SHELLCHECK" "idiot share/*.sh snap/local/* cmd/**"
 	@rc=0; \
-	shellcheck idiot $(SHARE_FILES) snap/local/patchelf-host || rc=1; \
+	shellcheck idiot $(SHARE_FILES) snap/local/patchelf-host snap/local/pull-tracked || rc=1; \
 	find cmd -type f | xargs shellcheck -x || rc=1; \
 	exit $$rc
 	@$(LOG) "CLIPPY" "$(HELPER_DIR)"

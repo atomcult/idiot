@@ -35,19 +35,28 @@ apps:
 parts:
   idiot:
     plugin: nil
-    source: .
+    # no `source: .`: it would copy build output too (tools/idiot-store/target)
+    override-pull: |
+      "${CRAFT_PROJECT_DIR}/snap/local/pull-tracked"
     build-packages:
       - git
       - make
     override-build: |
       # the snap's own version comes from `version: git`; this is the one
-      # `idiot version` prints
-      VERSION=$(git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
+      # `idiot version` prints (the pulled copy has no .git)
+      VERSION=$(git -C "${CRAFT_PROJECT_DIR}" -c safe.directory='*' \
+          describe --tags --always --dirty 2>/dev/null || printf 'unknown')
       # the store helper is built by its own part
       make VERSION="$VERSION" PREFIX="${CRAFT_PART_INSTALL}" install-sh
   idiot-store:
     plugin: rust
+    # the rust plugin requires a source, but the override-pull replaces the
+    # default pull, which would copy target/ too: nothing is copied from it
     source: tools/idiot-store
+    override-pull: |
+      "${CRAFT_PROJECT_DIR}/snap/local/pull-tracked" tools/idiot-store
+    build-packages:
+      - git
     # runs host-side only (auth add/status are host commands): load core24's
     # loader and libc there, like the other host binaries
     build-attributes:

@@ -1,0 +1,18 @@
+#!/bin/sh
+# snap/local/pull-tracked - pull a part's source without build output
+# Usage: pull-tracked [<subdir>]   (an override-pull, instead of `source:`)
+#
+# A local `source:` copies the whole directory, ignored files included, and
+# craft-parts has no way to exclude any: tools/idiot-store/target alone is
+# over a gigabyte. Copy what git would commit instead: tracked files as
+# they are in the working tree, plus untracked files that aren't ignored,
+# so uncommitted edits are still built.
+
+set -eu
+
+cd "${CRAFT_PROJECT_DIR}/${1:-.}"
+# the project dir may be owned by someone else inside the build environment
+git -c safe.directory='*' ls-files -z --cached --others --exclude-standard . |
+	# a tracked file deleted in the working tree is listed but can't be read
+	tar --null --no-recursion --ignore-failed-read -T - -cf - |
+	tar -xf - -C "${CRAFT_PART_SRC}"
