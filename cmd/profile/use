@@ -1,0 +1,79 @@
+#!/usr/bin/env sh
+# cmd/profile/use - switch the credential, store, arch and Launchpad user at once
+# Usage: idiot profile use [<name>]
+# Outputs: eval-able export/unset statements (via the eval file)
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+include lp.sh
+include profiles.sh
+include fzf.sh
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot profile use [<name>]"
+		echo >&2
+		say "Changes nothing unless every credential and store the profile names exists."
+		exit 0
+		;;
+	esac
+	require_wrapper
+	name="${1:-}"
+
+	[ -n "${name}" ] || {
+		name=$(fzf_pick_from_dir \
+			"${IDIOT_PROFILES_DIR}" \
+			"profile> " \
+			"no profiles saved — use 'idiot profile save <name>' to save one") || exit 0
+	}
+	validate_profile_name "${name}"
+	require_profile "${name}"
+
+	# check everything before queueing anything: the wrapper applies the
+	# eval file even when a command fails
+	if problem="$(profile_problem "${name}")"; then
+		die "profile '${name}': ${problem}"
+	fi
+	read_profile "${name}" || die "profile '${name}': ${PF_ERROR}"
+
+	cred="${IDIOT_ACTIVE_CRED:-}"
+	if [ "${PF_HAS_AUTH}" -eq 1 ]; then
+		cred="${PF_AUTH}"
+		if [ -n "${PF_AUTH}" ]; then
+			emit_cred_login "${PF_AUTH}"
+		else
+			emit_cred_logout
+		fi
+	fi
+	sid="${UBUNTU_STORE_ID:-}"
+	if [ "${PF_HAS_STORE}" -eq 1 ]; then
+		if [ -n "${PF_STORE}" ]; then
+			sid="$(store_id "${PF_STORE}")" || exit 1
+			emit_store_use "${PF_STORE}"
+		else
+			sid=''
+			emit_store_unset
+		fi
+	fi
+	if [ "${PF_HAS_ARCH}" -eq 1 ]; then
+		if [ -n "${PF_ARCH}" ]; then
+			emit_export UBUNTU_STORE_ARCH "${PF_ARCH}"
+		else
+			emit_unset UBUNTU_STORE_ARCH
+		fi
+	fi
+	if [ "${PF_HAS_LP}" -eq 1 ]; then
+		if [ -n "${PF_LP}" ]; then
+			emit_export IDIOT_LP_USER "${PF_LP}"
+		else
+			emit_unset IDIOT_LP_USER
+		fi
+	fi
+	emit_export IDIOT_ACTIVE_PROFILE "${name}"
+
+	warn_store_mismatch "${cred}" "${sid}"
+}
+main "$@"

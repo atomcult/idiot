@@ -6,6 +6,7 @@ include arch.sh
 include creds.sh
 include stores.sh
 include lp.sh
+include profiles.sh
 
 _row() {
 	_r_label="${1}"
@@ -88,10 +89,21 @@ main() {
 	-h | --help | help)
 		help_heading "Usage:" "idiot status"
 		echo >&2
-		say "Shows the active store credential, store, architecture, and Launchpad identity."
+		say "Shows the active profile, store credential, store, architecture, and Launchpad identity."
 		exit 0
 		;;
 	esac
+
+	# Profile
+	if [ -n "${IDIOT_ACTIVE_PROFILE:-}" ]; then
+		if [ ! -f "${IDIOT_PROFILES_DIR}/${IDIOT_ACTIVE_PROFILE}" ]; then
+			_row "profile" "${BOLD}${IDIOT_ACTIVE_PROFILE}${RESET}" "removed"
+		elif ! read_profile "${IDIOT_ACTIVE_PROFILE}" || [ -n "$(profile_drift)" ]; then
+			_row "profile" "${BOLD}${IDIOT_ACTIVE_PROFILE}${RESET}" "changed"
+		else
+			_row "profile" "${BOLD}${IDIOT_ACTIVE_PROFILE}${RESET}"
+		fi
+	fi
 
 	# Auth
 	if [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ] || [ -n "${UBUNTU_STORE_AUTH:-}" ]; then

@@ -1,0 +1,34 @@
+#!/usr/bin/env sh
+# cmd/profile/remove - remove a saved profile
+# Usage: idiot profile remove [<name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+include lp.sh
+include profiles.sh
+include fzf.sh
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot profile remove [<name>]"
+		exit 0
+		;;
+	esac
+	name="${1:-}"
+
+	[ -n "${name}" ] || {
+		name=$(fzf_pick_from_dir \
+			"${IDIOT_PROFILES_DIR}" \
+			"remove profile> " \
+			"no profiles saved") || exit 0
+	}
+	validate_profile_name "${name}"
+	require_profile "${name}"
+
+	rm "${IDIOT_PROFILES_DIR}/${name}"
+	say "Removed profile '${BOLD}${name}${RESET}'"
+}
+main "$@"

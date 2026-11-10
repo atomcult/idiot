@@ -86,16 +86,23 @@ share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
                  #   dispatch_subcmd, tool/tool_path/snap_app, git(), shell_quote,
                  #   require_wrapper, emit_export, emit_unset
-  arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu()
+  arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu(), STORE_ARCHES,
+                 #   is_store_arch
   clean.sh       # clean_list_*/clean_remove_*, clean_show, clean_confirm
   creds.sh       # IDIOT_AUTH_DIR, validate_cred_name, ensure_auth_dir,
                  #   require_cred/no_cred, whoami_cache_path, store_helper,
-                 #   STORE_PERMISSIONS, map_permission, is_store_permission
+                 #   STORE_PERMISSIONS, map_permission, is_store_permission,
+                 #   emit_cred_login/logout, cred_store_path/_id,
+                 #   record_cred_store, warn_store_mismatch (+ stores.sh)
   examples.sh    # IDIOT_EXAMPLES_DIR, resolve_example_url
   fzf.sh         # file_preview_cmd, fzf_pick_from_dir
   lp.sh          # IDIOT_LP_USER_FILE, lp_user_value, require_lp_user
   models.sh      # IDIOT_MODELS_DIR, require_models_repo
-  stores.sh      # IDIOT_STORES_DIR, require_store/no_store
+  profiles.sh    # IDIOT_PROFILES_DIR, read_profile (PF_* vars, never
+                 #   sourced), profile_problem/_summary/_drift
+  stores.sh      # IDIOT_STORES_DIR, require_store/no_store,
+                 #   validate_store_name, store_id, store_name_for_id,
+                 #   store_label, emit_store_use/unset
   vm-firmware.sh # vm_firmware (the UEFI images idiot vm boots; also prunes
                  #   the snap's vm component), vm_firmware_secboot/_package
   uefi-vars.py   # run, not sourced: lists an OVMF/AAVMF variable store
@@ -208,7 +215,9 @@ help_env     "VAR" "desc"         # bold, 22-char name column
 
 ```
 IDIOT_DATA_HOME          IDIOT_AUTH_DIR, IDIOT_STORES_DIR, IDIOT_MODELS_DIR,
-                         IDIOT_EXAMPLES_DIR, IDIOT_LP_USER_FILE live here
+                         IDIOT_EXAMPLES_DIR, IDIOT_LP_USER_FILE,
+                         IDIOT_PROFILES_DIR live here; IDIOT_AUTH_DIR also
+                         holds .store.<cred> (the store a credential is for)
                          source: ~/.local/share/idiot  snap: ~/snap/idiot/common
 IDIOT_CACHE_DIR          whoami cache, example mirrors
                          source: ~/.cache/idiot        snap: ~/snap/idiot/common/cache

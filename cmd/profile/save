@@ -1,0 +1,109 @@
+#!/usr/bin/env sh
+# cmd/profile/save - save the current shell's settings as a profile
+# Usage: idiot profile save <name> [--fields <list>] [--force]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+include lp.sh
+include profiles.sh
+
+usage() {
+	help_heading "Usage:" "idiot profile save <name> [options]"
+	echo >&2
+	help_heading "Options:"
+	help_option "--fields <list>" "Record only these (from: auth,store,arch,lp)"
+	help_option "--force" "Overwrite an existing profile"
+	echo >&2
+	say "Settings that aren't set are recorded as cleared: using the profile"
+	say "clears them. Fields left out with --fields are left as they are."
+}
+
+# Append "<field>: <value>" for field $1 to ${content}, recording what the
+# current shell has; leave the field out with a warning when it can't be
+# recorded by name.
+_record() {
+	case "${1}" in
+	auth)
+		if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
+			_r_val="${IDIOT_ACTIVE_CRED}"
+		elif [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}${UBUNTU_STORE_AUTH:-}" ]; then
+			say "${YELLOW}warning:${RESET} the active credential has no name, leaving out auth — activate it by name: idiot auth login"
+			return 0
+		else
+			_r_val=''
+		fi
+		;;
+	store)
+		_r_val=''
+		if [ -n "${UBUNTU_STORE_ID:-}" ]; then
+			_r_val="$(store_name_for_id "${UBUNTU_STORE_ID}")" || {
+				say "${YELLOW}warning:${RESET} store ${UBUNTU_STORE_ID} isn't saved, leaving out store — save it first: idiot store add <name> ${UBUNTU_STORE_ID}"
+				return 0
+			}
+		fi
+		;;
+	arch) _r_val="${UBUNTU_STORE_ARCH:-}" ;;
+	lp) _r_val="$(lp_user_value)" ;;
+	esac
+	content="${content}${1}: ${_r_val}
+"
+}
+
+main() {
+	name=''
+	fields="${PROFILE_FIELDS}"
+	force=0
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--force) force=1 ;;
+		--fields=*) fields="${1#*=}" ;;
+		--fields)
+			[ -n "${2:-}" ] || die "--fields needs a list (from: auth,store,arch,lp)"
+			fields="${2}"
+			shift
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${name}" ] || die "usage: idiot profile save <name> [--fields <list>] [--force]"
+			name="${1}"
+			;;
+		esac
+		shift
+	done
+
+	[ -n "${name}" ] || die "usage: idiot profile save <name> [--fields <list>] [--force]"
+	validate_profile_name "${name}"
+	fields="$(printf '%s' "${fields}" | tr ',' ' ')"
+	for _f in ${fields}; do
+		is_profile_field "${_f}" ||
+			die "unknown field '${_f}' (fields: $(printf '%s' "${PROFILE_FIELDS}" | sed 's/ /, /g'))"
+	done
+	[ -n "${fields}" ] || die "--fields needs a list (from: auth,store,arch,lp)"
+	[ "${force}" -eq 1 ] || require_no_profile "${name}"
+
+	# in PROFILE_FIELDS order, whatever order --fields gave
+	content=''
+	for _f in ${PROFILE_FIELDS}; do
+		case " ${fields} " in
+		*" ${_f} "*) _record "${_f}" ;;
+		esac
+	done
+	[ -n "${content}" ] || die "nothing to save in profile '${name}'"
+
+	mkdir -p "${IDIOT_PROFILES_DIR}"
+	_tmp="${IDIOT_PROFILES_DIR}/.new.${name}.$$"
+	trap 'rm -f "${_tmp}"' EXIT
+	printf '%s' "${content}" >"${_tmp}"
+	mv "${_tmp}" "${IDIOT_PROFILES_DIR}/${name}"
+
+	read_profile "${name}" || die "profile '${name}': ${PF_ERROR}"
+	say "Saved profile '${BOLD}${name}${RESET}': $(profile_summary)"
+	warn_store_mismatch "${IDIOT_ACTIVE_CRED:-}" "${UBUNTU_STORE_ID:-}"
+}
+main "$@"

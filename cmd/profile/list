@@ -1,0 +1,47 @@
+#!/usr/bin/env sh
+# cmd/profile/list - list saved profiles and what they record
+# Usage: idiot profile list
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+include lp.sh
+include profiles.sh
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot profile list"
+		exit 0
+		;;
+	esac
+
+	max_len=0
+	for f in "${IDIOT_PROFILES_DIR}"/*; do
+		[ -f "${f}" ] || continue
+		name="${f##*/}"
+		[ "${#name}" -gt "${max_len}" ] && max_len="${#name}"
+	done
+	[ "${max_len}" -ne 0 ] || {
+		say "No profiles saved yet (use 'idiot profile save <name>')"
+		exit 0
+	}
+
+	say "Saved profiles:"
+	echo >&2
+	for f in "${IDIOT_PROFILES_DIR}"/*; do
+		[ -f "${f}" ] || continue
+		name="${f##*/}"
+		mark=' '
+		[ "${name}" != "${IDIOT_ACTIVE_PROFILE:-}" ] || mark="${GREEN}*${RESET}"
+		padded="$(printf "%-${max_len}s" "${name}")"
+		if problem="$(profile_problem "${name}")"; then
+			say "${mark} ${BOLD}${padded}${RESET}  ${RED}${problem}${RESET}"
+		else
+			read_profile "${name}"
+			say "${mark} ${BOLD}${padded}${RESET}  $(profile_summary)"
+		fi
+	done
+}
+main "$@"

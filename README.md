@@ -96,6 +96,30 @@ The `iot` shorthand is also available.
 
 ---
 
+## Profiles
+
+Save the whole setup once and switch it with one command:
+
+```
+$ idiot profile save staging-ci          # credential, store, arch, lp
+$ idiot profile use staging-ci
+$ idiot profile list
+  * staging-ci  auth ci · store staging · arch arm64 · lp alice
+    personal    auth me · store none
+```
+
+A profile records names (credential, store), never credential contents.
+Settings that aren't set when you save are recorded as cleared, so using
+the profile clears them (`store none` switches back to the global store).
+`--fields auth,store` records only those; the rest are left as they are when
+you use it. `profile use` checks everything before changing anything: a
+profile naming a removed credential changes nothing. It sets
+`IDIOT_LP_USER` for the current shell only and leaves the username saved
+with `idiot lp set` alone. `idiot profile status` (and the `profile` row in
+`idiot status`) shows what has changed since.
+
+---
+
 ## Credentials and stores
 
 A credential belongs to the store you were using when you added it:

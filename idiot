@@ -29,6 +29,7 @@ idiot_help() {
 	echo >&2
 	help_heading "Store & environment:"
 	help_command "status" "Show current environment at a glance"
+	help_command "profile" "Save and switch whole environments"
 	help_command "auth" "Manage snap store credentials"
 	help_command "store" "Select which snap store to use"
 	help_command "arch" "Set the target build architecture"

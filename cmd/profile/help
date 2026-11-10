@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# cmd/profile/help - usage for the profile subcommand group
+
+. "$(dirname "${0}")/../../share/common.sh"
+
+main() {
+	help_heading "Usage:" "idiot profile <subcommand>"
+	echo >&2
+	help_heading "Subcommands:"
+	help_command "use" "Switch to a profile"
+	help_command "status" "Show the active profile and what changed"
+	echo >&2
+	help_command "save" "Save the current settings as a profile"
+	help_command "remove" "Remove a saved profile"
+	help_command "list" "List saved profiles"
+	echo >&2
+	say "A profile bundles a credential, store, arch and Launchpad user."
+	echo >&2
+	help_heading "Environment:"
+	help_env "IDIOT_PROFILES_DIR" "Profiles directory"
+	help_env "IDIOT_ACTIVE_PROFILE" "Profile last used in this shell"
+}
+main "$@"

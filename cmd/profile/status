@@ -1,0 +1,39 @@
+#!/usr/bin/env sh
+# cmd/profile/status - show the active profile and what has changed since
+# Usage: idiot profile status
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+include lp.sh
+include profiles.sh
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot profile status"
+		exit 0
+		;;
+	esac
+	name="${IDIOT_ACTIVE_PROFILE:-}"
+
+	[ -n "${name}" ] || {
+		say "${DIM}no profile active${RESET}"
+		exit 0
+	}
+	[ -f "${IDIOT_PROFILES_DIR}/${name}" ] || {
+		say "${BOLD}${name}${RESET}  ${DIM}removed${RESET}"
+		exit 0
+	}
+	read_profile "${name}" || {
+		say "${BOLD}${name}${RESET}  ${RED}${PF_ERROR}${RESET}"
+		exit 0
+	}
+
+	say "${BOLD}${name}${RESET}"
+	profile_drift | while IFS='	' read -r _field _was _now; do
+		say "  ${CYAN}${_field}${RESET}$(printf '%*s' $((6 - ${#_field})) '')${_was} in the profile, ${BOLD}${_now}${RESET} now"
+	done
+}
+main "$@"
