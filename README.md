@@ -120,6 +120,16 @@ ssh` finds it. The serial console stays on the terminal (Ctrl-a x quits,
 Ctrl-a c is qemu's monitor) and is also logged to `serial.log` in the
 VM's state directory.
 
+```
+$ idiot vm list                     # name, arch, running/stopped, port, image
+$ idiot vm stop gadget              # power button, then quit after --timeout
+$ idiot vm console-log -f gadget    # its serial console (--previous: last boot)
+$ idiot vm reset gadget             # discard disk, UEFI vars, TPM: freshly flashed
+$ idiot vm delete gadget            # forget it (the image is untouched)
+```
+
+Without a name, `stop` and `console-log` act on the only running VM.
+
 **Changed:** before named VMs, `idiot vm` wrote to the image and threw
 the UEFI variables and TPM state away after each run (unless you gave
 `--state-dir`). Now nothing is thrown away until you reset or delete the

@@ -310,10 +310,7 @@ _build_machine_flags() {
 
 # Stops the VM's swtpm (if started).
 _cleanup() {
-	if [ -n "${tpm_pidfile:-}" ] && [ -f "${tpm_pidfile}" ]; then
-		kill "$(cat "${tpm_pidfile}")" 2>/dev/null
-		rm -f "${tpm_pidfile}"
-	fi
+	[ -z "${tpm_pidfile:-}" ] || vm_swtpm_stop "${tpm_pidfile%/*}"
 }
 
 # Uses the VM's state directory for its firmware, TPM and disk state.
@@ -417,6 +414,7 @@ _build_tpm_flags() {
 		--ctrl "type=unixio,path=${tpm_sock}" \
 		--tpm2 \
 		--pid "file=${tpm_pidfile}" \
+		--terminate \
 		--daemon ||
 		die "swtpm failed to start (UNIX socket paths are limited to 107 bytes: ${tpm_sock})"
 	tpm_dev="$(tpm_device_for_arch "${arch}")"
@@ -647,9 +645,250 @@ do_run() {
 	exit "${qemu_rc}"
 }
 
+do_list() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot vm list"
+		echo >&2
+		say "Prints each VM's name, image, architecture, state and ssh port."
+		exit 0
+		;;
+	esac
+	[ $# -eq 0 ] || die "usage: idiot vm list"
+	_names="$(vm_names)"
+	[ -n "${_names}" ] || {
+		say "No VMs yet (boot one with: idiot vm <image>)"
+		exit 0
+	}
+	printf '%s\n' "${_names}" | {
+		printf '%-20s %-8s %-8s %-6s %s\n' NAME ARCH STATE PORT IMAGE
+		while IFS= read -r _n; do
+			vm_running "${_n}" && _state=running || _state=stopped
+			printf '%-20s %-8s %-8s %-6s %s\n' "${_n}" "$(vm_conf_get "${_n}" arch)" \
+				"${_state}" "$(vm_conf_get "${_n}" ssh_port)" "$(vm_conf_get "${_n}" image)"
+		done
+	}
+}
+
+# Waits up to $2 seconds for process $1 to exit; fails if it's still there.
+_wait_exit() {
+	_we=0
+	while kill -0 "${1}" 2>/dev/null; do
+		[ "${_we}" -lt "${2}" ] || return 1
+		sleep 1
+		_we=$((_we + 1))
+	done
+}
+
+# Sends QMP command $2 to VM $1; fails without python3 or when qemu won't.
+_qmp() {
+	command -v python3 >/dev/null 2>&1 || return 1
+	python3 "${IDIOT_ROOT}/share/vm-qmp.py" "$(vm_dir "${1}")/qmp.sock" "${2}" >/dev/null
+}
+
+do_stop() {
+	timeout=60
+	force=0
+	name=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm stop [--timeout <seconds>] [--force] [<name>]"
+			echo >&2
+			help_heading "Options:"
+			help_option "--timeout <seconds>" "Wait this long for the guest (default: 60)"
+			help_option "--force" "Quit qemu without asking the guest"
+			echo >&2
+			say "Presses the VM's power button and waits for the guest to shut down;"
+			say "then makes qemu quit. Without a name: the only running VM."
+			exit 0
+			;;
+		--timeout)
+			case "${2:-}" in
+			'' | *[!0-9]*) die "--timeout requires a number of seconds" ;;
+			esac
+			timeout="${2}"
+			shift
+			;;
+		--force) force=1 ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${name}" ] || die "usage: idiot vm stop [--timeout <seconds>] [--force] [<name>]"
+			name="${1}"
+			;;
+		esac
+		shift
+	done
+	name="$(vm_resolve "${name}")" || exit 1
+	pid="$(vm_pid "${name}")" || {
+		say "VM ${BOLD}${name}${RESET} is not running"
+		exit 0
+	}
+
+	if [ "${force}" -eq 0 ]; then
+		if _qmp "${name}" system_powerdown; then
+			say "Shutting VM ${BOLD}${name}${RESET} down ${DIM}(up to ${timeout}s)${RESET}"
+			_wait_exit "${pid}" "${timeout}" ||
+				say "${YELLOW}warning:${RESET} the guest did not shut down within ${timeout}s — quitting qemu"
+		else
+			command -v python3 >/dev/null 2>&1 ||
+				say "${DIM}a graceful shutdown needs python3: quitting qemu${RESET}"
+		fi
+	fi
+	if kill -0 "${pid}" 2>/dev/null; then
+		{ _qmp "${name}" quit && _wait_exit "${pid}" 2; } ||
+			{ kill -TERM "${pid}" 2>/dev/null && _wait_exit "${pid}" 2; } ||
+			{ kill -KILL "${pid}" 2>/dev/null && _wait_exit "${pid}" 2; } ||
+			die "qemu (pid ${pid}) did not exit"
+	fi
+	# normally gone with qemu (--terminate) or the launching idiot vm
+	vm_swtpm_stop "$(vm_dir "${name}")"
+	say "Stopped VM ${BOLD}${name}${RESET}"
+}
+
+# Dies unless VM $1 is stopped.
+_require_stopped() {
+	! vm_running "${1}" ||
+		die "VM '${1}' is running — stop it first: idiot vm stop ${1}"
+}
+
+do_reset() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot vm reset <name>"
+		echo >&2
+		say "Discards a stopped VM's disk overlay, UEFI variables, TPM state and"
+		say "serial logs, so that it next boots as a freshly flashed device."
+		exit 0
+		;;
+	esac
+	[ $# -eq 1 ] || die "usage: idiot vm reset <name>"
+	name="$(vm_resolve "${1}")" || exit 1
+	_require_stopped "${name}"
+	_d="$(vm_dir "${name}")"
+	rm -f "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* \
+		"${_d}/serial.log" "${_d}/serial.log.1" "${_d}/swtpm.pid" "${_d}/swtpm.sock" \
+		"${_d}/qemu.pid" "${_d}/qmp.sock"
+	say "Reset VM ${BOLD}${name}${RESET}: it boots as a freshly flashed device"
+	[ "$(vm_conf_get "${name}" in_place)" -ne 1 ] ||
+		say "${YELLOW}warning:${RESET} VM '${name}' writes $(vm_conf_get "${name}" image) in place: the image itself can't be reset"
+}
+
+do_delete() {
+	yes=0
+	name=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm delete [--yes] <name>"
+			echo >&2
+			say "Removes a stopped VM and its state. The image is not touched."
+			exit 0
+			;;
+		--yes | -y) yes=1 ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${name}" ] || die "usage: idiot vm delete [--yes] <name>"
+			name="${1}"
+			;;
+		esac
+		shift
+	done
+	[ -n "${name}" ] || die "usage: idiot vm delete [--yes] <name>"
+	name="$(vm_resolve "${name}")" || exit 1
+	_require_stopped "${name}"
+	_d="$(vm_dir "${name}")"
+	_real="$(cd "${_d}" && pwd -P)"
+
+	if [ "${yes}" -eq 0 ]; then
+		[ -t 0 ] || die "deleting VM '${name}' needs confirmation — run it on a terminal, or pass --yes"
+		printf '%s' "Delete VM ${BOLD}${name}${RESET} and its state in ${_real}? [y/N] " >&2
+		read -r _answer || _answer=''
+		case "${_answer}" in
+		y | Y | yes) ;;
+		*)
+			say "Nothing deleted"
+			exit 0
+			;;
+		esac
+	fi
+	if [ -L "${_d}" ]; then
+		# a --state-dir: only what idiot put there, and the dir if now empty
+		rm -f "${_d}/vm.conf" "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* \
+			"${_d}/serial.log" "${_d}/serial.log.1" "${_d}/swtpm.pid" "${_d}/swtpm.sock" \
+			"${_d}/qemu.pid" "${_d}/qmp.sock" "${_d}/inspect.sock"
+		rmdir "${_real}" 2>/dev/null || say "${DIM}Kept ${_real}: it holds other files${RESET}"
+		rm -f "${_d}"
+	else
+		rm -rf "${_d}"
+	fi
+	say "Deleted VM ${BOLD}${name}${RESET}"
+}
+
+do_console_log() {
+	follow=0
+	which=serial.log
+	name=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm console-log [-f] [--previous] [<name>]"
+			echo >&2
+			help_heading "Options:"
+			help_option "-f, --follow" "Keep printing what the guest writes"
+			help_option "--previous" "The previous boot's log"
+			echo >&2
+			say "Without a name: the only running VM, or the only VM."
+			exit 0
+			;;
+		-f | --follow) follow=1 ;;
+		--previous) which=serial.log.1 ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${name}" ] || die "usage: idiot vm console-log [-f] [--previous] [<name>]"
+			name="${1}"
+			;;
+		esac
+		shift
+	done
+	name="$(vm_resolve "${name}" any)" || exit 1
+	log="$(vm_dir "${name}")/${which}"
+	[ -f "${log}" ] || {
+		[ "${which}" = serial.log ] && die "VM '${name}' has no console log yet — boot it: idiot vm --name ${name}"
+		die "VM '${name}' has no log of a previous boot"
+	}
+	if [ "${follow}" -eq 0 ]; then
+		cat "${log}"
+	elif _pid="$(vm_pid "${name}")"; then
+		exec tail -n +1 -f --pid="${_pid}" "${log}"
+	else
+		exec tail -n +1 -f "${log}"
+	fi
+}
+
 main() {
 	case "${1:-}" in
 	"") do_run --help ;;
+	list)
+		shift
+		do_list "$@"
+		;;
+	stop)
+		shift
+		do_stop "$@"
+		;;
+	reset)
+		shift
+		do_reset "$@"
+		;;
+	delete)
+		shift
+		do_delete "$@"
+		;;
+	console-log)
+		shift
+		do_console_log "$@"
+		;;
 	ssh)
 		shift
 		do_ssh "$@"

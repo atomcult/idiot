@@ -168,3 +168,28 @@ vm_pick_ssh_port() {
     done
     die "no free ssh port in 8022-8122 — pick one with --ssh-port"
 }
+
+# Stop the swtpm serving state directory $1, if it is still running, and
+# forget its pid file. Ubuntu's AppArmor profile for swtpm refuses signals
+# from the user's processes, so when kill doesn't work this sends the TPM
+# control channel's shutdown command (CMD_SHUTDOWN) over swtpm.sock.
+vm_swtpm_stop() {
+    _vss_pidf="${1}/swtpm.pid"
+    [ -f "${_vss_pidf}" ] || return 0
+    _vss="$(tr -dc '0-9' <"${_vss_pidf}")"
+    if [ -n "${_vss}" ] && kill -0 "${_vss}" 2>/dev/null; then
+        kill "${_vss}" 2>/dev/null || :
+        sleep 0.2
+        if kill -0 "${_vss}" 2>/dev/null && command -v python3 >/dev/null 2>&1; then
+            python3 -c '
+import socket, struct, sys
+s = socket.socket(socket.AF_UNIX)
+s.settimeout(5)
+s.connect(sys.argv[1])
+s.sendall(struct.pack(">I", 3))  # CMD_SHUTDOWN
+s.recv(4)
+' "${1}/swtpm.sock" 2>/dev/null || :
+        fi
+    fi
+    rm -f "${_vss_pidf}"
+}
