@@ -32,6 +32,13 @@ description: |
   snap's files, without changing your PATH.
 
 grade: devel
+# Built natively on each (build-on = build-for), so remote-build, a
+# Launchpad recipe or native CI runners all work from this file.
+platforms:
+  amd64:
+  arm64:
+  armhf:
+  riscv64:
 # Strict with no plugs: confined, idiot only touches its own state and the
 # bundled fzf. Anything else (host tools, network, devices, user files) is
 # handed back to the user's shell and runs there from /snap/idiot/current
@@ -284,7 +291,13 @@ parts:
       '*': (component/debug)/
     stage-packages:
       - strace
-      - ltrace
+      # Ubuntu doesn't build ltrace for riscv64
+      - to amd64:
+          - ltrace
+      - to arm64:
+          - ltrace
+      - to armhf:
+          - ltrace
       - gdb
       - lsof
       - file

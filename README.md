@@ -30,7 +30,8 @@ toolchain (`cargo`). `idiot auth` doesn't need snapcraft: `idiot auth add`
 logs in itself and can scope the credential
 (`--permissions`, `--snaps`, `--channels`, `--expires`).
 
-Or as a snap (strictly confined, no interfaces to connect):
+Or as a snap (strictly confined, no interfaces to connect; built for
+amd64, arm64, armhf and riscv64):
 
 ```sh
 snap install idiot
@@ -69,6 +70,9 @@ which component to install. Tools core24 itself ships
 on Ubuntu Core and aren't repeated. `swtpm_setup` can't create EK or
 platform certificates from the bundle (its certificate tool's path is
 absolute); install the host's swtpm-tools for that.
+
+Every component is built for each of the snap's architectures with the
+same tools, except ltrace, which Ubuntu doesn't build for riscv64.
 
 Upgrading: tpm2-tools moved from `core` to `tpm`; if you used them, run
 `snap install idiot+tpm`.
