@@ -35,7 +35,7 @@ naming the package that provides it and the `vm` component.
 `idiot vm` SHALL run the host's `qemu-system-<arch>` when installed and the
 `vm` component's otherwise, with that qemu's own ROMs and modules (the
 component's qemu SHALL NOT use the host's, and the reverse). `--tpm` and
-`idiot vm tpm-inspect` SHALL use the host's swtpm, or the `tpm` component's
+`idiot vm tpm` SHALL use the host's swtpm, or the `tpm` component's
 when the host has none. A missing emulator SHALL fail naming
 `snap install idiot+vm`, and a missing swtpm `snap install idiot+tpm`.
 
