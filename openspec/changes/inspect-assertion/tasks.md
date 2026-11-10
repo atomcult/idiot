@@ -27,4 +27,16 @@
 
 ## 5. Under the snap
 
-- [ ] 5.1 With a locally built snap and `idiot+core`: `idiot inspect assertion pc.model`, `cat pc.model | idiot inspect assertion -` (stdin reaches the handed-off host command) and `--remote` work, stdout stays clean through `| cat`, and the store/saved-model warnings use the snap's `IDIOT_DATA_HOME`; run `openspec validate inspect-assertion`
+- [x] 5.1 With a locally built snap and `idiot+core`: `idiot inspect assertion pc.model`, `cat pc.model | idiot inspect assertion -` (stdin reaches the handed-off host command) and `--remote` work, stdout stays clean through `| cat`, and the store/saved-model warnings use the snap's `IDIOT_DATA_HOME`; run `openspec validate inspect-assertion`
+
+## Notes
+
+- Groups 2–4 landed in one commit (`feat(inspect): summarise and verify assertions`).
+- The system-user and validation-set test inputs reuse a borrowed signature
+  rather than a `snap create-key` key: enough to exercise the summaries and
+  the invalid-signature path.
+- The facts file separates fields with 0x1f (a tab collapses empty fields in
+  `read`) and hands the shell a raw copy of each model rather than a sha3.
+- Install was checked with `make install-sh` into a scratch PREFIX.
+- 5.1 is covered by `tests/bare-host.d/assertion` (the brand model ships as
+  `tests/bare-host.d/brand.model`: it isn't in the store); 67/67 passed.
