@@ -36,3 +36,19 @@ require_no_cred() {
 whoami_cache_path() {
     printf '%s/whoami/%s' "${IDIOT_CACHE_DIR}" "${1}"
 }
+
+# Print the path of the idiot-store helper: the installed one (make install,
+# or the snap, both at $IDIOT_ROOT/libexec), else a development build in
+# this checkout, else one on PATH. Dies when there's none. Use as
+# `h="$(store_helper)" || exit 1`.
+store_helper() {
+    for _sh in "${IDIOT_ROOT}/libexec/idiot-store" \
+        "${IDIOT_ROOT}/tools/idiot-store/target/release/idiot-store"; do
+        if [ -x "${_sh}" ]; then
+            printf '%s' "${_sh}"
+            return 0
+        fi
+    done
+    command -v idiot-store 2>/dev/null ||
+        die "idiot-store not found — build it with: make install"
+}

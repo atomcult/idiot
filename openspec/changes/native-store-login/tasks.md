@@ -14,10 +14,10 @@
 
 ## 3. Build and install
 
-- [ ] 3.1 Makefile: build with `cargo build --release --locked`, install to `$(LIBDIR)/libexec/idiot-store`, fail clearly without cargo; add `cargo fmt --check` and `cargo clippy` to `make check`; verify `make install PREFIX=$(mktemp -d)` puts an executable at `lib/idiot/libexec/idiot-store` and `make check` passes
-- [ ] 3.2 Add `store_helper` to `share/creds.sh`; verify it resolves the installed binary, the dev-checkout fallback, and the "make install" error when neither exists
-- [ ] 3.3 Snap: add the `idiot-store` rust part (`enable-patchelf`, organised into `lib/idiot/libexec/`); verify `snapcraft pack` succeeds, `unsquashfs -l` lists `lib/idiot/libexec/idiot-store`, and `readelf -l` shows core24's interpreter; mark `cmd/auth/add` and `cmd/auth/status` `# idiot: host` if `host-handoff` hasn't
-- [ ] 3.4 Run `make check` and commit (`build: build and ship idiot-store`)
+- [x] 3.1 Makefile: build with `cargo build --release --locked`, install to `$(LIBDIR)/libexec/idiot-store`, fail clearly without cargo; add `cargo fmt --check` and `cargo clippy` to `make check`; verify `make install PREFIX=$(mktemp -d)` puts an executable at `lib/idiot/libexec/idiot-store` and `make check` passes
+- [x] 3.2 Add `store_helper` to `share/creds.sh`; verify it resolves the installed binary, the dev-checkout fallback, and the "make install" error when neither exists
+- [x] 3.3 Snap: add the `idiot-store` rust part (`enable-patchelf`, organised into `lib/idiot/libexec/`); verify `snapcraft pack` succeeds, `unsquashfs -l` lists `lib/idiot/libexec/idiot-store`, and `readelf -l` shows core24's interpreter; mark `cmd/auth/add` and `cmd/auth/status` `# idiot: host` if `host-handoff` hasn't
+- [x] 3.4 Run `make check` and commit (`build: build and ship idiot-store`)
 
 ## 4. Use it from `idiot auth`
 

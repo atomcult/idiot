@@ -43,7 +43,17 @@ parts:
       # the snap's own version comes from `version: git`; this is the one
       # `idiot version` prints
       VERSION=$(git describe --tags --always --dirty 2>/dev/null || printf 'unknown')
-      make VERSION="$VERSION" PREFIX="${CRAFT_PART_INSTALL}" install
+      # the store helper is built by its own part
+      make VERSION="$VERSION" PREFIX="${CRAFT_PART_INSTALL}" install-sh
+  idiot-store:
+    plugin: rust
+    source: tools/idiot-store
+    # runs host-side only (auth add/status are host commands): load core24's
+    # loader and libc there, like the other host binaries
+    build-attributes:
+      - enable-patchelf
+    organize:
+      bin/idiot-store: lib/idiot/libexec/idiot-store
   packages:
     plugin: nil
     build-packages:
