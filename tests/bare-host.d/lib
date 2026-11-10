@@ -1,0 +1,24 @@
+#!/bin/bash
+# tests/bare-host.d/lib - sourced by the in-container checks
+#
+# ok/fail print one result line each; the runner counts FAIL lines.
+# installed <component> is true when that component is installed.
+
+export PATH="/snap/bin:${PATH}" NO_COLOR=1
+eval "$(idiot init bash)"
+
+ok() { printf 'ok    %s\n' "$*"; }
+fail() { printf 'FAIL  %s\n' "$*"; }
+
+installed() {
+	idiot run --list | awk -F '\t' -v c="${1}" '$1 == c && $2 == "installed" { f = 1 } END { exit !f }'
+}
+
+# A run that failed to execute at all: loader, missing file, bad binary.
+broken() {
+	case "${1}" in
+	# not executable, not found; killed by SIGILL, SIGABRT, SIGBUS, SIGFPE, SIGSEGV
+	126 | 127 | 132 | 134 | 135 | 136 | 139) return 0 ;;
+	esac
+	printf '%s' "${2}" | grep -qiE 'error while loading|cannot open shared|No such file or directory|cannot execute|Exec format|Text file busy|Segmentation'
+}

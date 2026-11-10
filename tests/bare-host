@@ -1,0 +1,174 @@
+#!/bin/sh
+# tests/bare-host - test a built snap and its components on a bare host
+# Usage: tests/bare-host [options] <idiot_*.snap> [<idiot+*.comp>...]
+#
+# Launches a throwaway LXD container with none of the bundled tools'
+# packages, installs the snap and components given (default: every
+# idiot+*.comp next to the snap), and runs the checks in bare-host.d/:
+#   tools    every tool the bundled-tools spec promises executes
+#   data     tools that need data files, helpers or wrappers really work
+#   run      idiot run --list/--sudo/--shell, missing-component errors
+#            (as an unprivileged user)
+#   refresh  a refresh under a shell set up before it
+#   vm       (with --boot) an Ubuntu Core image boots with secure boot and
+#            a TPM from the vm and tpm components
+# Prints one ok/FAIL line per check; exits 1 if any failed.
+#
+# The container is created on --remote (default: local), never on the
+# default remote, from a minimal image, with no profiles: only a root disk
+# and one NIC, so nothing from the host is mounted. On a remote of another
+# architecture this tests that architecture's build.
+
+set -eu
+
+here="$(cd "$(dirname "$0")" && pwd)"
+
+usage() {
+	cat >&2 <<-'EOF'
+		usage: tests/bare-host [options] <idiot_*.snap> [<idiot+*.comp>...]
+
+		  --remote <name>    LXD remote to test on (default: local)
+		  --image <image>    image (default: ubuntu-minimal:24.04)
+		  --storage <pool>   storage pool on the remote (default: default)
+		  --network <net>    network on the remote (default: lxdbr0)
+		  --boot <image|download>
+		                     also boot an Ubuntu Core image (a local file, or
+		                     download Ubuntu Core 24 for the remote's arch);
+		                     needs the vm and tpm components
+		  --boot-secs <n>    how long the boot may take (default: 900)
+		  --kvm              pass /dev/kvm into the container (speeds up --boot)
+		  --keep             keep the container afterwards
+	EOF
+	exit "${1:-2}"
+}
+
+remote=local
+image=ubuntu-minimal:24.04
+storage=default
+network=lxdbr0
+boot=''
+boot_secs=900
+kvm=0
+keep=0
+while [ "$#" -gt 0 ]; do
+	case "${1}" in
+	-h | --help) usage 0 ;;
+	--remote | --image | --storage | --network | --boot | --boot-secs)
+		[ "$#" -ge 2 ] || usage
+		case "${1}" in
+		--remote) remote="${2}" ;;
+		--image) image="${2}" ;;
+		--storage) storage="${2}" ;;
+		--network) network="${2}" ;;
+		--boot) boot="${2}" ;;
+		--boot-secs) boot_secs="${2}" ;;
+		esac
+		shift
+		;;
+	--kvm) kvm=1 ;;
+	--keep) keep=1 ;;
+	-*) usage ;;
+	*) break ;;
+	esac
+	shift
+done
+[ "$#" -ge 1 ] || usage
+snap="${1}"
+shift
+[ -f "${snap}" ] || {
+	echo "bare-host: no such snap: ${snap}" >&2
+	exit 2
+}
+if [ "$#" -eq 0 ]; then
+	for c in "$(dirname "${snap}")"/idiot+*.comp; do
+		[ -f "${c}" ] && set -- "$@" "${c}"
+	done
+fi
+for c in "$@"; do
+	[ -f "${c}" ] || {
+		echo "bare-host: no such component: ${c}" >&2
+		exit 2
+	}
+done
+
+name="idiot-bare-$(date +%s)"
+target="${remote}:${name}"
+log="$(mktemp)"
+say() { printf '\033[1;36m== %s\033[0m\n' "$*" >&2; }
+on() { lxc exec "${target}" -- "$@"; }
+
+cleanup() {
+	if [ "${keep}" -eq 1 ]; then
+		say "kept ${target} (delete: lxc delete --force ${target})"
+	else
+		lxc delete --force "${target}" >/dev/null 2>&1 || :
+	fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+say "launching ${target} (${image})"
+lxc launch "${image}" "${target}" --no-profiles -s "${storage}" -n "${network}" -q
+[ "${kvm}" -eq 0 ] ||
+	lxc config device add "${target}" kvm unix-char source=/dev/kvm >/dev/null
+on sh -c 'cloud-init status --wait >/dev/null 2>&1; snap wait system seed.loaded' >/dev/null
+arch="$(on dpkg --print-architecture)"
+
+say "removing preinstalled tools (${arch})"
+# what the minimal image ships that a component also bundles (e2fsprogs
+# and util-linux are essential and stay; idiot run prefers the bundled copy)
+on sh -c 'DEBIAN_FRONTEND=noninteractive apt-get purge -y -q curl pciutils usbutils \
+	dmidecode sbsigntool parted tcpdump strace bind9-dnsutils bind9-host >/dev/null 2>&1;
+	apt-get autoremove -y -q --purge >/dev/null 2>&1' || :
+
+say "installing $(basename "${snap}") and $# component(s)"
+on mkdir -p /root/bare-host
+for f in "${snap}" "$@"; do
+	lxc file push -q "${f}" "${target}/root/bare-host/"
+done
+lxc file push -q -r "${here}/bare-host.d" "${target}/root/bare-host/"
+files="/root/bare-host/$(basename "${snap}")"
+for c in "$@"; do
+	files="${files} /root/bare-host/$(basename "${c}")"
+done
+# shellcheck disable=SC2086 # files are words without spaces
+on snap install --dangerous ${files} >/dev/null
+
+# an unprivileged user with passwordless sudo and a login session's
+# runtime dir (snapd needs one)
+on sh -c 'useradd -m -s /bin/bash tester &&
+	echo "tester ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/90-tester &&
+	loginctl enable-linger tester && sleep 2'
+uid="$(on id -u tester)"
+
+d=/root/bare-host/bare-host.d
+for check in tools data; do
+	say "${check}"
+	on bash "${d}/${check}" | tee -a "${log}"
+done
+say "run (as tester)"
+on cp -r "${d}" /tmp/bare-host.d
+on chmod -R a+rX /tmp/bare-host.d
+lxc exec "${target}" --user "${uid}" --group "${uid}" --cwd /home/tester \
+	--env HOME=/home/tester --env "XDG_RUNTIME_DIR=/run/user/${uid}" -- \
+	bash /tmp/bare-host.d/run | tee -a "${log}"
+say "refresh"
+# shellcheck disable=SC2086
+on bash "${d}/refresh" ${files} | tee -a "${log}"
+
+if [ -n "${boot}" ]; then
+	if [ "${boot}" = download ]; then
+		say "downloading Ubuntu Core 24 (${arch})"
+		on sh -c "cd /root && wget -q https://cdimage.ubuntu.com/ubuntu-core/24/stable/current/ubuntu-core-24-${arch}.img.xz -O core.img.xz && xz -d -T0 core.img.xz"
+	else
+		lxc file push -q "${boot}" "${target}/root/core.img"
+	fi
+	say "vm (up to ${boot_secs}s)"
+	on bash "${d}/vm" /root/core.img "${boot_secs}" | tee -a "${log}"
+fi
+
+passed="$(grep -c '^ok ' "${log}" || :)"
+failed="$(grep -c '^FAIL ' "${log}" || :)"
+say "${arch}: ${passed} passed, ${failed} failed"
+rm -f "${log}"
+[ "${failed}" -eq 0 ]

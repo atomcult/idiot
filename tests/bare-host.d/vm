@@ -1,0 +1,50 @@
+#!/bin/bash
+# tests/bare-host.d/vm - boot an Ubuntu Core image from the components
+#
+# Usage: vm <image> [<seconds>]   (as root; needs idiot+vm and idiot+tpm)
+# Boots the image with secure boot and an emulated TPM, with no qemu,
+# firmware or swtpm packages on the host, until it reaches console-conf or
+# <seconds> (default 600) pass. A first boot runs install mode and reboots.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+image="${1:?usage: vm <image> [<seconds>]}"
+secs="${2:-600}"
+installed vm && installed tpm || {
+	fail "vm: needs idiot+vm and idiot+tpm"
+	exit 1
+}
+case "$(dpkg --print-architecture)" in
+amd64) qemu='qemu-system-x86_64' ;;
+arm64) qemu='qemu-system-aarch64' ;;
+armhf) qemu='qemu-system-arm' ;;
+*) qemu="qemu-system-$(dpkg --print-architecture)" ;;
+esac
+for t in "${qemu}" swtpm; do
+	! command -v "${t}" >/dev/null || fail "vm: the host has its own ${t}; this isn't a bare host"
+done
+
+log="$(mktemp)"
+state="$(mktemp -d)"
+cp --reflink=auto "${image}" "${state}/disk.img"
+idiot vm --tpm --no-gfx --state-dir "${state}" "${state}/disk.img" </dev/null >"${log}" 2>&1 &
+pid=$!
+for _ in $(seq "${secs}"); do
+	grep -aq 'Press enter to configure' "${log}" && break
+	kill -0 "${pid}" 2>/dev/null || break
+	sleep 1
+done
+# qemu's process name is cut to 15 characters
+pkill -x "$(printf '%s' "${qemu}" | cut -c1-15)" 2>/dev/null
+wait "${pid}"
+
+check() { # <label> <pattern>
+	grep -aqE -- "${2}" "${log}" && ok "vm: ${1}" || fail "vm: ${1} (see ${log})"
+}
+check "secure boot enabled" 'Secure boot enabled'
+check "TPM present" 'TPM2|tpm_tis'
+check "reached console-conf" 'Press enter to configure'
+pgrep -x swtpm >/dev/null && fail "vm: swtpm left running" || ok "vm: swtpm stopped with the VM"
+[ -f "${state}/tpm2-00.permall" ] && ok "vm: TPM state saved" || fail "vm: no TPM state in ${state}"
+rm -rf "${state}"

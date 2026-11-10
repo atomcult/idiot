@@ -1,0 +1,85 @@
+#!/bin/bash
+# tests/bare-host.d/run - idiot run and the missing-tool errors, as a user
+#
+# Run as an unprivileged user with passwordless sudo (the runner sets one
+# up). Checks --list, exit statuses, --sudo, --shell, that PATH and
+# LD_LIBRARY_PATH stay untouched, and that a tool from a component that
+# isn't installed fails naming it.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+[ "$(id -u)" -ne 0 ] || {
+	fail "run: must not run as root"
+	exit 1
+}
+
+# --list: seven components, the installed ones marked
+list="$(idiot run --list)"
+if [ "$(printf '%s\n' "${list}" | wc -l)" -eq 7 ]; then
+	ok "run --list: seven components"
+else
+	fail "run --list: $(printf '%s\n' "${list}" | cut -f1,2 | tr '\n' ' ')"
+fi
+for comp in $(printf '%s\n' "${list}" | cut -f1); do
+	state="$(printf '%s\n' "${list}" | awk -F '\t' -v c="${comp}" '$1 == c { print $2 }')"
+	if [ -d "/snap/idiot/components/$(readlink /snap/idiot/current)/${comp}" ]; then
+		want=installed
+	else
+		want=available
+	fi
+	[ "${state}" = "${want}" ] && ok "run --list: ${comp} ${state}" ||
+		fail "run --list: ${comp} is '${state}', expected ${want}"
+done
+
+# exit statuses pass through
+idiot run sh -c 'exit 7'
+rc=$?
+[ "${rc}" -eq 7 ] && ok "run: exit status passed through" || fail "run: exit status ${rc}, expected 7"
+
+# a tool nobody bundles
+out="$(idiot run no-such-tool 2>&1)"
+printf '%s' "${out}" | grep -q 'not on PATH and not bundled with idiot' &&
+	ok "run: unbundled tool error" || fail "run: unbundled tool: ${out}"
+
+# each component that isn't installed: one of its tools (that the host
+# lacks) fails naming it
+index=/snap/idiot/current/lib/idiot/share/components
+for comp in $(printf '%s\n' "${list}" | awk -F '\t' '$2 == "available" { print $1 }'); do
+	tool=''
+	while read -r t; do
+		command -v "${t}" >/dev/null 2>&1 || {
+			tool="${t}"
+			break
+		}
+	done <"${index}/${comp}"
+	[ -n "${tool}" ] || continue
+	out="$(idiot run "${tool}" --version 2>&1)"
+	printf '%s' "${out}" | grep -qF "snap install idiot+${comp}" &&
+		ok "run: missing ${tool} names idiot+${comp}" ||
+		fail "run: missing ${tool}: ${out}"
+done
+
+# --sudo: a tool the user can't run, as root
+if installed network; then
+	idiot run tcpdump -i any -c 1 -nn >/dev/null 2>&1 &&
+		fail "run: tcpdump worked unprivileged (test can't tell --sudo apart)" ||
+		ok "run: tcpdump refuses as the user"
+	out="$(idiot run --sudo tcpdump -i any -c 1 -nn 2>&1)"
+	printf '%s' "${out}" | grep -q 'listening on' && ok "run --sudo tcpdump" ||
+		fail "run --sudo tcpdump: $(printf '%s' "${out}" | head -n 2 | tr '\n' ' ')"
+fi
+
+# --shell: bundled tools first on its PATH, the caller's untouched
+before="${PATH}"
+first="$(printf '%s\n' "${list}" | awk -F '\t' '$2 == "installed" { print $1; exit }')"
+if [ -n "${first}" ]; then
+	tool="$(head -n 1 "${index}/${first}")"
+	got="$(echo "command -v ${tool}; echo \"LD=\${LD_LIBRARY_PATH:-unset}\"" | SHELL=/bin/bash idiot run --shell)"
+	printf '%s' "${got}" | grep -q "^/snap/idiot/components/.*/${first}/" &&
+		ok "run --shell: ${tool} from idiot+${first}" || fail "run --shell: ${got}"
+	printf '%s' "${got}" | grep -q '^LD=unset' && ok "run --shell: LD_LIBRARY_PATH unset" ||
+		fail "run --shell: ${got}"
+fi
+[ "${PATH}" = "${before}" ] && ok "run: caller's PATH unchanged" || fail "run: PATH changed"
+[ -z "${LD_LIBRARY_PATH:-}" ] && ok "run: caller's LD_LIBRARY_PATH unset" || fail "run: LD_LIBRARY_PATH set"

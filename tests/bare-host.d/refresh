@@ -1,0 +1,29 @@
+#!/bin/bash
+# tests/bare-host.d/refresh - a refresh under a shell that loaded the
+# integration before it
+#
+# Usage: refresh <snap file> <component file>...   (as root)
+# Installs the same files again (a new revision) from inside one shell and
+# checks a component tool still runs there, from the new revision, without
+# reloading the integration.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+before="$(readlink /snap/idiot/current)"
+snap install --dangerous "$@" >/dev/null 2>&1 || {
+	fail "refresh: reinstall failed"
+	exit 1
+}
+after="$(readlink /snap/idiot/current)"
+[ "${before}" != "${after}" ] && ok "refresh: ${before} -> ${after}" ||
+	fail "refresh: revision unchanged (${before})"
+
+comp="$(idiot run --list | awk -F '\t' '$2 == "installed" { print $1; exit }')"
+[ -n "${comp}" ] || exit 0
+tool="$(head -n 1 "/snap/idiot/current/lib/idiot/share/components/${comp}")"
+path="$(echo "command -v ${tool}" | SHELL=/bin/bash idiot run --shell)"
+case "${path}" in
+"/snap/idiot/components/${after}/${comp}/"*) ok "refresh: ${tool} from the new revision, same shell" ;;
+*) fail "refresh: ${tool} resolved to '${path}'" ;;
+esac

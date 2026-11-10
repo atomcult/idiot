@@ -1,0 +1,113 @@
+#!/bin/bash
+# tests/bare-host.d/data - tools that read data files or run helpers
+#
+# Real uses, each with an expected result: the bundled tool must find its
+# data (magic database, nmap's services and scripts, CA certificates, pci
+# IDs) and helpers (mtr-packet, gdb's python, the swtpm TCTI) inside the
+# component, and the wrappers in snap/local/wrap/ must work. Run as root.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+# expect <label> <pattern> <command...>: pass if the output matches
+expect() {
+	label="${1}" pattern="${2}"
+	shift 2
+	out="$("$@" 2>&1 </dev/null)"
+	if printf '%s' "${out}" | grep -qE -- "${pattern}"; then
+		ok "${label}"
+	else
+		fail "${label}: $(printf '%s' "${out}" | head -n 3 | tr '\n' ' ' | cut -c1-200)"
+	fi
+}
+
+tmp="$(mktemp -d)"
+trap 'pkill -x swtpm 2>/dev/null; rm -rf "${tmp}"' EXIT
+
+if installed core; then
+	head -c 1048576 /dev/zero >"${tmp}/raw"
+	roundtrip() {
+		idiot run img2simg "${tmp}/raw" "${tmp}/sparse" &&
+			idiot run simg2img "${tmp}/sparse" "${tmp}/back" &&
+			cmp "${tmp}/raw" "${tmp}/back" && echo roundtrip-ok
+	}
+	expect "core: simg2img round trip (private libs)" roundtrip-ok roundtrip
+	mkfs() { truncate -s 8M "${tmp}/fs.img" && idiot run mke2fs -q -F "${tmp}/fs.img" && idiot run debugfs -R stats "${tmp}/fs.img"; }
+	expect "core: mke2fs + debugfs" 'Filesystem magic number' mkfs
+fi
+
+if installed network; then
+	expect "network: nmap scan with a script (data dir)" 'Nmap done: 1 IP address' \
+		idiot run nmap -sT -p 22 --script banner 127.0.0.1
+	expect "network: mtr report (mtr-packet)" 'localhost|127\.0\.0\.1' idiot run mtr -r -c 1 127.0.0.1
+	expect "network: curl https (CA certificates)" '^(200|301|302)$' \
+		idiot run curl -sS -o /dev/null -w '%{http_code}' https://snapcraft.io
+	expect "network: dig" '^[0-9.]+$' idiot run dig +short snapcraft.io
+	expect "network: tcpdump as root (wrapper: no tcpdump user)" 'listening on' \
+		idiot run tcpdump -i any -c 1 -nn
+fi
+
+if installed hardware; then
+	# names, not just IDs, means pci.ids was found
+	expect "hardware: lspci names (pci.ids)" '^[0-9a-f]{2}:[0-9a-f]{2}\.[0-9] [A-Za-z]' idiot run lspci
+	expect "hardware: lshw" 'H/W path|system' idiot run lshw -short -quiet
+fi
+
+if installed boot; then
+	dt() {
+		printf '/dts-v1/;\n/ { model = "idiot-test"; };\n' >"${tmp}/t.dts" &&
+			idiot run dtc -I dts -O dtb -o "${tmp}/t.dtb" "${tmp}/t.dts" &&
+			idiot run fdtdump "${tmp}/t.dtb" 2>/dev/null
+	}
+	expect "boot: dtc round trip" 'idiot-test' dt
+	mki() {
+		head -c 100 /dev/urandom >"${tmp}/k" &&
+			idiot run mkimage -A arm64 -T kernel -C none -a 0 -e 0 -d "${tmp}/k" "${tmp}/uImage" >/dev/null &&
+			idiot run dumpimage -l "${tmp}/uImage"
+	}
+	expect "boot: mkimage + dumpimage" 'AArch64 Linux Kernel Image' mki
+fi
+
+if installed debug; then
+	expect "debug: file (wrapper: magic database)" 'ELF' idiot run file /bin/ls
+	expect "debug: gdb runs python" '^3\.[0-9]+' \
+		idiot run gdb -batch -ex 'python import sys; print(sys.version.split()[0])'
+	expect "debug: eu-stack" '^PID [0-9]+' idiot run eu-stack -p $$
+fi
+
+if installed vm; then
+	# each architecture's firmware starts under the bundled qemu: ROMs (-L
+	# for each of Ubuntu's firmware dirs), modules and firmware found
+	truncate -s 64M "${tmp}/blank.img"
+	for a in amd64 arm64 riscv64; do
+		case "${a}" in
+		amd64) comm='qemu-system-x86' banner='BdsDxe|UEFI' flags='' ;;
+		arm64) comm='qemu-system-aar' banner='UEFI firmware' flags='' ;;
+		riscv64) comm='qemu-system-ris' banner='OpenSBI|EDK2' flags='--no-sb' ;;
+		esac
+		# shellcheck disable=SC2086 # flags is a word or nothing
+		idiot vm --arch "${a}" ${flags} --no-gfx "${tmp}/blank.img" </dev/null >"${tmp}/fw-${a}.log" 2>&1 &
+		pid=$!
+		for _ in $(seq 60); do
+			grep -aqE "${banner}" "${tmp}/fw-${a}.log" && break
+			kill -0 "${pid}" 2>/dev/null || break
+			sleep 1
+		done
+		pkill -x "${comm}" 2>/dev/null
+		wait "${pid}" 2>/dev/null
+		grep -aqE "${banner}" "${tmp}/fw-${a}.log" && ok "vm: ${a} firmware starts under the bundled qemu" ||
+			fail "vm: ${a} firmware: $(tr -d '\033' <"${tmp}/fw-${a}.log" | head -c 200)"
+	done
+fi
+
+if installed tpm; then
+	expect "tpm: swtpm_setup (wrapper: bundled swtpm and config)" 'Successfully' \
+		idiot run swtpm_setup --tpm2 --tpmstate "${tmp}" --overwrite
+	mkdir -p "${tmp}/tpm"
+	idiot run swtpm socket --tpmstate "dir=${tmp}/tpm" --tpm2 \
+		--server type=tcp,port=2321 --ctrl type=tcp,port=2322 \
+		--flags not-need-init,startup-clear --daemon
+	sleep 1
+	expect "tpm: tpm2_pcrread through the swtpm TCTI (dlopen via RPATH)" 'sha256:' \
+		idiot run tpm2_pcrread --tcti=swtpm:host=localhost,port=2321 sha256:0
+fi

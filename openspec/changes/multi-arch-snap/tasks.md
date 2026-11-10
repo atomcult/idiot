@@ -9,4 +9,4 @@
 
 ## 2. On Lauren's builds (after she runs them)
 
-- [ ] 2.1 For each architecture's build Lauren makes: `snap/local/check-components` passes, and (where hardware or an emulated VM is at hand, e.g. `idiot vm --arch arm64` with a Core image) the bare-host tool test runs every promised tool
+- [ ] 2.1 For each architecture's build Lauren makes: `snap/local/check-components` passes, and `tests/bare-host --remote <that arch's LXD> <snap>` passes (an LXD on hardware of that architecture, or in an `idiot vm --arch <arch>` VM)

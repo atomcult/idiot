@@ -128,6 +128,21 @@ cargo test --manifest-path tools/idiot-store/Cargo.toml   # helper unit tests (o
 make purge    # uninstall + delete all user data
 ```
 
+After `snapcraft pack`, test the snap and its components on a bare host
+(a throwaway LXD container with none of their packages):
+
+```sh
+snap/local/check-components idiot_*_amd64.snap   # every promised tool is in its component
+tests/bare-host idiot_*_amd64.snap                # ...and runs (all components next to it)
+tests/bare-host idiot_*_amd64.snap idiot+vm.comp idiot+tpm.comp   # just these
+tests/bare-host --boot download --kvm idiot_*_amd64.snap   # also boot Ubuntu Core 24
+tests/bare-host --remote my-arm64-box idiot_*_arm64.snap   # another arch, on its own LXD
+```
+
+It never uses the default LXD remote (`--remote`, default `local`), mounts
+nothing from the host, and deletes the container afterwards (`--keep` to
+look around).
+
 ---
 
 ## Contributing

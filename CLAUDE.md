@@ -44,7 +44,15 @@ make install    # install to $PREFIX (default: ~/.local); builds idiot-store (ne
 make install-sh # the shell tree only (the snap builds idiot-store in its own part)
 make uninstall
 make purge      # uninstall + delete user data dirs
+snap/local/check-components <snap>   # after snapcraft pack: promised tools in each index
+tests/bare-host [--boot download --kvm] <snap> [<comp>...]
+                # the snap + components in a bare local: LXD container: every
+                # tool runs, data/helpers/wrappers work, idiot run, refresh,
+                # (--boot) Ubuntu Core boots from vm+tpm; checks in tests/bare-host.d/
 ```
+
+Test containers go on `local:` (or `--remote`): the default LXD remote on
+Lauren's laptop is her NAS.
 
 ## Spec-driven changes (OpenSpec)
 

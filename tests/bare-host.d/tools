@@ -1,0 +1,124 @@
+#!/bin/bash
+# tests/bare-host.d/tools - every promised tool runs (bundled-tools spec)
+#
+# For each installed component, run each tool the spec promises with a
+# harmless argument through `idiot run`; a tool passes if it executes,
+# whatever its exit status (many tools return non-zero for --version).
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+arch="$(dpkg --print-architecture)"
+
+# component, tool, arguments
+while read -r comp tool args; do
+	[ -n "${comp}" ] || continue
+	installed "${comp}" || continue
+	if [ "${tool}" = ltrace ] && [ "${arch}" = riscv64 ]; then
+		continue # not built for riscv64
+	fi
+	# shellcheck disable=SC2086 # args are words
+	out="$(idiot run "${tool}" ${args} </dev/null 2>&1)"
+	rc=$?
+	if broken "${rc}" "${out}"; then
+		fail "${comp}/${tool}: rc=${rc} $(printf '%s' "${out}" | head -n 2 | tr '\n' ' ' | cut -c1-160)"
+	else
+		ok "${comp}/${tool}"
+	fi
+done <<'TOOLS'
+core debugfs -V
+core mke2fs -V
+core mcopy --version
+core mdir --version
+core sfdisk --version
+core lsblk --version
+core mkfs.vfat --help
+core fsck.vfat --help
+core sgdisk --version
+core parted --version
+core dump.erofs --help
+core fsck.erofs --help
+core zstd --version
+core lz4 --version
+core cpio --version
+core simg2img
+vm qemu-system-x86_64 --version
+vm qemu-system-aarch64 --version
+vm qemu-system-arm --version
+vm qemu-system-riscv64 --version
+vm qemu-img --version
+tpm swtpm --version
+tpm swtpm_setup --version
+tpm swtpm_ioctl --help
+tpm tpm2_pcrread --version
+tpm tpm2_startup --version
+tpm tpm2_getcap --version
+network tcpdump --version
+network nmap --version
+network iw --version
+network dig -v
+network host -V
+network nslookup -version
+network traceroute --version
+network mtr --version
+network iperf3 --version
+network socat -V
+network curl --version
+network nft --version
+network conntrack --version
+network arping --help
+network tracepath -V
+network whois --version
+hardware lspci --version
+hardware lsusb --version
+hardware i2cdetect -V
+hardware i2cget -V
+hardware i2cset -V
+hardware i2cdump -V
+hardware dmidecode --version
+hardware lshw -version
+hardware smartctl --version
+hardware nvme version
+hardware gpiodetect --version
+hardware gpioinfo --version
+hardware gpioget --version
+hardware gpioset --version
+hardware candump
+hardware cansend
+hardware picocom --help
+hardware mmc --version
+hardware flashrom --version
+boot efibootmgr --version
+boot mokutil --version
+boot efi-readvar --help
+boot sign-efi-sig-list --version
+boot keyctl --version
+boot mkimage -V
+boot dumpimage -V
+boot fw_printenv --version
+boot fw_setenv --version
+boot dtc --version
+boot fdtdump --version
+boot sbsign --version
+boot sbverify --version
+debug strace -V
+debug ltrace -V
+debug gdb --version
+debug lsof -v
+debug file --version
+debug readelf --version
+debug objdump --version
+debug nm --version
+debug strings --version
+debug eu-readelf --version
+debug eu-stack --version
+debug jq --version
+debug pstree --version
+debug fuser --version
+debug iostat -V
+debug mpstat -V
+debug pidstat -V
+debug htop --version
+debug hexdump --version
+debug patchelf --version
+TOOLS
