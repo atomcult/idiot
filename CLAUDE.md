@@ -31,9 +31,10 @@ which runs outside confinement. Outside a snap every command runs directly.
 
 ```sh
 make hooks      # configure git to use .githooks/ (run once after cloning)
-make check      # shfmt format-check + shellcheck (run before every commit)
-make fmt        # rewrite files to match shfmt style
-make install    # install to $PREFIX (default: ~/.local)
+make check      # shfmt + shellcheck, cargo fmt --check + clippy (before every commit)
+make fmt        # rewrite files to match shfmt / rustfmt style
+make install    # install to $PREFIX (default: ~/.local); builds idiot-store (needs cargo)
+make install-sh # the shell tree only (the snap builds idiot-store in its own part)
 make uninstall
 make purge      # uninstall + delete user data dirs
 ```
@@ -73,7 +74,8 @@ share/           # sourced helper modules (never executed directly)
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu()
   clean.sh       # clean_list_*/clean_remove_*, clean_show, clean_confirm
   creds.sh       # IDIOT_AUTH_DIR, validate_cred_name, ensure_auth_dir,
-                 #   require_cred/no_cred, whoami_cache_path
+                 #   require_cred/no_cred, whoami_cache_path, store_helper,
+                 #   STORE_PERMISSIONS, map_permission, is_store_permission
   examples.sh    # IDIOT_EXAMPLES_DIR, resolve_example_url
   fzf.sh         # file_preview_cmd, fzf_pick_from_dir
   lp.sh          # IDIOT_LP_USER_FILE, lp_user_value, require_lp_user
@@ -81,6 +83,11 @@ share/           # sourced helper modules (never executed directly)
   stores.sh      # IDIOT_STORES_DIR, require_store/no_store
   examples/      # bundled static example alias files
   kernels/       # bundled static kernel data files
+tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft
+                 #   needed for `idiot auth`); installed to lib/idiot/libexec/.
+                 #   A leaf tool: sh owns the UX, it only talks to the store.
+                 #   Credentials never in argv or stdout. Exit 0/1 usage/2 auth/3 store.
+snap/local/      # build-time scripts for the snap (patchelf-host)
 ```
 
 ## Every cmd/ file follows this structure

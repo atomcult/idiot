@@ -52,3 +52,33 @@ store_helper() {
     command -v idiot-store 2>/dev/null ||
         die "idiot-store not found — build it with: make install"
 }
+
+# Store permissions idiot knows: name, then what it lets a credential do.
+# The first seven (package_*) are what `snapcraft export-login` grants by
+# default, and what `idiot auth add` grants unless told otherwise.
+STORE_PERMISSIONS='package_access	Access packages
+package_manage	Manage collaborators
+package_metrics	View package metrics
+package_push	Push packages
+package_register	Register snap names
+package_release	Publish releases
+package_update	Update package metadata
+store_admin	Administer store
+account_admin	Administer account
+openid	OpenID authentication
+edit_account	Edit account
+create_store	Create stores'
+
+# shellcheck disable=SC2034 # used by cmd/auth/add
+DEFAULT_PERMISSIONS='package_access,package_manage,package_metrics,package_push,package_register,package_release,package_update'
+
+# Print what permission $1 lets a credential do (the name itself if unknown).
+map_permission() {
+    _mp="$(printf '%s\n' "${STORE_PERMISSIONS}" | awk -F '\t' -v p="${1}" '$1 == p { print $2 }')"
+    printf '%s' "${_mp:-${1}}"
+}
+
+# Succeed if $1 is a permission idiot knows.
+is_store_permission() {
+    printf '%s\n' "${STORE_PERMISSIONS}" | cut -f1 | grep -qx -- "${1}"
+}

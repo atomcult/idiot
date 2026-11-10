@@ -25,6 +25,11 @@ make install                   # installs to ~/.local by default
 make install PREFIX=/usr/local # optional: override install prefix
 ```
 
+This builds `idiot-store`, idiot's Snap Store client, so it needs a Rust
+toolchain (`cargo`). `idiot auth` doesn't need snapcraft: `idiot auth add`
+logs in itself and can scope the credential
+(`--permissions`, `--snaps`, `--channels`, `--expires`).
+
 Or as a snap (strictly confined, no interfaces to connect):
 
 ```sh
@@ -78,8 +83,9 @@ when it's needed.
 ## Development
 
 ```sh
-make check    # shfmt format-check + shellcheck
-make fmt      # auto-format all shell files
+make check    # shfmt + shellcheck, cargo fmt --check + clippy
+make fmt      # auto-format shell and Rust files
+cargo test --manifest-path tools/idiot-store/Cargo.toml   # helper unit tests (offline)
 make purge    # uninstall + delete all user data
 ```
 

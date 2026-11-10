@@ -1,35 +1,137 @@
 #!/usr/bin/env sh
-# cmd/auth/add - create new credentials using snapcraft export-login
+# cmd/auth/add - log in to the Snap Store and save a new credential
 # idiot: host
-# Usage: idiot auth add <name>
+# Usage: idiot auth add <name> [--permissions [<list>]] [--snaps <list>]
+#                              [--channels <list>] [--expires <when>]
+#
+# The login itself is idiot-store's (tools/idiot-store): it prompts on the
+# terminal and writes the credential to a new private file, which is then
+# renamed into place. Everything is checked before it prompts.
 
 . "$(dirname "${0}")/../../share/common.sh"
 include creds.sh
 
-main() {
-	case "${1:-}" in
-	-h | --help | help)
-		help_heading "Usage:" "idiot auth add <name>"
-		exit 0
-		;;
+usage() {
+	help_heading "Usage:" "idiot auth add <name> [options]"
+	echo >&2
+	help_heading "Options:"
+	help_option "--permissions [<list>]" "Comma-separated permissions; no list: pick them"
+	help_option "--snaps <list>" "Only these snaps (default: any)"
+	help_option "--channels <list>" "Only these channels (default: any)"
+	help_option "--expires <when>" "ISO 8601 date/time, or <N>d from now (default: 365d)"
+	echo >&2
+	help_heading "Permissions:"
+	printf '%s\n' "${STORE_PERMISSIONS}" | while IFS='	' read -r _p _d; do
+		help_option "${_p}" "${_d}"
+	done
+	say "${DIM}Default: the package_* permissions (as snapcraft export-login).${RESET}"
+}
+
+# Pick permissions in fzf, print them comma-separated (nothing if cancelled).
+pick_permissions() {
+	require fzf "or give the permissions: --permissions <list>"
+	printf '%s\n' "${STORE_PERMISSIONS}" |
+		fzf --multi --prompt='permissions> ' --delimiter='	' \
+			--header='TAB selects, ENTER accepts' |
+		cut -f1 | paste -sd, -
+}
+
+# Print the RFC 3339 time (UTC) for --expires $1: `<N>d` days from now or a
+# date/time `date -d` understands. Dies on anything unparseable or past.
+expiry() {
+	case "${1}" in
+	*[!0-9]*d | d) die "invalid expiry '${1}': use <N>d or an ISO 8601 date" ;;
+	*d) _ex_when="+${1%d} days" ;;
+	*) _ex_when="${1}" ;;
 	esac
-	name="${1:-}"
+	_ex_epoch="$(date -u -d "${_ex_when}" +%s 2>/dev/null)" ||
+		die "invalid expiry '${1}': use <N>d or an ISO 8601 date"
+	[ "${_ex_epoch}" -gt "$(date -u +%s)" ] ||
+		die "expiry '${1}' is in the past"
+	date -u -d "@${_ex_epoch}" +%Y-%m-%dT%H:%M:%S+00:00
+}
 
-	[ -n "${name}" ] || die "usage: idiot auth add <name>"
+main() {
+	name=''
+	permissions="${DEFAULT_PERMISSIONS}"
+	snaps=''
+	channels=''
+	expires='365d'
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--permissions=*) permissions="${1#*=}" ;;
+		--permissions)
+			case "${2:-}" in
+			'' | -*) permissions='' ;; # pick them below
+			*)
+				permissions="${2}"
+				shift
+				;;
+			esac
+			;;
+		--snaps=*) snaps="${1#*=}" ;;
+		--channels=*) channels="${1#*=}" ;;
+		--expires=*) expires="${1#*=}" ;;
+		--snaps | --channels | --expires)
+			[ "$#" -ge 2 ] || die "${1} needs a value"
+			case "${1}" in
+			--snaps) snaps="${2}" ;;
+			--channels) channels="${2}" ;;
+			--expires) expires="${2}" ;;
+			esac
+			shift
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${name}" ] || die "usage: idiot auth add <name> [options]"
+			name="${1}"
+			;;
+		esac
+		shift
+	done
+
+	[ -n "${name}" ] || die "usage: idiot auth add <name> [options]"
 	validate_cred_name "${name}"
-
 	ensure_auth_dir
 	require_no_cred "${name}"
+	expires="$(expiry "${expires}")" || exit 1
+	helper="$(store_helper)" || exit 1
+
+	if [ -z "${permissions}" ]; then
+		permissions="$(pick_permissions)" || :
+		[ -n "${permissions}" ] || die "no permissions picked"
+	fi
+	_old_ifs="${IFS}"
+	IFS=','
+	for _perm in ${permissions}; do
+		is_store_permission "${_perm}" ||
+			die "unknown permission '${_perm}' (see: idiot auth add --help)"
+	done
+	IFS="${_old_ifs}"
+
 	dest="${IDIOT_AUTH_DIR}/${name}"
+	# hidden, in the private auth dir so the rename keeps it there; the
+	# helper creates it (O_EXCL, 0600), so it must not exist yet
+	tmpfile="${IDIOT_AUTH_DIR}/.new.${name}.$$"
+	rm -f "${tmpfile}"
+	trap 'rm -f "${tmpfile}"' EXIT
+	trap 'exit 130' INT TERM
 
-	# hidden temp file in the private auth dir, so the rename keeps it there
-	tmpfile="$(mktemp "${IDIOT_AUTH_DIR}/.new.XXXXXX")"
-	trap 'rm -f "${tmpfile}"' EXIT INT TERM
-
-	snapcraft export-login "${tmpfile}" >&2 ||
-		die "snapcraft export-login failed"
+	say "Logging in to the Snap Store for ${BOLD}${name}${RESET} ${DIM}(Ubuntu One account)${RESET}"
+	rc=0
+	"${helper}" login --output "${tmpfile}" \
+		--permissions "${permissions}" \
+		${snaps:+--snaps "${snaps}"} \
+		${channels:+--channels "${channels}"} \
+		--expires "${expires}" \
+		--description "idiot@$(uname -n)" >&2 || rc=$?
+	[ "${rc}" -eq 0 ] || exit "${rc}"
 
 	mv "${tmpfile}" "${dest}"
-	say "Added credentials '${BOLD}${name}${RESET}'"
+	say "Added credentials '${BOLD}${name}${RESET}' ${DIM}(expires ${expires%%T*})${RESET}"
 }
 main "$@"

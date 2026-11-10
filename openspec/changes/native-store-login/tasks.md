@@ -9,8 +9,8 @@
 
 - [x] 2.1 Switch to blocking `reqwest` with `rustls-tls` and drop tokio; verify `cargo build` and `ldd target/release/idiot-store | grep -c ssl` prints 0
 - [x] 2.2 Implement the `login` interface from design.md (`--output` 0600 `O_EXCL`, `--permissions/--snaps/--channels/--expires/--description`, `/dev/tty` prompts, exit codes) and `whoami` with snapcraft's exact `key: value` lines; remove unused `parse_credential`; add unit tests for credential encode/decode, caveat extraction and SSO error/2FA parsing from recorded JSON; verify `cargo test` passes offline and `cargo clippy -- -D warnings` is clean
-- [ ] 2.3 Live check with Lauren's account: `idiot-store login --output /tmp/x --permissions package_access --expires <tomorrow>` then `UBUNTU_STORE_AUTH="$(cat /tmp/x)" idiot-store whoami`; confirm the store accepts the `idiot-store/<version>` user agent (else apply the documented fallback), confirm 2FA prompting, then delete the test credential file
-- [ ] 2.4 Commit (`feat(idiot-store): scoped login and snapcraft-compatible whoami`)
+- [x] 2.3 Live check with Lauren's account: `idiot-store login --output /tmp/x --permissions package_access --expires <tomorrow>` then `UBUNTU_STORE_AUTH="$(cat /tmp/x)" idiot-store whoami`; confirm the store accepts the `idiot-store/<version>` user agent (else apply the documented fallback), confirm 2FA prompting, then delete the test credential file
+- [x] 2.4 Commit (`feat(idiot-store): scoped login and snapcraft-compatible whoami`)
 
 ## 3. Build and install
 
@@ -21,7 +21,7 @@
 
 ## 4. Use it from `idiot auth`
 
-- [ ] 4.1 `cmd/auth/add`: new options, validation before prompting (name, permissions, expiry incl. `Nd`), `--permissions` fzf multi-select, helper call into a temp file in the auth dir and atomic rename; update its help and `cmd/auth/help`; verify every scenario in the change's auth spec "Creating a credential" (live, with Lauren), including that `snapcraft` absent from PATH doesn't matter
-- [ ] 4.2 `cmd/auth/status`: use `store_helper whoami`; verify cached/refresh/not-logged-in/expired scenarios and that the `idiot status` email annotation still appears
-- [ ] 4.3 Compatibility: verify `snapcraft whoami` accepts an idiot-made credential and `idiot auth status` accepts a snapcraft-exported one
-- [ ] 4.4 Update README and CLAUDE.md (helper layout, `make install` needs cargo, no snapcraft needed for auth); run `make check` and commit (`feat(auth)!: log in without snapcraft`)
+- [x] 4.1 `cmd/auth/add`: new options, validation before prompting (name, permissions, expiry incl. `Nd`), `--permissions` fzf multi-select, helper call into a temp file in the auth dir and atomic rename; update its help and `cmd/auth/help`; verify every scenario in the change's auth spec "Creating a credential" (live, with Lauren), including that `snapcraft` absent from PATH doesn't matter
+- [x] 4.2 `cmd/auth/status`: use `store_helper whoami`; verify cached/refresh/not-logged-in/expired scenarios and that the `idiot status` email annotation still appears
+- [x] 4.3 Compatibility: verify `snapcraft whoami` accepts an idiot-made credential and `idiot auth status` accepts a snapcraft-exported one
+- [x] 4.4 Update README and CLAUDE.md (helper layout, `make install` needs cargo, no snapcraft needed for auth); run `make check` and commit (`feat(auth)!: log in without snapcraft`)
