@@ -189,6 +189,7 @@ main() {
 	require python3
 	require debugfs "install e2fsprogs"
 	require mcopy "install mtools"
+	require mdir "install mtools"
 
 	work=$(mktemp -d) || die "can't create a temporary directory"
 	trap 'rm -rf "${work}"' EXIT INT TERM HUP

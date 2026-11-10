@@ -1,0 +1,195 @@
+#!/usr/bin/env sh
+# cmd/inspect/diff - compare two Ubuntu Core disk images
+# idiot: host
+
+. "$(dirname "${0}")/../../share/common.sh"
+include image.sh
+
+USAGE='usage: idiot inspect diff [options] <a.img> <b.img>'
+
+# the model headers compared, plus the gadget and kernel it names
+MODEL_HEADERS='authority-id brand-id model display-name architecture base grade store revision timestamp classic sign-key-sha3-384 gadget kernel'
+
+# Normalise loaded image $1 (a work directory) into <section>.tsv files of
+# item, field, value lines.
+_normalise() {
+	awk -F '\t' -v keep="${MODEL_HEADERS}" '
+		BEGIN { n = split(keep, k, " "); for (i = 1; i <= n; i++) want[k[i]] = i }
+		$1 in want { v[$1] = $2 }
+		END { for (i = 1; i <= n; i++) if (k[i] in v) print k[i] "\tvalue\t" v[k[i]] }
+	' "${1}/model-headers.tsv" >"${1}/model.tsv"
+	{
+		printf 'system-label\tvalue\t%s\n' "$(cat "${1}/label")"
+		printf 'preseeded\tvalue\t%s\n' "$(cat "${1}/preseeded")"
+		printf 'first-boot\tvalue\t%s\n' "$(cat "${1}/first-boot")"
+	} | awk -F '\t' '$3 != ""' >"${1}/system.tsv"
+	awk 'NR == FNR { split($0, f, "\t"); chan[f[1]] = f[3]; next }
+		{ print $1 "\trevision\t" $2
+		  if (chan[$1] != "") print $1 "\tchannel\t" chan[$1] }' \
+		"${1}/model-snaps.tsv" "${1}/seeded" >"${1}/seed.tsv"
+	awk -F '\t' '{ print $1 "\tstart\t" $2; print $1 "\tsize\t" $3
+		print $1 "\ttype\t" $4 }' "${1}/partitions.tsv" >"${1}/partition.tsv"
+	[ -f "${1}/state.json" ] || return 0
+	python3 - "${1}" <<'PYEOF'
+import json, os, sys
+d = sys.argv[1]
+with open(os.path.join(d, "state.json")) as f:
+    data = json.load(f).get("data", {})
+with open(os.path.join(d, "installed.tsv"), "w") as f:
+    for name, s in sorted(data.get("snaps", {}).items()):
+        print(name, "revision", s.get("current", ""), sep="\t", file=f)
+        chan = s.get("tracking-channel") or s.get("channel", "")
+        if chan:
+            print(name, "channel", chan, sep="\t", file=f)
+with open(os.path.join(d, "connection.tsv"), "w") as f:
+    for key in sorted(data.get("conns", {})):
+        print(key, "connected", "yes", sep="\t", file=f)
+PYEOF
+}
+
+# Print section $1, item, field, a, b for every field whose values differ
+# between item-field-value files $2 and $3 (an absent item is empty).
+_diff_section() {
+	awk -F '\t' -v s="${1}" '
+		NR == FNR { k = $1 "\t" $2; if (!(k in a)) order[++n] = k; a[k] = $3; next }
+		{ k = $1 "\t" $2; if (!(k in a) && !(k in b)) order[++n] = k; b[k] = $3 }
+		END {
+			for (i = 1; i <= n; i++) {
+				k = order[i]
+				if (a[k] != b[k]) print s "\t" k "\t" a[k] "\t" b[k]
+			}
+		}
+	' "${2}" "${3}"
+}
+
+# Print the TSV difference stream as people read it, colored with OUT_*.
+_print_human() {
+	stdout_colors
+	printf '%s--- %s%s\n' "${OUT_RED}" "${1}" "${OUT_RESET}"
+	printf '%s+++ %s%s\n' "${OUT_GREEN}" "${2}" "${OUT_RESET}"
+	awk -F '\t' -v B="${OUT_BOLD}" -v D="${OUT_DIM}" -v R="${OUT_RED}" \
+		-v G="${OUT_GREEN}" -v Y="${OUT_YELLOW}" -v C="${OUT_CYAN}" -v Z="${OUT_RESET}" '
+		BEGIN {
+			title["model"] = "Model:"; title["system"] = "System:"
+			title["seed"] = "Seed snaps:"; title["partition"] = "Partitions:"
+			title["installed"] = "Installed snaps:"; title["connection"] = "Connections:"
+		}
+		{
+			if (!($1 in seen)) { seen[$1] = 1; secs[++ns] = $1 }
+			key = $1 SUBSEP $2
+			if (!(key in nf)) { items[$1, ++ni[$1]] = $2 }
+			f = ++nf[key]
+			field[key, f] = $3; va[key, f] = $4; vb[key, f] = $5
+			if ($4 != "") hasa[key] = 1
+			if ($5 != "") hasb[key] = 1
+			if (length($2) > w[$1]) w[$1] = length($2)
+		}
+		function show(fld, v) { return fld == "value" ? v : fld " " v }
+		END {
+			for (s = 1; s <= ns; s++) {
+				sec = secs[s]
+				print B (sec in title ? title[sec] : sec ":") Z
+				for (i = 1; i <= ni[sec]; i++) {
+					it = items[sec, i]; key = sec SUBSEP it
+					if (!hasa[key]) { m = "+"; col = G } else if (!hasb[key]) { m = "-"; col = R } else { m = "~"; col = Y }
+					name = it
+					if (sec == "connection") sub(/ /, " → ", name)
+					pad = sprintf("%*s", w[sec] - length(it), "")
+					out = ""
+					for (f = 1; f <= nf[key]; f++) {
+						fl = field[key, f]
+						if (m == "+") part = show(fl, vb[key, f])
+						else if (m == "-") part = show(fl, va[key, f])
+						else {
+							a = va[key, f] == "" ? "(none)" : va[key, f]
+							b = vb[key, f] == "" ? "(none)" : vb[key, f]
+							part = show(fl, a " " D "→" Z " " b)
+						}
+						if (m == "~" || fl != "connected") out = out (out == "" ? "" : ", ") part
+					}
+					print "  " col m Z " " C name Z (out == "" ? "" : pad "  " out)
+				}
+			}
+		}
+	'
+}
+
+main() {
+	state=''
+	tsv=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot inspect diff [options] <a.img> <b.img>"
+			echo >&2
+			say "Print what differs between two Ubuntu Core images: the model,"
+			say "recovery system and first boot, seeded snaps and partitions."
+			echo >&2
+			help_heading "Options:"
+			help_option "--state" "Also compare snapd's installed snaps and connections"
+			help_option "--tsv" "One tab-separated row per difference:"
+			help_option "" "section, item, field, a, b"
+			exit 0
+			;;
+		--state)
+			state=1
+			shift
+			;;
+		--tsv)
+			tsv=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
+		-*)
+			die "unknown option: ${1}"
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	[ $# -eq 2 ] || die "${USAGE}"
+	for f in "$@"; do
+		[ -f "${f}" ] || die "image not found: ${f}"
+	done
+
+	require sfdisk
+	require python3
+	require debugfs "install e2fsprogs"
+	require mcopy "install mtools"
+	require mdir "install mtools"
+
+	work=$(mktemp -d) || die "can't create a temporary directory"
+	trap 'rm -rf "${work}"' EXIT INT TERM HUP
+	image_load "${1}" "${work}/a"
+	image_load "${2}" "${work}/b"
+	_normalise "${work}/a" || die "can't read the snapd state of ${1}"
+	_normalise "${work}/b" || die "can't read the snapd state of ${2}"
+
+	sections='model system seed partition'
+	if [ -n "${state}" ]; then
+		both=1
+		[ -f "${work}/a/state.json" ] ||
+			{ say "${1} has no readable snapd state (not booted yet, or ubuntu-data is encrypted)" && both=''; }
+		[ -f "${work}/b/state.json" ] ||
+			{ say "${2} has no readable snapd state (not booted yet, or ubuntu-data is encrypted)" && both=''; }
+		[ -z "${both}" ] || sections="${sections} installed connection"
+	fi
+
+	for s in ${sections}; do
+		_diff_section "${s}" "${work}/a/${s}.tsv" "${work}/b/${s}.tsv"
+	done >"${work}/diff.tsv"
+
+	if [ ! -s "${work}/diff.tsv" ]; then
+		say "the images don't differ"
+	elif [ -n "${tsv}" ]; then
+		cat "${work}/diff.tsv"
+	else
+		_print_human "${1}" "${2}" <"${work}/diff.tsv"
+	fi
+}
+main "$@"

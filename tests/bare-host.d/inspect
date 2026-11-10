@@ -1,0 +1,76 @@
+#!/bin/bash
+# tests/bare-host.d/inspect - inspect image and diff, through the host handoff
+#
+# Usage: inspect   (needs idiot+core)
+# Builds two minimal Core-like images with the core component's sfdisk and
+# mtools (GPT, a FAT ubuntu-seed holding a model and empty seeded snaps,
+# differing only in pc-kernel's revision), then checks inspect image reads
+# one and inspect diff --tsv prints exactly the one difference on a clean
+# stdout.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+installed core || {
+	fail "inspect: needs idiot+core"
+	exit 1
+}
+
+work="$(mktemp -d)"
+
+# mk <img> <pc-kernel revision>
+mk() {
+	truncate -s 40M "${1}"
+	printf 'label: gpt\nstart=2048, size=69632, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name=ubuntu-seed\n' |
+		idiot run sfdisk -q "${1}" >/dev/null || return 1
+	m="${1}@@1048576"
+	idiot run mformat -i "${m}" -T 69632 -h 64 -s 32 :: &&
+		idiot run mmd -i "${m}" ::/systems ::/systems/20240603 ::/snaps || return 1
+	cat >"${work}/model" <<-'EOF'
+		type: model
+		authority-id: canonical
+		brand-id: canonical
+		model: bare-host
+		grade: dangerous
+		snaps:
+		  -
+		    default-channel: 24/stable
+		    name: pc-kernel
+		    type: kernel
+		  -
+		    default-channel: latest/stable
+		    name: snapd
+		    type: snapd
+
+		SIGNATURE
+	EOF
+	: >"${work}/empty.snap"
+	idiot run mcopy -i "${m}" "${work}/model" ::/systems/20240603/model &&
+		idiot run mcopy -i "${m}" "${work}/empty.snap" "::/snaps/pc-kernel_${2}.snap" &&
+		idiot run mcopy -i "${m}" "${work}/empty.snap" ::/snaps/snapd_21759.snap
+}
+
+if mk "${work}/a.img" 1803 && mk "${work}/b.img" 1900; then
+	ok "inspect: built two images with the core component's sfdisk and mtools"
+else
+	fail "inspect: couldn't build the test images"
+	exit 1
+fi
+
+out="$(idiot inspect image "${work}/b.img" 2>&1)"
+printf '%s' "${out}" | grep -q 'Model: *canonical/bare-host' &&
+	printf '%s' "${out}" | grep -qE 'pc-kernel +1900 +24/stable' &&
+	ok "inspect image: model and seeded snaps" ||
+	fail "inspect image: $(printf '%s' "${out}" | head -n 3 | tr '\n' ' ')"
+
+out="$(idiot inspect diff --tsv "${work}/a.img" "${work}/b.img" 2>"${work}/err")"
+[ "${out}" = "$(printf 'seed\tpc-kernel\trevision\t1803\t1900')" ] &&
+	ok "inspect diff --tsv: exactly the one difference on stdout" ||
+	fail "inspect diff --tsv: stdout '${out}', stderr: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+
+out="$(idiot inspect diff "${work}/a.img" "${work}/a.img" 2>"${work}/err")"
+[ -z "${out}" ] && grep -q "don't differ" "${work}/err" &&
+	ok "inspect diff: identical images, empty stdout" ||
+	fail "inspect diff: identical: stdout '${out}', stderr: $(cat "${work}/err")"
+
+rm -rf "${work}"

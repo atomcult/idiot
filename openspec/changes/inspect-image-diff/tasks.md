@@ -14,9 +14,28 @@
 
 ## 3. `idiot inspect diff` (`feat(inspect): compare two Core images`)
 
-- [ ] 3.1 `cmd/inspect/diff` (`# idiot: host`): options `--state`, `--tsv`, `-h`; exactly two images, else the usage error; both loaded with `image_load`; section normalisers (python3 for `installed`/`connection` from `state.json`) and the `_diff_section` awk differ producing the TSV stream; a missing-state message on stderr per image under `--state`; verify against the spec scenarios: identical image (copy of itself) → empty stdout and exit 0, `--tsv` row shape, one image → usage error, README.md as the second image → error naming it
-- [ ] 3.2 Human printer: `---`/`+++` lines, section headings, `-`/`+`/`~` lines with `OUT_*` colors from `stdout_colors`; verify `| cat` output has no escape bytes (`grep -c "$(printf '\033')"` is 0) and a terminal run is colored
-- [ ] 3.3 Real comparisons: build or download two Core 24 images that differ (e.g. `ubuntu-core-24-amd64` and its `-dangerous` model, or the same model with `--snap` for a newer pc-kernel via `ubuntu-image`), and a fresh vs first-booted image with `--state`; verify the Different models, New kernel revision, State compared and State unreadable scenarios
-- [ ] 3.4 `cmd/inspect/help` lists `diff`; README's inspect section mentions it if it lists subcommands; verify `idiot inspect` and `idiot inspect diff --help` show it
-- [ ] 3.5 Under the snap (locally built, `idiot+core` installed, host without e2fsprogs/mtools in a bare LXD container or with them hidden from PATH): `idiot inspect diff --tsv a.img b.img | cat` works through the host handoff and stdout stays clean
-- [ ] 3.6 Run `make check` and `openspec validate inspect-image-diff`, and commit
+- [x] 3.1 `cmd/inspect/diff` (`# idiot: host`): options `--state`, `--tsv`, `-h`; exactly two images, else the usage error; both loaded with `image_load`; section normalisers (python3 for `installed`/`connection` from `state.json`) and the `_diff_section` awk differ producing the TSV stream; a missing-state message on stderr per image under `--state`; verify against the spec scenarios: identical image (copy of itself) → empty stdout and exit 0, `--tsv` row shape, one image → usage error, README.md as the second image → error naming it
+- [x] 3.2 Human printer: `---`/`+++` lines, section headings, `-`/`+`/`~` lines with `OUT_*` colors from `stdout_colors`; verify `| cat` output has no escape bytes (`grep -c "$(printf '\033')"` is 0) and a terminal run is colored
+- [x] 3.3 Real comparisons: build or download two Core 24 images that differ (e.g. `ubuntu-core-24-amd64` and its `-dangerous` model, or the same model with `--snap` for a newer pc-kernel via `ubuntu-image`), and a fresh vs first-booted image with `--state`; verify the Different models, New kernel revision, State compared and State unreadable scenarios
+- [x] 3.4 `cmd/inspect/help` lists `diff`; README's inspect section mentions it if it lists subcommands; verify `idiot inspect` and `idiot inspect diff --help` show it
+- [x] 3.5 Under the snap (locally built, `idiot+core` installed, host without e2fsprogs/mtools in a bare LXD container or with them hidden from PATH): `idiot inspect diff --tsv a.img b.img | cat` works through the host handoff and stdout stays clean
+- [x] 3.6 Run `make check` and `openspec validate inspect-image-diff`, and commit
+
+## Notes
+
+- 3.1/1.3: the not-a-Core-image error now names the file, and no longer
+  leaks a Python traceback from parsing sfdisk's empty output; every other
+  `inspect image` output matched the baselines byte for byte (fresh,
+  first-booted and LUKS-headed images, colored and plain, `--extract-state`).
+- 3.3: images built with ubuntu-image from the `ubuntu-core-24-amd64-dangerous`
+  model, one with pc-kernel from 24/edge: the kernel diff is the single row
+  `seed pc-kernel revision 3908 3913`. Both Canonical models are signed by
+  the same key, so the Different models scenario now says the key shows
+  only when it differs. `--state` compared a first-booted signed image with
+  a booted dangerous one (installed snaps, connections), and a fresh one
+  (no state: named on stderr, the rest compared).
+- 3.4: README has no inspect section listing subcommands, so it is unchanged.
+- 3.5: bare-host (59/59, core component only): a new `tests/bare-host.d/inspect`
+  builds two small images with the core component's sfdisk and mtools.
+  It found that `inspect image` never required `mdir`, so on a host without
+  mtools it reported "Model: unknown"; both commands now require it.

@@ -10,5 +10,6 @@ main() {
 	help_command "changes" "Browse recent snap changes"
 	help_command "snap" "Print the snapcraft.yaml or snap.yaml from a snap file"
 	help_command "image" "Inspect an Ubuntu Core disk image"
+	help_command "diff" "Compare two Ubuntu Core disk images"
 }
 main "$@"

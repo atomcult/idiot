@@ -36,7 +36,7 @@ SHALL fail with its usage message unless given exactly two images.
 
 #### Scenario: Different models
 - **WHEN** the user compares an image built from `ubuntu-core-24-amd64` with one built from `ubuntu-core-24-amd64-dangerous`
-- **THEN** stdout shows the differing `model`, `grade` and `sign-key-sha3-384`, and any seeded snap only one of them has
+- **THEN** stdout shows the differing `model` and `grade` (and `sign-key-sha3-384` when different keys signed them), and any seeded snap only one of them has
 
 #### Scenario: Identical images
 - **WHEN** the user runs `idiot inspect diff a.img copy-of-a.img`
