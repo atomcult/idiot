@@ -1,0 +1,17 @@
+# swtpm_setup runs `swtpm` from PATH and needs a config file that only
+# exists where the package is installed: give it the bundled swtpm and
+# config unless the caller chose (--tpm, --config) or has one. (The
+# bundled config's certificate tool path is absolute, so
+# --create-ek-cert/--create-platform-cert need the host's swtpm-tools.)
+case " $* " in
+*" --tpm "* | *" --tpm="*) ;;
+*) set -- --tpm "${here}/swtpm socket" "$@" ;;
+esac
+case " $* " in
+*" --config "* | *" --config="*) ;;
+*)
+	[ -r "${XDG_CONFIG_HOME:-${HOME}/.config}/swtpm_setup.conf" ] ||
+		[ -r /etc/swtpm_setup.conf ] ||
+		set -- --config "${comp}/etc/swtpm_setup.conf" "$@"
+	;;
+esac

@@ -1,0 +1,98 @@
+#!/bin/sh
+# snap/local/component-build - finish a tool component's part
+# Usage: component-build <component>   (override-build, after craftctl default)
+#
+# For the part's install dir:
+# - drop documentation, man pages and translations (nothing reads them);
+# - make absolute symlinks into the part relative: the component is mounted
+#   at /snap/<instance>/components/mnt/<component>/<rev>, not /, so
+#   /usr/bin/mtr -> /usr/sbin/mtr would point at the host's file;
+# - patch every ELF file to run host-side (patchelf-host);
+# - write the index of the tools it provides to idiot-index/<component>,
+#   one name per line, which the part organises into the main snap
+#   (lib/idiot/share/components/<component>) so idiot can name the
+#   component even where it isn't installed.
+
+set -eu
+
+name="${1:?usage: component-build <component>}"
+root="${CRAFT_PART_INSTALL}"
+here="$(dirname "$0")"
+
+for d in doc doc-base man info locale lintian bug bash-completion; do
+	rm -rf "${root:?}/usr/share/${d}"
+done
+
+# perl only comes in through maintainer-script dependencies (adduser,
+# uuid-runtime), ~50 MiB, and no bundled tool needs it: drop it and the
+# perl scripts that would be left without an interpreter
+rm -rf "${root:?}"/usr/bin/perl* "${root:?}"/usr/share/perl* \
+	"${root:?}"/usr/lib/*/perl* "${root:?}"/usr/share/perl5
+for d in usr/bin bin usr/sbin sbin; do
+	[ -d "${root}/${d}" ] || continue
+	for f in "${root}/${d}"/*; do
+		[ -f "${f}" ] && [ ! -L "${f}" ] || continue
+		case "$(head -c 32 "${f}" | head -n 1)" in
+		'#!'*perl*) rm -f "${f}" ;;
+		esac
+	done
+done
+# install-time helpers dragged in by dependencies, not tools
+for f in adduser addgroup deluser delgroup; do
+	rm -f "${root}/usr/sbin/${f}"
+done
+
+find "${root}" -type l | while IFS= read -r link; do
+	target="$(readlink "${link}")"
+	case "${target}" in
+	/*) [ -e "${root}${target}" ] || continue ;;
+	*) continue ;;
+	esac
+	ln -sfn "$(realpath -m --relative-to="$(dirname "${link}")" "${root}${target}")" "${link}"
+done
+
+# libraries whose soname update-alternatives would link from a subdir
+# (libblas.so.3 -> blas/libblas.so.3), for nmap; postinsts never run here
+for alt in blas lapack; do
+	for lib in "${root}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/${alt}"/lib*.so.*; do
+		[ -e "${lib}" ] || continue
+		ln -sfn "${alt}/${lib##*/}" "${root}/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}/${lib##*/}"
+	done
+done
+
+# tools that need something set up first (snap/local/wrap/<tool>: shell
+# lines run before the tool, with $here its directory and $comp the
+# component's root): the tool moves to .wrapped/<tool> (keeping its name
+# for messages) beside a wrapper. Before patching, so the RPATH is
+# computed from where the binary ends up.
+for snippet in "${here}/wrap"/*; do
+	tool="${snippet##*/}"
+	for d in usr/bin bin usr/sbin sbin; do
+		f="${root}/${d}/${tool}"
+		[ -f "${f}" ] || continue
+		ups="$(printf '%s' "${d}" | sed 's#[^/]*#..#g')"
+		mkdir -p "${root}/${d}/.wrapped"
+		mv "${f}" "${root}/${d}/.wrapped/${tool}"
+		# shellcheck disable=SC2016 # the wrapper's own expansions
+		{
+			printf '#!/bin/sh\n'
+			printf '# %s with snap/local/wrap/%s applied (see component-build)\n' "${tool}" "${tool}"
+			printf 'here="$(dirname "$(readlink -f "$0")")"\n'
+			printf 'comp="$(cd "${here}/%s" && pwd)"\n' "${ups}"
+			cat "${snippet}"
+			printf 'exec "${here}/.wrapped/%s" "$@"\n' "${tool}"
+		} >"${f}"
+		chmod 755 "${f}"
+	done
+done
+
+"${here}/patchelf-host" "${root}" "${CRAFT_ARCH_TRIPLET_BUILD_FOR}"
+
+mkdir -p "${root}/idiot-index"
+for d in usr/bin bin usr/sbin sbin; do
+	[ -d "${root}/${d}" ] || continue
+	for f in "${root}/${d}"/*; do
+		# executables only; a link must resolve inside the part
+		[ -f "${f}" ] && [ -x "${f}" ] && printf '%s\n' "${f##*/}"
+	done
+done | sort -u >"${root}/idiot-index/${name}"

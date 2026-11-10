@@ -1,0 +1,5 @@
+# As root, tcpdump drops to the user `tcpdump`, which only exists where the
+# package is installed: stay root there instead of failing.
+if [ "$(id -u)" -eq 0 ] && ! id tcpdump >/dev/null 2>&1; then
+	set -- -Z root "$@"
+fi

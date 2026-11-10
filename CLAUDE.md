@@ -94,7 +94,10 @@ tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft
                  #   needed for `idiot auth`); installed to lib/idiot/libexec/.
                  #   A leaf tool: sh owns the UX, it only talks to the store.
                  #   Credentials never in argv or stdout. Exit 0/1 usage/2 auth/3 store.
-snap/local/      # build-time scripts for the snap (patchelf-host, pull-tracked)
+snap/local/      # build-time scripts for the snap: patchelf-host, pull-tracked,
+                 #   component-build (finish a tool component's part),
+                 #   wrap/<tool> (setup a bundled tool needs, see component-build),
+                 #   check-components <snap> (promised tools are in the indexes)
 ```
 
 ## Every cmd/ file follows this structure

@@ -1,0 +1,2 @@
+# file looks for its database at the compiled-in /usr/lib/file/magic.mgc
+export MAGIC="${MAGIC:-${comp}/usr/lib/file/magic.mgc}"

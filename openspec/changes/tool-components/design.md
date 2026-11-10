@@ -152,6 +152,29 @@ name, `installed` or `available`, and the tools space-separated, so it
 pipes into `grep`/`cut`. Under a source install it says on stderr that
 components come with the snap and exits zero.
 
+### Found while testing on a bare host (group 2)
+- The index went the fallback way: organize maps a part's files only within
+  its own partition, so `component-index` copies
+  `$CRAFT_COMPONENT_<NAME>_STAGE/idiot-index/<name>` into the main snap.
+- `patchelf-host` keeps a file's own RUNPATH entries (moved under the part):
+  swtpm and simg2img load private libraries from
+  `usr/lib/<triplet>/{swtpm,android}`. It patches interpreter and RPATH in
+  one call, and where patchelf 0.18 still breaks a non-PIE executable's
+  program headers (gdb), it keeps an RPATH-only `.<name>.real` and puts a
+  wrapper running it through core24's loader (`ld.so --argv0`) in its
+  place. It uses the build machine's patchelf, since the debug component
+  ships its own.
+- Things a package's postinst would do: update-alternatives links
+  (`traceroute`, `libblas.so.3`/`liblapack.so.3`) are made by the parts;
+  perl and adduser, pulled in only by maintainer scripts, are dropped.
+- Tools needing setup get a wrapper from `snap/local/wrap/<tool>`, with the
+  real binary at `.wrapped/<tool>` so messages keep its name: `file`
+  (`MAGIC`), `tcpdump` (no `tcpdump` user: `-Z root` when root),
+  `swtpm_setup` (bundled `--tpm` and `--config`).
+- core24 has libmagic but not its database: `libmagic-mgc` is listed
+  explicitly. Explicit stage-packages already in core24 (e2fsprogs,
+  sbsigntool) are staged; only dependencies are filtered.
+
 ## Risks / Trade-offs
 
 - [Snap and component size: vm is still the largest download] → pruning;

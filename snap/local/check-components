@@ -1,0 +1,43 @@
+#!/bin/sh
+# snap/local/check-components - check a built snap's component indexes
+# Usage: check-components <idiot_*.snap>
+#
+# Every tool the bundled-tools spec promises must be in its component's
+# index (lib/idiot/share/components/<name>), which is built from what the
+# component actually contains. Run after `snapcraft pack`.
+
+set -eu
+
+snap="${1:?usage: check-components <snap file>}"
+
+expect() {
+	case "${1}" in
+	core) echo debugfs mke2fs mcopy mdir sfdisk lsblk mkfs.vfat fsck.vfat sgdisk parted dump.erofs fsck.erofs zstd lz4 cpio simg2img ;;
+	vm) echo qemu-system-x86_64 qemu-system-aarch64 qemu-system-arm qemu-system-riscv64 qemu-img ;;
+	tpm) echo swtpm swtpm_setup swtpm_ioctl tpm2_pcrread tpm2_startup tpm2_getcap ;;
+	network) echo tcpdump nmap iw dig host nslookup traceroute mtr iperf3 socat curl nft conntrack arping tracepath whois ;;
+	hardware) echo lspci lsusb i2cdetect i2cget i2cset i2cdump dmidecode lshw smartctl nvme gpiodetect gpioinfo gpioget gpioset candump cansend picocom mmc flashrom ;;
+	boot) echo efibootmgr mokutil efi-readvar sign-efi-sig-list keyctl mkimage dumpimage fw_printenv fw_setenv dtc fdtdump sbsign sbverify ;;
+	debug) echo strace ltrace gdb lsof file readelf objdump nm strings eu-readelf eu-stack jq pstree fuser iostat mpstat pidstat htop hexdump patchelf ;;
+	esac
+}
+
+rc=0
+for comp in core vm tpm network hardware boot debug; do
+	index="$(unsquashfs -cat "${snap}" "lib/idiot/share/components/${comp}" 2>/dev/null)" || {
+		echo "${comp}: no index"
+		rc=1
+		continue
+	}
+	missing=''
+	for tool in $(expect "${comp}"); do
+		printf '%s\n' "${index}" | grep -qxF -- "${tool}" || missing="${missing} ${tool}"
+	done
+	if [ -n "${missing}" ]; then
+		echo "${comp}: missing${missing}"
+		rc=1
+	else
+		echo "${comp}: ok ($(printf '%s\n' "${index}" | wc -l) tools)"
+	fi
+done
+exit "${rc}"

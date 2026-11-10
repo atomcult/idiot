@@ -34,9 +34,32 @@ Or as a snap (strictly confined, no interfaces to connect):
 
 ```sh
 snap install idiot
-snap install idiot+core   # optional: e2fsprogs, mtools, util-linux and tpm2
-                          # tools for image inspection, mainly on Ubuntu Core
+snap install idiot+core idiot+network   # optional tool components, any subset
 ```
+
+The tools idiot's commands need, and many that Ubuntu Core lacks, come in
+optional components. Each runs on the host (or a Core device) with no
+packages installed; a host's own copy of a tool is used first when it has
+one.
+
+| Component | For | Tools (main ones) | Download |
+|---|---|---|---|
+| `core` | disk images | debugfs, mke2fs, mtools, sfdisk, sgdisk, parted, erofs, zstd, lz4, cpio, simg2img | 3 MB |
+| `tpm` | TPMs | tpm2-tools, swtpm, swtpm_setup | 2.5 MB |
+| `network` | networks | tcpdump, nmap, iw, dig, traceroute, mtr, iperf3, socat, curl, nft, conntrack, arping | 22 MB |
+| `hardware` | devices | lspci, lsusb, i2c-tools, dmidecode, lshw, smartctl, nvme, gpiod, can-utils, picocom, mmc, flashrom | 3.5 MB |
+| `boot` | boot chain | efibootmgr, mokutil, efitools, keyctl, mkimage, fw_printenv, dtc, sbsign/sbverify | 1 MB |
+| `debug` | processes and binaries | strace, ltrace, gdb, lsof, file, binutils, elfutils, jq, sysstat, htop, patchelf | 15 MB |
+
+Run a bundled tool with `idiot run <tool>`. A command that needs a tool
+you don't have says which component to install. Tools core24 itself ships
+(ip, ethtool, iptables, unsquashfs, cryptsetup, nc, openssl) are on `PATH`
+on Ubuntu Core and aren't repeated. `swtpm_setup` can't create EK or
+platform certificates from the bundle (its certificate tool's path is
+absolute); install the host's swtpm-tools for that.
+
+Upgrading: tpm2-tools moved from `core` to `tpm`; if you used them, run
+`snap install idiot+tpm`.
 
 The snap keeps its state in `~/snap/idiot/common`, separate from a source
 install's `~/.local/share/idiot`. To carry credentials, stores and models

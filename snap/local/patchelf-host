@@ -21,10 +21,18 @@ root="${1:?${usage}}"
 triplet="${2:?${usage}}"
 sub="${3:-.}"
 base=/snap/core24/current
+# the build machine's patchelf (a build-package): the part's own usr/bin
+# comes first on PATH during the build, and the debug component ships a
+# patchelf of its own, which can't patch itself while it runs
+pe=/usr/bin/patchelf
 
 find "${root}/${sub}" -type f | while IFS= read -r f; do
+	# copies this loop made itself (find is still streaming)
+	case "${f}" in
+	*.real | *.unpatched) continue ;;
+	esac
 	# not ELF (or not dynamic): nothing to patch
-	patchelf --print-rpath "${f}" >/dev/null 2>&1 || continue
+	old_rpath="$("${pe}" --print-rpath "${f}" 2>/dev/null)" || continue
 
 	# $ORIGIN/.. up to <dir>
 	rel="$(dirname "${f#"${root}"/}")"
@@ -35,14 +43,46 @@ find "${root}/${sub}" -type f | while IFS= read -r f; do
 		up="${up}/.."
 		rel="$(dirname "${rel}")"
 	done
-	rpath="${up}/usr/lib/${triplet}:${up}/lib/${triplet}"
+	# the file's own RUNPATH first (private library dirs such as
+	# usr/lib/<triplet>/swtpm), moved under <dir>; then <dir>, then core24
+	rpath=''
+	old_ifs="${IFS}"
+	IFS=':'
+	for entry in ${old_rpath}; do
+		case "${entry}" in
+		/*) rpath="${rpath}${up}${entry}:" ;;
+		?*) rpath="${rpath}${entry}:" ;;
+		esac
+	done
+	IFS="${old_ifs}"
+	rpath="${rpath}${up}/usr/lib/${triplet}:${up}/lib/${triplet}"
 	rpath="${rpath}:${base}/usr/lib/${triplet}:${base}/lib/${triplet}"
 
-	if interp="$(patchelf --print-interpreter "${f}" 2>/dev/null)"; then
-		case "${interp}" in
-		"${base}"/*) ;;
-		*) patchelf --set-interpreter "${base}${interp}" "${f}" ;;
-		esac
+	interp="$("${pe}" --print-interpreter "${f}" 2>/dev/null)" || interp=''
+	case "${interp}" in
+	"${base}"/* | '')
+		"${pe}" --force-rpath --set-rpath "${rpath}" "${f}"
+		continue
+		;;
+	esac
+
+	cp -p "${f}" "${f}.unpatched"
+	"${pe}" --set-interpreter "${base}${interp}" --force-rpath --set-rpath "${rpath}" "${f}"
+	if readelf -lW "${f}" 2>&1 | grep -q 'PHDR segment is not covered'; then
+		# patchelf 0.18 breaks some non-PIE executables (gdb) when it moves
+		# the interpreter: keep only the RPATH change, as a hidden copy,
+		# and run it through core24's loader from a wrapper in its place
+		dir="$(dirname "${f}")"
+		real=".${f##*/}.real"
+		mv "${f}.unpatched" "${dir}/${real}"
+		"${pe}" --force-rpath --set-rpath "${rpath}" "${dir}/${real}"
+		cat >"${f}" <<-WRAPPER
+			#!/bin/sh
+			# ${f##*/} with core24's loader (see snap/local/patchelf-host)
+			exec ${base}${interp} --argv0 "\$0" "\$(dirname "\$(readlink -f "\$0")")/${real}" "\$@"
+		WRAPPER
+		chmod 755 "${f}"
+	else
+		rm -f "${f}.unpatched"
 	fi
-	patchelf --force-rpath --set-rpath "${rpath}" "${f}"
 done

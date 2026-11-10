@@ -16,15 +16,54 @@ grade: devel
 # (see `# idiot: host` and emit_handoff in share/common.sh).
 confinement: strict
 
+# Optional tool groups, installed with `snap install idiot+<name>`. Their
+# tools only run host-side (see snap_tool_dirs in share/common.sh).
 components:
   core:
     type: standard
-    summary: Core device inspection tools
+    summary: Disk image inspection tools
     description: |
-      Additional tools for running idiot directly on an Ubuntu Core device,
-      including filesystem inspection utilities (e2fsprogs, mtools) and
-      partition tools (util-linux, dosfstools).
+      Filesystem, partition and archive tools for inspecting Ubuntu Core
+      and other disk images (`idiot inspect image`): e2fsprogs, mtools,
+      dosfstools, util-linux, fdisk, gdisk, parted, erofs-utils, zstd, lz4,
+      cpio and simg2img.
       Install with: snap install idiot+core
+  tpm:
+    type: standard
+    summary: TPM tools
+    description: |
+      tpm2-tools and swtpm: talk to a real or emulated TPM, and give
+      `idiot vm --tpm` its emulated TPM.
+      Install with: snap install idiot+tpm
+  network:
+    type: standard
+    summary: Network introspection tools
+    description: |
+      tcpdump, nmap, iw, dig/host/nslookup, traceroute, mtr, iperf3,
+      socat, curl, nft, conntrack, arping, tracepath and whois.
+      Install with: snap install idiot+network
+  hardware:
+    type: standard
+    summary: Hardware introspection tools
+    description: |
+      lspci, lsusb, i2c-tools, dmidecode, lshw, smartctl, nvme-cli, the
+      gpiod tools, can-utils, picocom, mmc-utils and flashrom.
+      Install with: snap install idiot+hardware
+  boot:
+    type: standard
+    summary: Boot chain and secure boot tools
+    description: |
+      efibootmgr, mokutil, efitools, keyutils, u-boot-tools (mkimage,
+      fw_printenv), the device-tree compiler (dtc, fdtdump) and
+      sbsigntool.
+      Install with: snap install idiot+boot
+  debug:
+    type: standard
+    summary: Process and binary debugging tools
+    description: |
+      strace, ltrace, gdb, lsof, file, binutils, elfutils, jq, psmisc,
+      sysstat, htop, hexdump and patchelf.
+      Install with: snap install idiot+debug
 
 apps:
   idiot:
@@ -50,11 +89,16 @@ parts:
       make VERSION="$VERSION" PREFIX="${CRAFT_PART_INSTALL}" install-sh
   idiot-store:
     plugin: rust
+    # pinned like everything else (keep in step with override-pull)
+    rust-channel: "1.91.1"
     # the rust plugin requires a source, but the override-pull replaces the
     # default pull, which would copy target/ too: nothing is copied from it
     source: tools/idiot-store
     override-pull: |
       "${CRAFT_PROJECT_DIR}/snap/local/pull-tracked" tools/idiot-store
+      # the plugin installs its toolchain in the default pull, which this
+      # replaces: install the rust-channel version here
+      rustup toolchain install 1.91.1 --profile minimal
     build-packages:
       - git
     # runs host-side only (auth add/status are host commands): load core24's
@@ -67,6 +111,7 @@ parts:
     plugin: nil
     build-packages:
       - patchelf
+      - binutils # readelf, for patchelf-host's check
     # fzf runs confined as packaged (core24 is / there). Host commands get a
     # patched copy in host/bin: a patched binary looks in /snap/core24/<rev>,
     # which AppArmor won't let a confined process read.
@@ -78,22 +123,144 @@ parts:
           "${CRAFT_PART_INSTALL}" "${CRAFT_ARCH_TRIPLET_BUILD_FOR}" host
     stage-packages:
       - fzf
+  # One part per component, each finished by snap/local/component-build:
+  # patched to run host-side (snapcraft's enable-patchelf skips files
+  # organised into a component), pruned, and indexed (idiot-index/<name>).
+  # component-index copies the indexes into the main snap.
   core-packages:
     plugin: nil
-    build-packages:
+    build-packages: &component-build-packages
       - patchelf
-    # the component's tools only run host-side: patch them all (snapcraft's
-    # enable-patchelf skips files organised into a component)
-    override-build: |
+      - binutils # readelf, for patchelf-host's check
+    override-build: &component-build |
       craftctl default
-      "${CRAFT_PROJECT_DIR}/snap/local/patchelf-host" \
-          "${CRAFT_PART_INSTALL}" "${CRAFT_ARCH_TRIPLET_BUILD_FOR}"
+      "${CRAFT_PROJECT_DIR}/snap/local/component-build" "${CRAFT_PART_NAME%-packages}"
     organize:
       '*': (component/core)/
-    # no python3: core24 ships it (confined) and every host has its own
     stage-packages:
       - e2fsprogs
       - mtools
       - util-linux
+      - fdisk
       - dosfstools
+      - gdisk
+      - parted
+      - erofs-utils
+      - zstd
+      - lz4
+      - cpio
+      - android-sdk-libsparse-utils
+  tpm-packages:
+    plugin: nil
+    build-packages: *component-build-packages
+    override-build: *component-build
+    organize:
+      '*': (component/tpm)/
+    stage-packages:
       - tpm2-tools
+      - libtss2-tcti-swtpm0t64
+      - libtss2-tcti-device0t64
+      - libtss2-tcti-mssim0t64
+      - swtpm
+      - swtpm-tools
+  network-packages:
+    plugin: nil
+    build-packages: *component-build-packages
+    # traceroute's name comes from update-alternatives in its postinst,
+    # which stage-packages never run
+    override-build: |
+      craftctl default
+      ln -sfn traceroute.db "${CRAFT_PART_INSTALL}/usr/bin/traceroute"
+      "${CRAFT_PROJECT_DIR}/snap/local/component-build" network
+    organize:
+      '*': (component/network)/
+    stage-packages:
+      - tcpdump
+      - nmap
+      - iw
+      - bind9-dnsutils
+      - bind9-host
+      - traceroute
+      - mtr-tiny
+      - iperf3
+      - socat
+      - curl
+      - nftables
+      - conntrack
+      - arping
+      - iputils-tracepath
+      - whois
+  hardware-packages:
+    plugin: nil
+    build-packages: *component-build-packages
+    override-build: *component-build
+    organize:
+      '*': (component/hardware)/
+    stage-packages:
+      - pciutils
+      - usbutils
+      - i2c-tools
+      - dmidecode
+      - lshw
+      - smartmontools
+      - nvme-cli
+      - gpiod
+      - can-utils
+      - picocom
+      - mmc-utils
+      - flashrom
+  boot-packages:
+    plugin: nil
+    build-packages: *component-build-packages
+    override-build: *component-build
+    organize:
+      '*': (component/boot)/
+    stage-packages:
+      - efibootmgr
+      - mokutil
+      - efitools
+      - keyutils
+      - u-boot-tools
+      - libubootenv-tool
+      - device-tree-compiler
+      - sbsigntool
+  debug-packages:
+    plugin: nil
+    build-packages: *component-build-packages
+    override-build: *component-build
+    organize:
+      '*': (component/debug)/
+    stage-packages:
+      - strace
+      - ltrace
+      - gdb
+      - lsof
+      - file
+      - libmagic-mgc # its database; core24 has libmagic1t64 but not this
+      - binutils
+      - elfutils
+      - jq
+      - psmisc
+      - sysstat
+      - htop
+      - bsdextrautils
+      - patchelf
+  # The components' tool indexes, in the main snap so idiot can name a
+  # component that isn't installed. A part can't organise a file into
+  # another partition, so this one reads each component's stage dir.
+  component-index:
+    plugin: nil
+    after:
+      - core-packages
+      - tpm-packages
+      - network-packages
+      - hardware-packages
+      - boot-packages
+      - debug-packages
+    override-build: |
+      dest="${CRAFT_PART_INSTALL}/lib/idiot/share/components"
+      mkdir -p "${dest}"
+      for comp in core tpm network hardware boot debug; do
+        stage="$(printenv "CRAFT_COMPONENT_${comp^^}_STAGE")"
+        cp "${stage}/idiot-index/${comp}" "${dest}/${comp}"
+      done
