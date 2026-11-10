@@ -9,7 +9,14 @@ trap 'exit 130' INT
 # The snap's instance name (parallel installs: idiot_foo) and its
 # refresh-proof directory. Only meaningful inside the snap ($SNAP set).
 snap_instance() {
-    printf '%s' "${SNAP_INSTANCE_NAME:-${SNAP_NAME:-idiot}}"
+    if [ -z "${SNAP:-}" ] && [ -n "${IDIOT_SNAP:-}" ]; then
+        # host-side: /snap/<instance>/current
+        _si_inst="${IDIOT_SNAP#/snap/}"
+        _si_inst="${_si_inst%%/*}"
+        printf '%s' "${_si_inst:-idiot}"
+    else
+        printf '%s' "${SNAP_INSTANCE_NAME:-${SNAP_NAME:-idiot}}"
+    fi
 }
 snap_current() {
     printf '/snap/%s/current' "$(snap_instance)"
@@ -119,23 +126,19 @@ die() {
     exit 1
 }
 
-# Die unless the given command is found in PATH.
-# $1: command name, $2: optional install hint appended after " — "
-# Make sure a tool can be run by name. On the host side of the snap, a tool
-# the host lacks but the snap bundles becomes a function running the
-# bundled copy through snap_app (so the user's PATH is never changed).
+# Make sure a tool can be run by name, or die naming where to get it.
+# $1: tool name, $2: optional install hint for the host package.
+# The host's copy wins. On the host side of the snap, a tool only an
+# installed component has becomes a function of the same name running the
+# bundled copy (so the user's PATH is never changed); a name that can't be a
+# function (qemu-system-x86_64) is run with `tool` instead.
 require() {
     command -v "${1}" >/dev/null 2>&1 && return 0
-    if [ -z "${SNAP:-}" ] && [ -n "${IDIOT_SNAP:-}" ] && snap_tool "${1}" >/dev/null; then
-        case "${1}" in
-        *[!A-Za-z0-9_]*) ;;
-        *)
-            eval "${1}() { snap_app ${1} \"\$@\"; }"
-            return 0
-            ;;
-        esac
-    fi
-    die "${1} is required but not found${2:+ — ${2}}"
+    _rq_path="$(tool_path "${1}")" || missing_tool "${1}" "${2:-}"
+    case "${1}" in
+    *[!A-Za-z0-9_]*) ;;
+    *) eval "${1}() { $(shell_quote "${_rq_path}") \"\$@\"; }" ;;
+    esac
 }
 
 # POSIX-safe single-quote escaping
@@ -277,38 +280,62 @@ snap_root() {
     printf '%s' "${SNAP:-${IDIOT_SNAP:-}}"
 }
 
-# The `core` component's files for the snap revision in use. snapd links
-# /snap/<instance>/components/<snap revision>/core to the component's own
-# mount (components/mnt/core/<component revision>); confined, it sets
-# SNAP_COMPONENTS to that per-revision directory. Host-side, the revision
-# comes from `current`.
-snap_component_dir() {
+# The snap's components, in the order they're searched and listed.
+IDIOT_COMPONENTS='core vm tpm network hardware boot debug'
+
+# The directory holding the components of the snap revision in use. snapd
+# links /snap/<instance>/components/<snap revision>/<name> to each
+# component's own mount (components/mnt/<name>/<component revision>);
+# confined, it sets SNAP_COMPONENTS to that per-revision directory.
+# Host-side, the revision comes from `current`, read each time, so a refresh
+# needs nothing reloaded.
+snap_components_root() {
     if [ -n "${SNAP_COMPONENTS:-}" ]; then
-        printf '%s/core' "${SNAP_COMPONENTS}"
+        printf '%s' "${SNAP_COMPONENTS}"
     elif [ -n "${SNAP:-}" ]; then
-        printf '/snap/%s/components/%s/core' "$(snap_instance)" "${SNAP_REVISION:-}"
+        printf '/snap/%s/components/%s' "$(snap_instance)" "${SNAP_REVISION:-}"
     else
-        _scd_rev="$(readlink "${IDIOT_SNAP}" 2>/dev/null || :)"
-        printf '/snap/%s/components/%s/core' "$(snap_instance)" "${_scd_rev##*/}"
+        _scr_rev="$(readlink "${IDIOT_SNAP}" 2>/dev/null || :)"
+        printf '/snap/%s/components/%s' "$(snap_instance)" "${_scr_rev##*/}"
     fi
+}
+
+# The installed components' directories, one per line: the known ones in
+# IDIOT_COMPONENTS order, then any others. Nothing for a source install.
+snap_component_dirs() {
+    [ -n "$(snap_root)" ] || return 0
+    _scds_root="$(snap_components_root)"
+    for _scds_name in ${IDIOT_COMPONENTS}; do
+        [ ! -d "${_scds_root}/${_scds_name}" ] ||
+            printf '%s\n' "${_scds_root}/${_scds_name}"
+    done
+    for _scds_dir in "${_scds_root}"/*; do
+        [ -d "${_scds_dir}" ] || continue
+        case " ${IDIOT_COMPONENTS} " in
+        *" ${_scds_dir##*/} "*) ;;
+        *) printf '%s\n' "${_scds_dir}" ;;
+        esac
+    done
 }
 
 # Directories holding the snap's bundled tools, one per line. Confined, the
 # packaged fzf (core24 is / there). Host-side, the copies patched to load
 # core24's libraries from /snap/core24/current, which a confined process
-# may not read: the snap's host/bin, then the core component. Prints
-# nothing for a source install.
+# may not read: the snap's host/bin, then each installed component's.
+# Prints nothing for a source install.
 snap_tool_dirs() {
     if [ -n "${SNAP:-}" ]; then
         printf '%s\n' "${SNAP}/usr/bin" "${SNAP}/bin"
     elif [ -n "${IDIOT_SNAP:-}" ]; then
-        _std_comp="$(snap_component_dir)"
-        printf '%s\n' "${IDIOT_SNAP}/host/bin" \
-            "${_std_comp}/usr/bin" "${_std_comp}/bin" "${_std_comp}/usr/sbin" "${_std_comp}/sbin"
+        printf '%s\n' "${IDIOT_SNAP}/host/bin"
+        for _std_comp in $(snap_component_dirs); do
+            printf '%s\n' "${_std_comp}/usr/bin" "${_std_comp}/bin" \
+                "${_std_comp}/usr/sbin" "${_std_comp}/sbin"
+        done
     fi
 }
 
-# Path of a tool bundled in the snap or its component, or fail.
+# Path of a tool bundled in the snap or an installed component, or fail.
 snap_tool() {
     for _st_dir in $(snap_tool_dirs); do
         if [ -x "${_st_dir}/${1}" ]; then
@@ -319,22 +346,71 @@ snap_tool() {
     return 1
 }
 
-# Run a tool bundled in the snap (or its core component). Anything it needs
-# set up is set for its own process only, never in the user's shell; the
-# binaries are patched to find core24's libraries (snap/local/patchelf-host),
-# so today that's nothing.
-# Without a snap, runs the tool from PATH.
+# The component that provides tool $1, from the index files the snap build
+# writes (share/components/<component>: one tool name per line), whether or
+# not it's installed. Fails if no component has it.
+tool_component() {
+    for _tc_file in "${IDIOT_ROOT}/share/components"/*; do
+        [ -f "${_tc_file}" ] || continue
+        grep -qxF -- "${1}" "${_tc_file}" || continue
+        printf '%s' "${_tc_file##*/}"
+        return 0
+    done
+    return 1
+}
+
+# Die because tool $1 can't be found, saying where to get it: the component
+# that has it, else that idiot doesn't bundle it. $2: optional host-package
+# hint (e.g. "install the swtpm package").
+missing_tool() {
+    _mt_msg="${1} is required but not found"
+    if [ -z "$(snap_root)" ]; then
+        die "${_mt_msg}${2:+ — ${2}}"
+    elif _mt_comp="$(tool_component "${1}")"; then
+        die "${_mt_msg} — install it with: snap install $(snap_instance)+${_mt_comp}${2:+ (or ${2})}"
+    else
+        die "${1} is not on PATH and not bundled with idiot${2:+ — ${2}}"
+    fi
+}
+
+# Path of the copy of tool $1 to use: the host's (an executable on PATH),
+# else a bundled one. Fails, printing nothing, if there's neither.
+tool_path() {
+    _tp_path="$(command -v "${1}" 2>/dev/null)" || _tp_path=''
+    case "${_tp_path}" in
+    /*)
+        printf '%s' "${_tp_path}"
+        return 0
+        ;;
+    esac
+    snap_tool "${1}"
+}
+
+# Run tool $1 (as tool_path finds it) with the remaining arguments, or die
+# naming where to get it. Works for any name, unlike a function from
+# require.
+tool() {
+    _tl_path="$(tool_path "${1}")" || missing_tool "${1}"
+    shift
+    "${_tl_path}" "$@"
+}
+
+# Run a tool bundled in the snap (or an installed component), falling back
+# to the host's copy; a source install runs the host's. Anything a bundled
+# tool needs is set for its own process only, never in the user's shell;
+# the binaries are patched to find core24's libraries
+# (snap/local/patchelf-host), so today that's nothing.
 snap_app() {
     _sa_cmd="${1}"
     shift
-    if [ -n "$(snap_root)" ]; then
-        _sa_bin="$(snap_tool "${_sa_cmd}")" ||
-            die "${_sa_cmd}: not found in snap (install the core component: snap install idiot+core)"
-        "${_sa_bin}" "$@"
-    else
-        command -v "${_sa_cmd}" >/dev/null 2>&1 || die "${_sa_cmd} is required but not found"
-        "${_sa_cmd}" "$@"
+    if ! _sa_bin="$(snap_tool "${_sa_cmd}")"; then
+        _sa_bin="$(command -v "${_sa_cmd}" 2>/dev/null)" || _sa_bin=''
+        case "${_sa_bin}" in
+        /*) ;;
+        *) missing_tool "${_sa_cmd}" ;;
+        esac
     fi
+    "${_sa_bin}" "$@"
 }
 
 # Die unless the shell wrapper handed us a writable eval file. Commands that

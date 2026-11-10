@@ -21,8 +21,15 @@ which runs outside confinement. Outside a snap every command runs directly.
 - `idiot init` (from the snap) exports `IDIOT_SNAP`, `IDIOT_DATA_HOME` and
   `IDIOT_CACHE_DIR`: that is the host side's environment. Never `SNAP`.
 - **Never** export PATH or LD_LIBRARY_PATH into the user's shell. A bundled
-  tool gets whatever it needs only in its own process (`snap_app`,
-  `require`'s fallback); host tools run with the user's environment.
+  tool gets whatever it needs only in its own process (`tool`,
+  `snap_app`, `require`'s fallback); host tools run with the user's
+  environment.
+- Bundled tools live in the snap's optional components (`core vm tpm
+  network hardware boot debug`, `IDIOT_COMPONENTS`), each mounted at
+  `/snap/<instance>/components/<rev>/<name>`. The snap build writes an
+  index per component to `share/components/<name>` (one tool per line),
+  so a missing tool's error names its component even when it isn't
+  installed.
 - Host commands can't set variables (they run after the eval file is
   read). A command that needs to both use host tools and export must be
   split.
@@ -69,7 +76,7 @@ idiot            # main dispatcher; sets IDIOT_ROOT, sources share/common.sh
 cmd/             # one file per leaf command; dirs for subcommand groups
 share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
-                 #   dispatch_subcmd, snap_app, git(), shell_quote,
+                 #   dispatch_subcmd, tool/tool_path/snap_app, git(), shell_quote,
                  #   require_wrapper, emit_export, emit_unset
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu()
   clean.sh       # clean_list_*/clean_remove_*, clean_show, clean_confirm
@@ -157,13 +164,18 @@ POSIX `sh` only — no bashisms. Specifically:
 ```sh
 say "message"                   # printf to stderr
 die "message"                   # say error + exit 1
-require cmd ["install hint"]    # die unless cmd is in PATH (or bundled, host side)
+require cmd ["install hint"]    # die unless cmd is on PATH or bundled (host first);
+                                #   a bundled identifier-named cmd becomes a function
+tool cmd [args]                 # run cmd (host's, else bundled); any name, e.g.
+                                #   qemu-system-x86_64, which require can't wrap
+tool_path cmd                   # print the path tool would run, or fail
+missing_tool cmd ["hint"]       # die naming the component that has cmd
 include module.sh               # source share/<module.sh> via IDIOT_ROOT
 shell_quote "${val}"            # POSIX single-quote escape for eval-safe output
 require_wrapper                 # die unless IDIOT_EVAL_FILE is usable
 emit_export VARNAME "${val}"    # queue a quoted export in the eval file
 emit_unset VARNAME              # queue unset (bash/zsh) or set --erase (fish)
-snap_app cmd [args]             # run a bundled tool (snap, then core component)
+snap_app cmd [args]             # run a bundled tool, else the host's (idiot run)
 emit_handoff word...            # queue a host-side run of idiot <word...>
 dispatch_subcmd name dir [args] # exec cmd/<group>/<subcommand>
 ```

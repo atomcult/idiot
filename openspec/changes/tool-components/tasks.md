@@ -2,9 +2,9 @@
 
 ## 1. Find tools in every component
 
-- [ ] 1.1 `share/common.sh`: replace `snap_component_dir` with `snap_component_dirs` (every component dir of the revision in use, fixed order, then unknown ones) and make `snap_tool_dirs` list each one's `usr/bin bin usr/sbin sbin` after `host/bin`; verify with a fake tree (`SNAP_COMPONENTS` pointing at a scratch dir holding `core/` and `vm/`) that `snap_tool` finds tools in both and that a missing component dir is skipped
-- [ ] 1.2 Add `tool_path`, `tool` and `missing_tool` (reads `$IDIOT_ROOT/share/components/<name>` index files); make `require` accept non-identifier names and `snap_app` use `missing_tool`; verify with fake index files that a missing tool names its component, an unindexed one says "not bundled with idiot", `require qemu-system-x86_64` succeeds when only the bundled copy exists, and a source install (no `IDIOT_SNAP`) uses `PATH` only
-- [ ] 1.3 Update CLAUDE.md's helper list (`tool`, `tool_path`, `require` on any name); run `make check` and commit (`refactor: find bundled tools in every component`)
+- [x] 1.1 `share/common.sh`: replace `snap_component_dir` with `snap_component_dirs` (every component dir of the revision in use, fixed order, then unknown ones) and make `snap_tool_dirs` list each one's `usr/bin bin usr/sbin sbin` after `host/bin`; verify with a fake tree (`SNAP_COMPONENTS` pointing at a scratch dir holding `core/` and `vm/`) that `snap_tool` finds tools in both and that a missing component dir is skipped
+- [x] 1.2 Add `tool_path`, `tool` and `missing_tool` (reads `$IDIOT_ROOT/share/components/<name>` index files); make `require` accept non-identifier names and `snap_app` use `missing_tool`; verify with fake index files that a missing tool names its component, an unindexed one says "not bundled with idiot", `require qemu-system-x86_64` succeeds when only the bundled copy exists, and a source install (no `IDIOT_SNAP`) uses `PATH` only
+- [x] 1.3 Update CLAUDE.md's helper list (`tool`, `tool_path`, `require` on any name); run `make check` and commit (`refactor: find bundled tools in every component`)
 
 ## 2. Components in the snap
 
