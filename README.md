@@ -96,6 +96,60 @@ The `iot` shorthand is also available.
 
 ---
 
+## Prompt
+
+The shell integration keeps `IDIOT_PROMPT` set to the active store, arch
+and credential (`staging·arm64·work`), and unset when none is active. It is
+worked out in your shell after each `idiot` call, so showing it in a prompt
+starts no process. A variable you change by hand shows up after the next
+`idiot` call; `idiot prompt` is always current.
+
+starship (`~/.config/starship.toml`; the default `format` includes
+`$env_var`, otherwise add `${env_var.IDIOT_PROMPT}`):
+
+```toml
+[env_var.IDIOT_PROMPT]
+format = "[$env_value]($style) "
+style = "bold yellow"
+```
+
+bash (`~/.bashrc`, after the `idiot init` line):
+
+```sh
+PS1='${IDIOT_PROMPT:+[$IDIOT_PROMPT] }'"${PS1}"
+```
+
+zsh (`~/.zshrc`):
+
+```sh
+setopt PROMPT_SUBST
+PROMPT='${IDIOT_PROMPT:+[$IDIOT_PROMPT] }'"${PROMPT}"
+```
+
+fish (`~/.config/fish/functions/fish_right_prompt.fish`):
+
+```fish
+function fish_right_prompt
+    set -q IDIOT_PROMPT; and echo -n "[$IDIOT_PROMPT]"
+end
+```
+
+`idiot prompt` prints the same segment on stdout, and takes
+`--format store,arch,cred,lp,profile` (any of them, in any order) and
+`--separator`. For a prompt that can only run commands, starship's
+`custom` module can call it, but that runs idiot on every prompt: about
+8 ms from a source install, about 120 ms under the snap.
+
+```toml
+[custom.idiot]
+command = "idiot prompt"
+when = true
+format = "[$output]($style) "
+style = "bold yellow"
+```
+
+---
+
 ## VMs
 
 ```

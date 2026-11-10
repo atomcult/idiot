@@ -82,11 +82,31 @@ idiot() {
     _idiot_ef=
     if [ "\$_idiot_rc" -ne 0 ]; then
         eval "\$_idiot_c"
-        return \$_idiot_rc
+    else
+        eval "\$_idiot_c" || _idiot_rc=\$?
     fi
-    eval "\$_idiot_c"
+    _idiot_prompt
+    return \$_idiot_rc
 }
 iot() { idiot "\$@"; }
+# IDIOT_PROMPT: the default \`idiot prompt\` segment, kept without starting
+# a process. Same logic as cmd/prompt and __idiot_prompt (fish) in cmd/init.
+_idiot_prompt() {
+    local _idiot_p= _idiot_v
+    [ -z "\${UBUNTU_STORE_ID:-}" ] || _idiot_p="\${IDIOT_ACTIVE_STORE:-\$UBUNTU_STORE_ID}"
+    [ -z "\${UBUNTU_STORE_ARCH:-}" ] || _idiot_p="\${_idiot_p:+\$_idiot_p·}\$UBUNTU_STORE_ARCH"
+    _idiot_v="\${IDIOT_ACTIVE_CRED:-}"
+    if [ -z "\$_idiot_v" ] && [ -n "\${UBUNTU_STORE_AUTH:-}\${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
+        _idiot_v=auth
+    fi
+    [ -z "\$_idiot_v" ] || _idiot_p="\${_idiot_p:+\$_idiot_p·}\$_idiot_v"
+    if [ -n "\$_idiot_p" ]; then
+        export IDIOT_PROMPT="\$_idiot_p"
+    else
+        unset IDIOT_PROMPT
+    fi
+}
+_idiot_prompt
 EOF
 		;;
 
@@ -111,11 +131,38 @@ function idiot
     set -e _idiot_ef
     if test \$_idiot_rc -ne 0
         eval \$_idiot_c
-        return \$_idiot_rc
+    else
+        eval \$_idiot_c
+        set _idiot_rc \$status
     end
-    eval \$_idiot_c
+    __idiot_prompt
+    return \$_idiot_rc
 end
 function iot; idiot \$argv; end
+# IDIOT_PROMPT: the default \`idiot prompt\` segment, kept without starting
+# a process. Same logic as cmd/prompt and _idiot_prompt (bash/zsh) in cmd/init.
+function __idiot_prompt
+    set -l _p
+    if test -n "\$UBUNTU_STORE_ID"
+        if test -n "\$IDIOT_ACTIVE_STORE"
+            set -a _p "\$IDIOT_ACTIVE_STORE"
+        else
+            set -a _p "\$UBUNTU_STORE_ID"
+        end
+    end
+    test -n "\$UBUNTU_STORE_ARCH"; and set -a _p "\$UBUNTU_STORE_ARCH"
+    if test -n "\$IDIOT_ACTIVE_CRED"
+        set -a _p "\$IDIOT_ACTIVE_CRED"
+    else if test -n "\$UBUNTU_STORE_AUTH\$SNAPCRAFT_STORE_CREDENTIALS"
+        set -a _p auth
+    end
+    if set -q _p[1]
+        set -gx IDIOT_PROMPT (string join · \$_p)
+    else
+        set -e -g IDIOT_PROMPT
+    end
+end
+__idiot_prompt
 EOF
 		;;
 
