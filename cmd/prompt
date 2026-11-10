@@ -1,0 +1,105 @@
+#!/usr/bin/env sh
+# cmd/prompt - print a compact segment of the active store, arch and credential
+#
+# Reads environment variables only: no files, no network. The shell
+# integration keeps the same default segment in IDIOT_PROMPT without running
+# this; the two other copies of the default segment are _idiot_prompt (bash
+# and zsh) and __idiot_prompt (fish) in cmd/init. Keep all three in step.
+
+. "$(dirname "${0}")/../share/common.sh"
+
+FIELDS='store arch cred lp profile'
+
+# Print field $1's value (empty when it isn't active).
+_field() {
+	case "${1}" in
+	store)
+		if [ -n "${UBUNTU_STORE_ID:-}" ]; then
+			printf '%s' "${IDIOT_ACTIVE_STORE:-${UBUNTU_STORE_ID}}"
+		fi
+		;;
+	arch) printf '%s' "${UBUNTU_STORE_ARCH:-}" ;;
+	cred)
+		if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
+			printf '%s' "${IDIOT_ACTIVE_CRED}"
+		elif [ -n "${UBUNTU_STORE_AUTH:-}" ] || [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
+			printf auth
+		fi
+		;;
+	lp) printf '%s' "${IDIOT_LP_USER:-}" ;;
+	profile) printf '%s' "${IDIOT_ACTIVE_PROFILE:-}" ;;
+	esac
+}
+
+main() {
+	format='store,arch,cred'
+	sep='·'
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot prompt [--format <fields>] [--separator <sep>]"
+			echo >&2
+			say "Print the active store, arch and credential as one line for a shell"
+			say "prompt (nothing when none is active). Reads environment variables only."
+			say "The shell integration keeps the default segment in ${BOLD}IDIOT_PROMPT${RESET},"
+			say "so a prompt can show it without running anything."
+			echo >&2
+			help_heading "Options:"
+			help_option "--format <fields>" "Comma-separated fields (default: store,arch,cred)"
+			help_option "--separator <sep>" "Between fields (default: ·)"
+			echo >&2
+			help_heading "Fields:"
+			help_command "store" "Active store's name, else its ID"
+			help_command "arch" "UBUNTU_STORE_ARCH, when set"
+			help_command "cred" "Active credential, or 'auth' if unnamed"
+			help_command "lp" "IDIOT_LP_USER, when set"
+			help_command "profile" "Active profile"
+			exit 0
+			;;
+		--format)
+			[ $# -ge 2 ] || die "--format needs a field list"
+			format="${2}"
+			shift 2
+			;;
+		--format=*)
+			format="${1#--format=}"
+			shift
+			;;
+		--separator)
+			[ $# -ge 2 ] || die "--separator needs a value"
+			sep="${2}"
+			shift 2
+			;;
+		--separator=*)
+			sep="${1#--separator=}"
+			shift
+			;;
+		*)
+			die "unknown argument: ${1} (usage: idiot prompt [--format <fields>] [--separator <sep>])"
+			;;
+		esac
+	done
+
+	# check every field before printing anything
+	_rest="${format},"
+	while [ -n "${_rest}" ]; do
+		_f="${_rest%%,*}"
+		_rest="${_rest#*,}"
+		case " ${FIELDS} " in
+		*" ${_f} "*) ;;
+		*) die "unknown field: '${_f}' (known: $(printf '%s' "${FIELDS}" | tr ' ' ','))" ;;
+		esac
+	done
+
+	out=''
+	_rest="${format},"
+	while [ -n "${_rest}" ]; do
+		_f="${_rest%%,*}"
+		_rest="${_rest#*,}"
+		_v="$(_field "${_f}")"
+		[ -n "${_v}" ] || continue
+		out="${out:+${out}${sep}}${_v}"
+	done
+	[ -z "${out}" ] || printf '%s\n' "${out}"
+}
+main "$@"

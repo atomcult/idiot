@@ -46,6 +46,7 @@ idiot_help() {
 	echo >&2
 	help_heading "Shell:"
 	help_command "init" "Set up shell integration"
+	help_command "prompt" "Active store, arch and credential for a prompt"
 	help_command "run" "Run a snap-bundled tool directly"
 	help_command "clean" "Remove development leftovers"
 	echo >&2
@@ -95,6 +96,9 @@ main() {
 		;;
 	status)
 		exec "${IDIOT_CMD_DIR}/status" "$@"
+		;;
+	prompt)
+		exec "${IDIOT_CMD_DIR}/prompt" "$@"
 		;;
 	*)
 		cmd_file="${IDIOT_CMD_DIR}/${cmd}"
