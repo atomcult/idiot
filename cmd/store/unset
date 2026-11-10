@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/store/unset - unset UBUNTU_STORE_ID
+# cmd/store/unset - unset UBUNTU_STORE_ID and IDIOT_ACTIVE_STORE
 # Usage: idiot store unset
 # Outputs: eval-able unset statements (via the eval file)
 

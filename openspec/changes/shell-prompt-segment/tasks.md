@@ -2,8 +2,8 @@
 
 ## 1. Store name in the environment
 
-- [ ] 1.1 `cmd/store/use`: also `emit_export IDIOT_ACTIVE_STORE "${name}"`; `cmd/store/unset`: also `emit_unset IDIOT_ACTIVE_STORE` (if `add-env-profiles` has landed, do this in its shared store emitters instead); verify through the wrapper in bash and fish that `idiot store use staging` sets both variables and `idiot store unset` clears both
-- [ ] 1.2 Update the store group help if it lists environment variables; run `make check` and commit (`feat(store): export the active store's name`)
+- [x] 1.1 `cmd/store/use`: also `emit_export IDIOT_ACTIVE_STORE "${name}"`; `cmd/store/unset`: also `emit_unset IDIOT_ACTIVE_STORE` (if `add-env-profiles` has landed, do this in its shared store emitters instead); verify through the wrapper in bash and fish that `idiot store use staging` sets both variables and `idiot store unset` clears both
+- [x] 1.2 Update the store group help if it lists environment variables; run `make check` and commit (`feat(store): export the active store's name`)
 
 ## 2. `idiot prompt`
 

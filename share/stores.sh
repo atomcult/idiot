@@ -59,10 +59,12 @@ store_label() {
 emit_store_use() {
     _esu="$(store_id "${1}")" || exit 1
     emit_export UBUNTU_STORE_ID "${_esu}"
+    emit_export IDIOT_ACTIVE_STORE "${1}"
     unset _esu
 }
 
 # Queue the unset that returns to the global store.
 emit_store_unset() {
     emit_unset UBUNTU_STORE_ID
+    emit_unset IDIOT_ACTIVE_STORE
 }

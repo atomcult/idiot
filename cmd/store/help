@@ -17,5 +17,7 @@ main() {
 	echo >&2
 	help_heading "Environment:"
 	help_env "IDIOT_STORES_DIR" "Stores directory"
+	help_env "UBUNTU_STORE_ID" "Set by use: the active store's ID"
+	help_env "IDIOT_ACTIVE_STORE" "Set by use: the active store's name"
 }
 main "$@"

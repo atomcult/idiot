@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/store/use - set UBUNTU_STORE_ID to the named store's ID
+# cmd/store/use - set UBUNTU_STORE_ID (and IDIOT_ACTIVE_STORE) to the named store
 # Usage: idiot store use [<name>]
 # Outputs: eval-able export statements (via the eval file)
 
