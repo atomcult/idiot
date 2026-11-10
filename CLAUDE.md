@@ -88,6 +88,10 @@ share/           # sourced helper modules (never executed directly)
   lp.sh          # IDIOT_LP_USER_FILE, lp_user_value, require_lp_user
   models.sh      # IDIOT_MODELS_DIR, require_models_repo
   stores.sh      # IDIOT_STORES_DIR, require_store/no_store
+  vm-firmware.sh # vm_firmware (the UEFI images idiot vm boots; also prunes
+                 #   the snap's vm component), vm_firmware_secboot/_package
+  uefi-vars.py   # run, not sourced: lists an OVMF/AAVMF variable store
+                 #   (idiot vm vars); python3 standard library only
   examples/      # bundled static example alias files
   kernels/       # bundled static kernel data files
 tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft

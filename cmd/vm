@@ -218,8 +218,8 @@ do_vars() {
 	-h | --help | help)
 		help_heading "Usage:" "idiot vm vars <state-dir>"
 		echo >&2
-		say "Dumps UEFI secure boot variables from a saved state directory."
-		say "Requires ${BOLD}virt-fw-vars${RESET} ${DIM}(python3-virt-firmware)${RESET} or ${BOLD}efi-readvar${RESET} ${DIM}(efitools)${RESET}."
+		say "Lists the UEFI variables saved in a state directory (fw_vars.fd), with"
+		say "the certificates and hashes enrolled in PK, KEK, db and dbx."
 		exit 0
 		;;
 	esac
@@ -231,22 +231,10 @@ do_vars() {
 	vars_file="${state_dir}/fw_vars.fd"
 	[ -f "${vars_file}" ] || die "no fw_vars.fd in ${state_dir} — was the VM launched with --sb --state-dir?"
 
-	if command -v virt-fw-vars >/dev/null 2>&1; then
-		virt-fw-vars --input "${vars_file}" --output-json /dev/stdout |
-			python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for v in data.get('variables', []):
-    name = v.get('name', '')
-    guid = v.get('guid', '')
-    size = len(v.get('data', '')) // 2
-    print(f'  {name}  ({guid})  {size} bytes')
-" >&2
-	elif command -v efi-readvar >/dev/null 2>&1; then
-		efi-readvar <"${vars_file}" >&2
-	else
-		die "no suitable tool found — install python3-virt-firmware or efitools"
-	fi
+	# efi-readvar can't read a file (only the running machine's variables),
+	# so idiot reads the store itself; the listing is data, on stdout
+	require python3
+	python3 "${IDIOT_ROOT}/share/uefi-vars.py" "${vars_file}"
 }
 
 do_tpm() {
