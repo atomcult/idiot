@@ -45,11 +45,18 @@ one.
 | Component | For | Tools (main ones) | Download |
 |---|---|---|---|
 | `core` | disk images | debugfs, mke2fs, mtools, sfdisk, sgdisk, parted, erofs, zstd, lz4, cpio, simg2img | 3 MB |
+| `vm` | `idiot vm` | qemu for amd64, arm64, armhf, riscv64; qemu-img; OVMF/AAVMF/RISC-V UEFI firmware | 37 MB |
 | `tpm` | TPMs | tpm2-tools, swtpm, swtpm_setup | 2.5 MB |
 | `network` | networks | tcpdump, nmap, iw, dig, traceroute, mtr, iperf3, socat, curl, nft, conntrack, arping | 22 MB |
 | `hardware` | devices | lspci, lsusb, i2c-tools, dmidecode, lshw, smartctl, nvme, gpiod, can-utils, picocom, mmc, flashrom | 3.5 MB |
 | `boot` | boot chain | efibootmgr, mokutil, efitools, keyctl, mkimage, fw_printenv, dtc, sbsign/sbverify | 1 MB |
 | `debug` | processes and binaries | strace, ltrace, gdb, lsof, file, binutils, elfutils, jq, sysstat, htop, patchelf | 15 MB |
+
+With `idiot+vm` (and `idiot+tpm` for `--tpm`), `idiot vm` boots images on
+a host without qemu, firmware or swtpm packages, including an Ubuntu Core
+device; a host qemu, with its own firmware, still wins when installed.
+armhf and riscv64 have no secure-boot firmware, so they boot without it.
+The bundled qemu has no display window: use `--no-gfx` (the default).
 
 Run a bundled tool with `idiot run <tool>`. A command that needs a tool
 you don't have says which component to install. Tools core24 itself ships

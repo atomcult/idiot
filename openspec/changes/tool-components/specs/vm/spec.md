@@ -4,7 +4,9 @@
 
 ### Requirement: Firmware selection
 With secure boot (the default) `idiot vm` SHALL boot the architecture's
-secure-boot UEFI firmware with Microsoft keys enrolled. With `--no-sb` it
+secure-boot UEFI firmware with Microsoft keys enrolled; armhf and riscv64,
+for which no secure-boot firmware exists, SHALL boot their UEFI firmware
+without secure boot and say so. With `--no-sb` it
 SHALL boot the architecture's UEFI firmware without secure boot on amd64,
 arm64, armhf and riscv64. It SHALL use the host's firmware when the host
 qemu is used and the firmware is installed, and the `vm` component's
@@ -18,6 +20,10 @@ naming the package that provides it and the `vm` component.
 #### Scenario: Firmware missing
 - **WHEN** the arm64 firmware package is not installed and `idiot+vm` is not installed
 - **THEN** the command fails naming `qemu-efi-aarch64` and `snap install idiot+vm`
+
+#### Scenario: Secure boot unavailable
+- **WHEN** the user runs `idiot vm --arch armhf image.img`
+- **THEN** it says no secure boot firmware exists for armhf and boots armhf's UEFI firmware
 
 #### Scenario: Firmware from the component
 - **WHEN** the host has no OVMF and `idiot+vm` is installed

@@ -10,6 +10,8 @@
 
 set -eu
 
+# a re-pull (the project changed) starts clean, so deleted files go too
+find "${CRAFT_PART_SRC:?}" -mindepth 1 -delete
 cd "${CRAFT_PROJECT_DIR}/${1:-.}"
 # the project dir may be owned by someone else inside the build environment
 git -c safe.directory='*' ls-files -z --cached --others --exclude-standard . |

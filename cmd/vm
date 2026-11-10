@@ -5,6 +5,7 @@
 . "$(dirname "${0}")/../share/common.sh"
 include arch.sh
 include lp.sh
+include vm-firmware.sh
 
 # Return the first path from the argument list that exists as a regular file
 find_first() {
@@ -17,87 +18,90 @@ find_first() {
 	return 1
 }
 
-# Sets fw_code and fw_vars_template for arch $1, with secure boot when $2 is 1
+# Sets fw_code and fw_vars_template for arch $1, with secure boot when $2 is
+# 1, from share/vm-firmware.sh's table. The host's qemu boots the host's
+# firmware, or the vm component's when the host has none; the component's
+# qemu boots only the component's.
 setup_firmware() {
-	[ "${2}" -eq 1 ] || {
-		_setup_firmware_nosb "${1}"
-		return
-	}
+	_sf_pkg="$(vm_firmware_package "${1}")" ||
+		die "UEFI firmware is not supported for architecture: ${1}"
+	[ "${2}" -eq 0 ] || vm_firmware_secboot "${1}" ||
+		say "${DIM}No secure boot firmware exists for ${1}: booting without secure boot.${RESET}"
+	fw_code="$(_find_firmware "${1}" "${2}" code)" ||
+		_no_firmware "${1}" "${2}" "${_sf_pkg}"
+	fw_vars_template="$(_find_firmware "${1}" "${2}" vars)" ||
+		_no_firmware "${1}" "${2}" "${_sf_pkg}"
+}
+
+# The first firmware file for arch $1, secure boot $2, $3 code|vars.
+_find_firmware() {
+	if [ -z "${qemu_comp}" ]; then
+		_ff_roots="/ ${vm_comp}"
+	else
+		_ff_roots="${qemu_comp}"
+	fi
+	for _ff_root in ${_ff_roots}; do
+		for _ff_path in $(vm_firmware "${1}" "${2}" "${3}"); do
+			_ff_file="${_ff_root%/}${_ff_path}"
+			if [ -f "${_ff_file}" ]; then
+				printf '%s' "${_ff_file}"
+				return 0
+			fi
+		done
+	done
+	return 1
+}
+
+# Die because arch $1's firmware (secure boot $2, package $3) is missing.
+_no_firmware() {
+	_nf_what='UEFI firmware'
+	[ "${2}" -eq 0 ] || ! vm_firmware_secboot "${1}" || _nf_what='UEFI secure boot firmware'
+	if [ -n "${qemu_comp}" ]; then
+		die "${_nf_what} for ${1} is missing from the vm component — reinstall it: snap install $(snap_instance)+vm"
+	elif [ -n "$(snap_root)" ]; then
+		die "${_nf_what} not found — install the ${3} package, or: snap install $(snap_instance)+vm"
+	else
+		die "${_nf_what} not found — install the ${3} package"
+	fi
+}
+
+# The package providing qemu-system-$1.
+_qemu_package() {
 	case "${1}" in
-	amd64)
-		fw_code=$(find_first \
-			/usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
-			/usr/share/OVMF/OVMF_CODE.secboot.fd) ||
-			die "UEFI secure boot firmware not found — install the ovmf package"
-		fw_vars_template=$(find_first \
-			/usr/share/OVMF/OVMF_VARS_4M.ms.fd \
-			/usr/share/OVMF/OVMF_VARS.ms.fd) ||
-			die "UEFI vars not found — install the ovmf package"
-		;;
-	arm64)
-		fw_code=$(find_first \
-			/usr/share/AAVMF/AAVMF_CODE.secboot.fd \
-			/usr/share/qemu-efi-aarch64/QEMU_EFI.secboot.fd) ||
-			die "UEFI secure boot firmware not found — install the qemu-efi-aarch64 package"
-		fw_vars_template=$(find_first \
-			/usr/share/AAVMF/AAVMF_VARS.ms.fd \
-			/usr/share/qemu-efi-aarch64/QEMU_VARS.ms.fd) ||
-			die "UEFI vars not found — install the qemu-efi-aarch64 package"
-		;;
-	armhf)
-		fw_code=$(find_first \
-			/usr/share/AAVMF/AAVMF32_CODE.secboot.fd \
-			/usr/share/qemu-efi-arm/QEMU_EFI.secboot.fd) ||
-			die "UEFI secure boot firmware not found — install the qemu-efi-arm package"
-		fw_vars_template=$(find_first \
-			/usr/share/AAVMF/AAVMF32_VARS.ms.fd \
-			/usr/share/qemu-efi-arm/QEMU_VARS.ms.fd) ||
-			die "UEFI vars not found — install the qemu-efi-arm package"
-		;;
-	riscv64)
-		fw_code=$(find_first \
-			/usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd) ||
-			die "UEFI firmware not found — install the qemu-efi-riscv64 package"
-		fw_vars_template=$(find_first \
-			/usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd) ||
-			die "UEFI vars not found — install the qemu-efi-riscv64 package"
-		;;
-	*)
-		die "secure boot is not supported for architecture: ${1}"
-		;;
+	x86_64 | i386) printf 'qemu-system-x86' ;;
+	aarch64 | arm) printf 'qemu-system-arm' ;;
+	riscv64) printf 'qemu-system-misc' ;;
+	*) printf 'qemu-system' ;;
 	esac
 }
 
-# Sets fw_code and fw_vars_template for plain (non-secure-boot) UEFI on
-# arch $1. These must be 64 MiB pflash images: qemu-efi-aarch64's 2 MiB
-# QEMU_EFI.fd cannot be used as pflash on the virt machine.
-_setup_firmware_nosb() {
-	case "${1}" in
-	amd64)
-		fw_code=$(find_first /usr/share/OVMF/OVMF_CODE_4M.fd) ||
-			die "UEFI firmware not found — install the ovmf package"
-		fw_vars_template=$(find_first /usr/share/OVMF/OVMF_VARS_4M.fd) ||
-			die "UEFI vars not found — install the ovmf package"
-		;;
-	arm64)
-		fw_code=$(find_first \
-			/usr/share/AAVMF/AAVMF_CODE.no-secboot.fd \
-			/usr/share/AAVMF/AAVMF_CODE.fd) ||
-			die "UEFI firmware not found — install the qemu-efi-aarch64 package"
-		fw_vars_template=$(find_first /usr/share/AAVMF/AAVMF_VARS.fd) ||
-			die "UEFI vars not found — install the qemu-efi-aarch64 package"
-		;;
-	armhf)
-		fw_code=$(find_first /usr/share/AAVMF/AAVMF32_CODE.fd) ||
-			die "UEFI firmware not found — install the qemu-efi-arm package"
-		fw_vars_template=$(find_first /usr/share/AAVMF/AAVMF32_VARS.fd) ||
-			die "UEFI vars not found — install the qemu-efi-arm package"
-		;;
-	*)
-		# riscv64 firmware has no secure-boot variant
-		setup_firmware "${1}" 1
-		;;
+# Finds qemu for arch $arch (the host's first, see tool_path). Sets
+# qemu_path; vm_comp (the installed vm component, or empty); qemu_comp (that
+# component when it's the one running, else empty); and qemu_env and
+# qemu_data_flags, which point the component's qemu at its own modules and
+# ROMs (it was built for /usr, which on the host is another qemu or none).
+_find_qemu() {
+	_fq_name="$(snap_arch_to_qemu "${arch}")"
+	vm_comp="$(snap_component_dirs | sed -n '/\/vm$/p')"
+	qemu_path="$(tool_path "qemu-system-${_fq_name}")" ||
+		missing_tool "qemu-system-${_fq_name}" "install the $(_qemu_package "${_fq_name}") package"
+	qemu_comp=''
+	qemu_env=''
+	qemu_data_flags=''
+	[ -n "${vm_comp}" ] || return 0
+	case "${qemu_path}" in
+	"${vm_comp}"/*) ;;
+	*) return 0 ;;
 	esac
+	qemu_comp="${vm_comp}"
+	# Ubuntu's qemu searches these for ROMs (its --firmwarepath)
+	for _fq_dir in usr/share/qemu usr/share/seabios usr/lib/ipxe/qemu; do
+		[ ! -d "${qemu_comp}/${_fq_dir}" ] ||
+			qemu_data_flags="${qemu_data_flags} -L ${qemu_comp}/${_fq_dir}"
+	done
+	for _fq_mod in "${qemu_comp}"/usr/lib/*/qemu; do
+		[ -d "${_fq_mod}" ] && qemu_env="env QEMU_MODULE_DIR=${_fq_mod}"
+	done
 }
 
 # TPM passthrough device type differs between x86 (ISA bus) and everything else
@@ -464,8 +468,7 @@ do_run() {
 [--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] <image> [-- <qemu-args>]"
 	[ -f "${image}" ] || die "image not found: ${image}"
 	[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
-	qemu_bin="qemu-system-$(snap_arch_to_qemu "${arch}")"
-	require "${qemu_bin}"
+	_find_qemu
 
 	# Assemble machine and KVM flags
 	_build_machine_flags
@@ -487,7 +490,8 @@ do_run() {
 	net_user="user,hostfwd=tcp::${ssh_port}-:22${extra_fwds}"
 
 	# shellcheck disable=SC2086
-	"${qemu_bin}" \
+	${qemu_env} "${qemu_path}" \
+		${qemu_data_flags} \
 		-smp "$(nproc)" \
 		-m 2048 \
 		${machine_flags} \

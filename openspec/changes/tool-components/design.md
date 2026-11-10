@@ -175,6 +175,22 @@ components come with the snap and exits zero.
   explicitly. Explicit stage-packages already in core24 (e2fsprogs,
   sbsigntool) are staged; only dependencies are filtered.
 
+### Found while testing (group 3)
+- The firmware table lives in `share/vm-firmware.sh`, read by both
+  `cmd/vm` and the vm part's `snap/local/vm-build`, which prunes the
+  packages to it and fails the build if an arch/mode has no image left.
+  That replaces the planned `make check` comparison: there's one list.
+- Ubuntu ships no secure-boot firmware for armhf (`qemu-efi-arm` has only
+  `AAVMF32_CODE.fd`), so `idiot vm --arch armhf` could never boot with its
+  default secure boot. armhf now behaves like riscv64: the plain UEFI
+  images, with a note that secure boot isn't available.
+- Ubuntu's qemu looks for ROMs in `/usr/share/qemu`, `/usr/share/seabios`
+  and `/usr/lib/ipxe/qemu` (its `--firmwarepath`): the bundled qemu gets an
+  `-L` for each.
+- A part with `override-pull` and no `source` is never seen as outdated,
+  so the idiot part keeps `source: .` for change detection only
+  (`pull-tracked` still does the copy, starting from an empty dir).
+
 ## Risks / Trade-offs
 
 - [Snap and component size: vm is still the largest download] → pruning;

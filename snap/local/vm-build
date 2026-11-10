@@ -1,0 +1,70 @@
+#!/bin/sh
+# snap/local/vm-build - prune the vm component's part to what idiot vm uses
+# Usage: vm-build   (override-build, after craftctl default, before
+#                    component-build)
+#
+# qemu-system-misc alone holds ~20 emulators and the firmware packages
+# several variants of each image. Keep the emulators for the architectures
+# idiot vm supports, qemu-img, and exactly the firmware files cmd/vm can
+# pick (share/vm-firmware.sh), with whatever they link to.
+
+set -eu
+
+root="${CRAFT_PART_INSTALL}"
+# shellcheck source=share/vm-firmware.sh
+. "${CRAFT_PROJECT_DIR}/share/vm-firmware.sh"
+
+keep_bin=' qemu-system-x86_64 qemu-system-aarch64 qemu-system-arm qemu-system-riscv64 qemu-img '
+for f in "${root}"/usr/bin/*; do
+	case "${keep_bin}" in
+	*" ${f##*/} "*) ;;
+	*) rm -f "${f}" ;;
+	esac
+done
+
+# firmware: the files in the table, resolved through their links (AAVMF's
+# files link into qemu-efi-aarch64's, for instance)
+keep="$(mktemp)"
+vm_firmware_all | while IFS= read -r path; do
+	f="${root}${path}"
+	while [ -L "${f}" ] || [ -e "${f}" ]; do
+		printf '%s\n' "${f}"
+		[ -L "${f}" ] || break
+		target="$(readlink "${f}")"
+		case "${target}" in
+		/*) f="${root}${target}" ;;
+		*) f="$(dirname "${f}")/${target}" ;;
+		esac
+	done
+done | while IFS= read -r f; do
+	# normalise a/b/../c, so comparisons below match find's output
+	printf '%s/%s\n' "$(cd "$(dirname "${f}")" && pwd -P)" "${f##*/}"
+done >"${keep}"
+
+for dir in OVMF AAVMF qemu-efi-aarch64 qemu-efi-arm qemu-efi-riscv64; do
+	[ -d "${root}/usr/share/${dir}" ] || continue
+	find "${root}/usr/share/${dir}" \( -type f -o -type l \) | while IFS= read -r f; do
+		f="$(cd "$(dirname "${f}")" && pwd -P)/${f##*/}"
+		grep -qxF -- "${f}" "${keep}" || rm -f "${f}"
+	done
+done
+rm -f "${keep}"
+
+# every arch and mode must keep at least one candidate (a later candidate
+# may legitimately not exist in this release's packages)
+rc=0
+for arch in amd64 arm64 armhf riscv64; do
+	for sb in 1 0; do
+		for kind in code vars; do
+			found=''
+			for path in $(vm_firmware "${arch}" "${sb}" "${kind}"); do
+				[ -f "${root}${path}" ] && found="${path}" && break
+			done
+			if [ -z "${found}" ]; then
+				echo "vm-build: no ${kind} firmware for ${arch} (secure boot ${sb})" >&2
+				rc=1
+			fi
+		done
+	done
+done
+exit "${rc}"

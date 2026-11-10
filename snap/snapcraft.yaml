@@ -28,6 +28,13 @@ components:
       dosfstools, util-linux, fdisk, gdisk, parted, erofs-utils, zstd, lz4,
       cpio and simg2img.
       Install with: snap install idiot+core
+  vm:
+    type: standard
+    summary: Virtual machine tools
+    description: |
+      qemu for amd64, arm64, armhf and riscv64 targets, qemu-img, and the
+      UEFI firmware `idiot vm` boots (OVMF, AAVMF, ARM and RISC-V EFI).
+      Install with: snap install idiot+vm
   tpm:
     type: standard
     summary: TPM tools
@@ -74,7 +81,10 @@ apps:
 parts:
   idiot:
     plugin: nil
-    # no `source: .`: it would copy build output too (tools/idiot-store/target)
+    # the source is only for change detection (an outdated pull reruns
+    # override-pull); the default pull would copy build output too
+    # (tools/idiot-store/target), so override-pull replaces it
+    source: .
     override-pull: |
       "${CRAFT_PROJECT_DIR}/snap/local/pull-tracked"
     build-packages:
@@ -150,6 +160,26 @@ parts:
       - lz4
       - cpio
       - android-sdk-libsparse-utils
+  vm-packages:
+    plugin: nil
+    build-packages: *component-build-packages
+    # pruned to what idiot vm uses (snap/local/vm-build), then finished
+    # like the others
+    override-build: |
+      craftctl default
+      "${CRAFT_PROJECT_DIR}/snap/local/vm-build"
+      "${CRAFT_PROJECT_DIR}/snap/local/component-build" vm
+    organize:
+      '*': (component/vm)/
+    stage-packages:
+      - qemu-system-x86
+      - qemu-system-arm
+      - qemu-system-misc
+      - qemu-utils
+      - ovmf
+      - qemu-efi-aarch64
+      - qemu-efi-arm
+      - qemu-efi-riscv64
   tpm-packages:
     plugin: nil
     build-packages: *component-build-packages
@@ -252,6 +282,7 @@ parts:
     plugin: nil
     after:
       - core-packages
+      - vm-packages
       - tpm-packages
       - network-packages
       - hardware-packages
@@ -260,7 +291,7 @@ parts:
     override-build: |
       dest="${CRAFT_PART_INSTALL}/lib/idiot/share/components"
       mkdir -p "${dest}"
-      for comp in core tpm network hardware boot debug; do
+      for comp in core vm tpm network hardware boot debug; do
         stage="$(printenv "CRAFT_COMPONENT_${comp^^}_STAGE")"
         cp "${stage}/idiot-index/${comp}" "${dest}/${comp}"
       done
