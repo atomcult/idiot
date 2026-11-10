@@ -9,6 +9,7 @@
 #   data     tools that need data files, helpers or wrappers really work
 #   inspect  inspect image and diff on images built with core's tools
 #   assertion  inspect assertion on store models, file/stdin/--remote
+#   prompt   idiot prompt confined, IDIOT_PROMPT from the snap's integration
 #   run      idiot run --list/--sudo/--shell, missing-component errors
 #            (as an unprivileged user)
 #   profile  profiles and auth bind run confined, as that user
@@ -145,7 +146,7 @@ on sh -c 'useradd -m -s /bin/bash tester &&
 uid="$(on id -u tester)"
 
 d=/root/bare-host/bare-host.d
-for check in tools data inspect assertion; do
+for check in tools data inspect assertion prompt; do
 	say "${check}"
 	on bash "${d}/${check}" | tee -a "${log}"
 done

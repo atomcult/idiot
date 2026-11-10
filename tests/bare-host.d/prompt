@@ -1,0 +1,45 @@
+#!/bin/bash
+# tests/bare-host.d/prompt - idiot prompt and IDIOT_PROMPT under the snap
+#
+# Usage: prompt
+# Checks idiot prompt runs confined (nothing in the eval file, so no
+# handoff), works without the wrapper, isn't counted, and that the snap's
+# integration keeps IDIOT_PROMPT equal to it through store, arch and auth
+# changes, and unsets it when nothing is active.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+idiot store add bare-prompt bare-prompt-id 2>/dev/null
+idiot store use bare-prompt 2>/dev/null
+idiot arch set arm64 2>/dev/null
+
+ef="$(mktemp -p "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/snap.idiot")"
+out="$(IDIOT_EVAL_FILE="${ef}" /snap/bin/idiot prompt 2>&1)"
+[ "${out}" = "bare-prompt·arm64" ] && [ ! -s "${ef}" ] &&
+	ok "prompt: runs confined (no handoff) and prints the segment" ||
+	fail "prompt: got [${out}], eval file: $(tr '\n' ' ' <"${ef}")"
+rm -f "${ef}"
+
+[ "${IDIOT_PROMPT:-}" = "bare-prompt·arm64" ] &&
+	ok "prompt: IDIOT_PROMPT kept by the snap's integration" ||
+	fail "prompt: IDIOT_PROMPT is [${IDIOT_PROMPT:-<unset>}]"
+
+out="$(env -u IDIOT_SHELL -u IDIOT_EVAL_FILE /snap/bin/idiot prompt --format arch,store --separator ' ' 2>&1)"
+[ "${out}" = "arm64 bare-prompt" ] &&
+	ok "prompt: works without the wrapper, --format and --separator" ||
+	fail "prompt: without the wrapper: [${out}]"
+
+count="${HOME}/snap/idiot/common/cache/invoke-count"
+before="$(cat "${count}" 2>/dev/null)"
+for _ in 1 2 3 4 5; do idiot prompt >/dev/null; done
+[ "$(cat "${count}" 2>/dev/null)" = "${before}" ] &&
+	ok "prompt: not counted" ||
+	fail "prompt: invoke-count went from ${before} to $(cat "${count}")"
+
+idiot store unset 2>/dev/null
+idiot arch unset 2>/dev/null
+[ -z "${IDIOT_PROMPT+set}" ] && [ -z "$(idiot prompt)" ] &&
+	ok "prompt: IDIOT_PROMPT unset when nothing is active" ||
+	fail "prompt: after unset: IDIOT_PROMPT=[${IDIOT_PROMPT:-}] prompt=[$(idiot prompt)]"
+idiot store remove bare-prompt 2>/dev/null
