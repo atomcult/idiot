@@ -324,8 +324,12 @@ do_tpm() {
 
 	require swtpm "install the swtpm package"
 
+	# tpm2-tools' swtpm TCTI talks to a data socket at path= and a control
+	# socket next to it, path.ctrl
 	sock="${state_dir}/inspect.sock"
-	rm -f "${sock}"
+	[ "${#sock}" -le 102 ] ||
+		die "the state directory is too long a path for swtpm's sockets: ${state_dir}"
+	rm -f "${sock}" "${sock}.ctrl"
 
 	say "Starting swtpm on ${BOLD}${sock}${RESET} ${DIM}(Ctrl-C to stop)${RESET}"
 	say "Connect with: ${CYAN}--tcti=swtpm:path=${sock}${RESET}"
@@ -333,7 +337,8 @@ do_tpm() {
 
 	swtpm socket \
 		--tpmstate "dir=${state_dir}" \
-		--ctrl "type=unixio,path=${sock}" \
+		--server "type=unixio,path=${sock}" \
+		--ctrl "type=unixio,path=${sock}.ctrl" \
 		--tpm2 \
 		--flags not-need-init,startup-clear
 }
@@ -821,7 +826,7 @@ do_reset() {
 	_d="$(vm_dir "${name}")"
 	rm -f "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* \
 		"${_d}/serial.log" "${_d}/serial.log.1" "${_d}/swtpm.pid" "${_d}/swtpm.sock" \
-		"${_d}/qemu.pid" "${_d}/qmp.sock"
+		"${_d}/qemu.pid" "${_d}/qmp.sock" "${_d}/inspect.sock" "${_d}/inspect.sock.ctrl"
 	say "Reset VM ${BOLD}${name}${RESET}: it boots as a freshly flashed device"
 	[ "$(vm_conf_get "${name}" in_place)" -ne 1 ] ||
 		say "${YELLOW}warning:${RESET} VM '${name}' writes $(vm_conf_get "${name}" image) in place: the image itself can't be reset"
@@ -869,7 +874,7 @@ do_delete() {
 		# a --state-dir: only what idiot put there, and the dir if now empty
 		rm -f "${_d}/vm.conf" "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* \
 			"${_d}/serial.log" "${_d}/serial.log.1" "${_d}/swtpm.pid" "${_d}/swtpm.sock" \
-			"${_d}/qemu.pid" "${_d}/qmp.sock" "${_d}/inspect.sock"
+			"${_d}/qemu.pid" "${_d}/qmp.sock" "${_d}/inspect.sock" "${_d}/inspect.sock.ctrl"
 		rmdir "${_real}" 2>/dev/null || say "${DIM}Kept ${_real}: it holds other files${RESET}"
 		rm -f "${_d}"
 	else

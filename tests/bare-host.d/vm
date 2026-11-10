@@ -53,5 +53,20 @@ pgrep -x swtpm >/dev/null && fail "vm: swtpm left running" || ok "vm: swtpm stop
 [ -f "${state}/disk.qcow2" ] && ok "vm: disk overlay in the state dir" || fail "vm: no disk.qcow2 in ${state}"
 grep -aq 'Press enter to configure' "${state}/serial.log" 2>/dev/null &&
 	ok "vm: serial console logged" || fail "vm: no console-conf in ${state}/serial.log"
-idiot vm delete --yes "$(basename "${image%.img}")" >/dev/null 2>&1
+
+# the stopped VM's TPM, served by idiot vm tpm, read with the bundled tools
+name="$(basename "${image%.img}")"
+idiot vm tpm --name "${name}" >"${log}.tpm" 2>&1 &
+for _ in $(seq 10); do
+	[ -S "${state}/inspect.sock" ] && break
+	sleep 1
+done
+out="$(idiot run tpm2_pcrread --tcti="swtpm:path=${state}/inspect.sock" sha256:7 2>&1)"
+printf '%s' "${out}" | grep -qE '7 *: *0x[0-9A-F]{64}' &&
+	ok "vm: tpm --name serves the saved TPM to tpm2_pcrread" ||
+	fail "vm: tpm2_pcrread: $(printf '%s' "${out}" | head -n 3 | tr '\n' ' ')"
+pkill -x swtpm 2>/dev/null
+wait
+
+idiot vm delete --yes "${name}" >/dev/null 2>&1
 rm -rf "${state}"
