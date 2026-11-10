@@ -86,7 +86,7 @@ if installed vm; then
 		riscv64) comm='qemu-system-ris' banner='OpenSBI|EDK2' flags='--no-sb' ;;
 		esac
 		# shellcheck disable=SC2086 # flags is a word or nothing
-		idiot vm --arch "${a}" ${flags} --no-gfx "${tmp}/blank.img" </dev/null >"${tmp}/fw-${a}.log" 2>&1 &
+		idiot vm --name "fw-${a}" --arch "${a}" ${flags} --no-gfx "${tmp}/blank.img" </dev/null >"${tmp}/fw-${a}.log" 2>&1 &
 		pid=$!
 		for _ in $(seq 60); do
 			grep -aqE "${banner}" "${tmp}/fw-${a}.log" && break
