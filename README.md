@@ -96,6 +96,37 @@ The `iot` shorthand is also available.
 
 ---
 
+## VMs
+
+```
+$ idiot vm ubuntu-core-24-amd64.img          # the VM "ubuntu-core-24-amd64"
+$ idiot vm --name gadget --tpm core.img      # another, from the same image
+$ idiot vm --name gadget                     # boot it again later
+```
+
+Every VM has a name (`--name`, else the image's file name) and keeps its
+disk, UEFI variables, TPM state and serial log between runs, in
+`~/.local/share/idiot/vm/<name>` (`~/snap/idiot/common/vm/<name>` under the
+snap) or a `--state-dir`. The image is never written: the guest writes a
+qcow2 overlay, so one image can back several VMs and stays pristine.
+`--in-place` writes the image itself instead, as idiot used to (for an
+image you'll inspect or flash afterwards). The image, `--arch`, `--sb` and
+`--in-place` are fixed when a VM is created; `--tpm`, `--gfx` and ports can
+change on any boot.
+
+Each VM forwards one host port to its ssh: 8022 for the first, the next
+free one for the others (`--ssh-port` to choose), recorded so `idiot vm
+ssh` finds it. The serial console stays on the terminal (Ctrl-a x quits,
+Ctrl-a c is qemu's monitor) and is also logged to `serial.log` in the
+VM's state directory.
+
+**Changed:** before named VMs, `idiot vm` wrote to the image and threw
+the UEFI variables and TPM state away after each run (unless you gave
+`--state-dir`). Now nothing is thrown away until you reset or delete the
+VM; use `--in-place` if you need the image written.
+
+---
+
 ## Profiles
 
 Save the whole setup once and switch it with one command:

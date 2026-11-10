@@ -5,6 +5,7 @@
 # Boots the image with secure boot and an emulated TPM, with no qemu,
 # firmware or swtpm packages on the host, until it reaches console-conf or
 # <seconds> (default 600) pass. A first boot runs install mode and reboots.
+# The image is booted through an overlay, so it must come out unchanged.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
 . "$(dirname "$0")/lib"
@@ -27,8 +28,8 @@ done
 
 log="$(mktemp)"
 state="$(mktemp -d)"
-cp --reflink=auto "${image}" "${state}/disk.img"
-idiot vm --tpm --no-gfx --state-dir "${state}" "${state}/disk.img" </dev/null >"${log}" 2>&1 &
+sum="$(sha256sum <"${image}")"
+idiot vm --tpm --no-gfx --state-dir "${state}" "${image}" </dev/null >"${log}" 2>&1 &
 pid=$!
 for _ in $(seq "${secs}"); do
 	grep -aq 'Press enter to configure' "${log}" && break
@@ -47,4 +48,10 @@ check "TPM present" 'TPM2|tpm_tis'
 check "reached console-conf" 'Press enter to configure'
 pgrep -x swtpm >/dev/null && fail "vm: swtpm left running" || ok "vm: swtpm stopped with the VM"
 [ -f "${state}/tpm2-00.permall" ] && ok "vm: TPM state saved" || fail "vm: no TPM state in ${state}"
+[ "$(sha256sum <"${image}")" = "${sum}" ] && ok "vm: image left pristine (overlay)" ||
+	fail "vm: the image was written"
+[ -f "${state}/disk.qcow2" ] && ok "vm: disk overlay in the state dir" || fail "vm: no disk.qcow2 in ${state}"
+grep -aq 'Press enter to configure' "${state}/serial.log" 2>/dev/null &&
+	ok "vm: serial console logged" || fail "vm: no console-conf in ${state}/serial.log"
+idiot vm delete --yes "$(basename "${image%.img}")" >/dev/null 2>&1
 rm -rf "${state}"

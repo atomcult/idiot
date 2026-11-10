@@ -6,6 +6,7 @@
 include arch.sh
 include lp.sh
 include vm-firmware.sh
+include vm.sh
 
 # Return the first path from the argument list that exists as a regular file
 find_first() {
@@ -307,29 +308,81 @@ _build_machine_flags() {
 	fi
 }
 
-# Stops the VM's swtpm (if started) and removes a temporary workdir.
+# Stops the VM's swtpm (if started).
 _cleanup() {
 	if [ -n "${tpm_pidfile:-}" ] && [ -f "${tpm_pidfile}" ]; then
 		kill "$(cat "${tpm_pidfile}")" 2>/dev/null
 		rm -f "${tpm_pidfile}"
 	fi
-	[ "${workdir_is_tmp:-0}" -eq 0 ] || rm -rf "${workdir}"
 }
 
-# Creates or reuses a working directory for firmware/TPM state.
+# Uses the VM's state directory for its firmware, TPM and disk state.
 # Sets workdir and installs the cleanup trap.
 _setup_workdir() {
-	if [ -n "${state_dir}" ]; then
-		mkdir -p "${state_dir}"
-		workdir="${state_dir}"
-	else
-		workdir="$(mktemp -d)"
-		workdir_is_tmp=1
-	fi
+	workdir="$(vm_dir "${name}")"
 	trap _cleanup EXIT
 	trap 'exit 130' INT
 	trap 'exit 143' TERM
 	trap 'exit 129' HUP
+}
+
+# Makes the VM's name refer to --state-dir $state_dir: a symlink from its
+# place under IDIOT_VM_DIR. Dies when the name already refers elsewhere.
+_link_state_dir() {
+	mkdir -p "${state_dir}" || die "cannot create state directory: ${state_dir}"
+	_lsd_abs="$(cd "${state_dir}" && pwd)"
+	_lsd_link="$(vm_dir "${name}")"
+	if [ -L "${_lsd_link}" ]; then
+		[ "$(readlink "${_lsd_link}")" = "${_lsd_abs}" ] ||
+			die "VM '${name}' keeps its state in $(readlink "${_lsd_link}") — use that --state-dir, or start over: idiot vm delete ${name}"
+	elif [ -e "${_lsd_link}" ]; then
+		die "VM '${name}' keeps its state in ${_lsd_link} — use another --name, or start over: idiot vm delete ${name}"
+	else
+		mkdir -p "${IDIOT_VM_DIR}"
+		ln -s "${_lsd_abs}" "${_lsd_link}"
+	fi
+}
+
+# Dies when a setting fixed at creation ($1 in vm.conf, given as $2 on the
+# command line, if at all) differs from the recorded one; $3 describes the
+# recorded setting for the message.
+_check_fixed() {
+	[ -n "${2}" ] || return 0
+	[ "$(vm_conf_get "${name}" "${1}")" = "${2}" ] ||
+		die "VM '${name}' ${3} — use another --name, or start over: idiot vm delete ${name}"
+}
+
+# Dies when a socket in the state directory would be longer than a UNIX
+# socket path may be (107 bytes).
+_check_socket_paths() {
+	for _csp in swtpm.sock qmp.sock; do
+		_csp="${workdir}/${_csp}"
+		[ "${#_csp}" -le 107 ] ||
+			die "the VM's state directory is too long a path for its sockets (${#_csp} > 107 bytes): ${workdir} — use a shorter --state-dir"
+	done
+}
+
+# Sets disk_flags: the image itself with --in-place, else a qcow2 overlay
+# backed by it, created on first boot (and after a reset). Dies when the
+# image changed under an existing overlay.
+_build_disk_flags() {
+	if [ "${in_place}" -eq 1 ]; then
+		disk_flags="file=${image},if=none,format=raw,id=disk1"
+		return 0
+	fi
+	_bdf_overlay="${workdir}/disk.qcow2"
+	_bdf_stat="$(stat -L -c '%s %Y' "${image}")"
+	if [ -f "${_bdf_overlay}" ]; then
+		[ "$(vm_conf_get "${name}" image_stat)" = "${_bdf_stat}" ] ||
+			die "${image} changed since VM '${name}' was booted from it — start over from the new image with: idiot vm reset ${name}"
+	else
+		tool_path qemu-img >/dev/null ||
+			missing_tool qemu-img "install the qemu-utils package"
+		tool qemu-img create -q -f qcow2 -b "${image}" -F raw "${_bdf_overlay}" >&2 ||
+			die "could not create the disk overlay ${_bdf_overlay}"
+		vm_conf_set "${name}" image_stat "${_bdf_stat}"
+	fi
+	disk_flags="file=${_bdf_overlay},if=none,format=qcow2,id=disk1"
 }
 
 # Whether the VM boots from UEFI firmware we provide: always with secure
@@ -373,40 +426,60 @@ _build_tpm_flags() {
 }
 
 do_run() {
-	arch=''
+	name=''
 	image=''
-	sb=1
-	tpm=0
-	no_gfx=1
-	ssh_port=8022
-	extra_fwds=''
 	state_dir=''
+	# empty: not given (fixed ones come from vm.conf, others too if recorded)
+	arch=''
+	sb=''
+	in_place=''
+	tpm=''
+	gfx=''
+	ssh_port=''
+	ports=''
 
 	# Parse arguments
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
-			help_heading "Usage:" "idiot vm [options] <image> [-- <qemu-args>]"
+			help_heading "Usage:" "idiot vm [options] [<image>] [-- <qemu-args>]"
 			echo >&2
 			help_heading "Subcommands:"
-			help_command "ssh" "SSH into the running VM"
-			help_command "scp" "Copy files to/from the running VM"
-			help_command "vars" "Inspect UEFI SB variables from a saved state"
-			help_command "tpm" "Inspect TPM state with swtpm + tpm2-tools"
+			help_command "list" "List VMs"
+			help_command "stop" "Shut a running VM down"
+			help_command "reset" "Make a VM a freshly flashed device again"
+			help_command "delete" "Remove a VM and its state"
+			help_command "console-log" "Print a VM's serial console log"
+			help_command "ssh" "SSH into a running VM"
+			help_command "scp" "Copy files to/from a running VM"
+			help_command "vars" "Inspect a VM's UEFI SB variables"
+			help_command "tpm" "Inspect a VM's TPM state with tpm2-tools"
 			echo >&2
 			help_heading "Options:"
+			help_option "--name <name>" "VM name (default: from the image file name)"
 			help_option "--arch <arch>" "Target architecture (default: host)"
 			help_option "--sb / --no-sb" "Enable/disable UEFI secure boot (default: sb)"
+			help_option "--in-place" "Write the image itself (default: an overlay)"
 			help_option "--tpm / --no-tpm" "Enable/disable TPM emulation"
 			help_option "--gfx / --no-gfx" "Enable/disable display window (default: no-gfx)"
-			help_option "--ssh-port <port>" "Host port forwarded to guest port 22 (default: 8022)"
+			help_option "--ssh-port <port>" "Host port for guest port 22 (default: 8022 or free)"
 			help_option "--port <host:guest>" "Additional port mapping (repeatable)"
-			help_option "--state-dir <dir>" "Persist TPM state and UEFI vars after exit"
+			help_option "--state-dir <dir>" "Keep the VM's state here"
+			echo >&2
+			say "Each VM keeps its disk overlay, UEFI variables and TPM state between runs,"
+			say "in ${DIM}${IDIOT_VM_DIR}/<name>${RESET}; the image is never written unless"
+			say "--in-place. Boot it again with ${CYAN}idiot vm --name <name>${RESET}. The image,"
+			say "--arch, --sb and --in-place are fixed when a VM is created."
 			exit 0
 			;;
 		--)
 			shift
 			break
+			;;
+		--name)
+			[ -n "${2:-}" ] || die "--name requires an argument"
+			name="${2}"
+			shift
 			;;
 		--arch)
 			[ -n "${2:-}" ] || die "--arch requires an argument"
@@ -415,24 +488,27 @@ do_run() {
 			;;
 		--sb) sb=1 ;;
 		--no-sb) sb=0 ;;
+		--in-place) in_place=1 ;;
 		--tpm) tpm=1 ;;
 		--no-tpm) tpm=0 ;;
-		--gfx) no_gfx=0 ;;
-		--no-gfx) no_gfx=1 ;;
+		--gfx) gfx=1 ;;
+		--no-gfx) gfx=0 ;;
 		--ssh-port)
 			[ -n "${2:-}" ] || die "--ssh-port requires an argument"
+			case "${2}" in
+			*[!0-9]*) die "--ssh-port: expected a port number, got '${2}'" ;;
+			esac
 			ssh_port="${2}"
 			shift
 			;;
 		--port)
 			[ -n "${2:-}" ] || die "--port requires a host:guest mapping"
 			case "${2}" in
+			*[!0-9:]* | :* | *: | *:*:*) die "--port: expected host:guest, got '${2}'" ;;
 			*:*) ;;
 			*) die "--port: expected host:guest, got '${2}'" ;;
 			esac
-			host_p="${2%%:*}"
-			guest_p="${2##*:}"
-			extra_fwds="${extra_fwds},hostfwd=tcp::${host_p}-:${guest_p}"
+			ports="${ports:+${ports} }${2}"
 			shift
 			;;
 		--state-dir)
@@ -454,33 +530,96 @@ do_run() {
 		shift
 	done
 
-	[ -n "${image}" ] || die \
-		"usage: idiot vm [--arch <arch>] [--sb] [--tpm] [--no-gfx] \
-[--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] <image> [-- <qemu-args>]"
-	[ -f "${image}" ] || die "image not found: ${image}"
-	[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
-	_find_qemu
-
-	# Assemble machine and KVM flags
-	_build_machine_flags
-
-	# Set up working directory for firmware/TPM state files
-	if _needs_firmware || [ "${tpm}" -eq 1 ]; then
-		_setup_workdir
+	[ -n "${name}${image}" ] || die \
+		"usage: idiot vm [--name <name>] [--arch <arch>] [--sb] [--in-place] [--tpm] [--no-gfx] \
+[--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] [<image>] [-- <qemu-args>]"
+	if [ -n "${image}" ]; then
+		[ -f "${image}" ] || die "image not found: ${image}"
+		image="$(cd "$(dirname "${image}")" && pwd)/${image##*/}"
 	fi
+	[ -n "${name}" ] || name="$(vm_name_from_image "${image}")"
+	vm_validate_name "${name}"
 
-	# Build firmware and TPM flags
+	# the state directory and everything qemu, swtpm and idiot write there
+	umask 077
+	# before anything is written: a port that isn't free creates nothing
+	prev_port="$(vm_conf_get "${name}" ssh_port)"
+	ssh_port="$(vm_pick_ssh_port "${name}" "${ssh_port}")" || exit 1
+	[ -z "${state_dir}" ] || _link_state_dir
+	if vm_exists "${name}"; then
+		! vm_running "${name}" ||
+			die "VM '${name}' is running (ssh port $(vm_conf_get "${name}" ssh_port)) — connect with: idiot vm ssh --name ${name}"
+		_check_fixed image "${image}" "was created from $(vm_conf_get "${name}" image)"
+		_check_fixed arch "${arch}" "is $(vm_conf_get "${name}" arch)"
+		[ "$(vm_conf_get "${name}" sb)" -eq 1 ] && _sb_was='with' || _sb_was='without'
+		_check_fixed sb "${sb}" "was created ${_sb_was} secure boot"
+		[ "$(vm_conf_get "${name}" in_place)" -eq 1 ] && _ip_was='writes its image in place' ||
+			_ip_was='boots from an overlay'
+		_check_fixed in_place "${in_place:-0}" "${_ip_was}"
+		image="$(vm_conf_get "${name}" image)"
+		arch="$(vm_conf_get "${name}" arch)"
+		sb="$(vm_conf_get "${name}" sb)"
+		in_place="$(vm_conf_get "${name}" in_place)"
+		[ -n "${tpm}" ] || tpm="$(vm_conf_get "${name}" tpm)"
+		[ -n "${gfx}" ] || gfx="$(vm_conf_get "${name}" gfx)"
+		[ -n "${ports}" ] || ports="$(vm_conf_get "${name}" ports)"
+		new_vm=0
+	else
+		[ -n "${image}" ] ||
+			die "no VM named '${name}' — create it from an image: idiot vm --name ${name} <image>"
+		mkdir -p "$(vm_dir "${name}")"
+		[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
+		vm_conf_set "${name}" image "${image}"
+		vm_conf_set "${name}" arch "${arch}"
+		vm_conf_set "${name}" sb "${sb:-1}"
+		vm_conf_set "${name}" in_place "${in_place:-0}"
+		new_vm=1
+	fi
+	sb="${sb:-1}"
+	in_place="${in_place:-0}"
+	tpm="${tpm:-0}"
+	gfx="${gfx:-0}"
+	vm_conf_set "${name}" tpm "${tpm}"
+	vm_conf_set "${name}" gfx "${gfx}"
+	vm_conf_set "${name}" ports "${ports}"
+	[ -f "${image}" ] || die "image not found: ${image} (VM '${name}' was created from it)"
+
+	_find_qemu
+	_build_machine_flags
+	_setup_workdir
+	_check_socket_paths
+
+	vm_conf_set "${name}" ssh_port "${ssh_port}"
+	fwds="hostfwd=tcp::${ssh_port}-:22"
+	for _p in ${ports}; do
+		fwds="${fwds},hostfwd=tcp::${_p%%:*}-:${_p##*:}"
+	done
+
+	_build_disk_flags
 	_build_fw_flags
 	_build_tpm_flags
 
-	[ "${no_gfx}" -eq 1 ] || [ -z "${qemu_comp}" ] ||
+	[ "${gfx}" -eq 0 ] || [ -z "${qemu_comp}" ] ||
 		say "${DIM}The bundled qemu has no display window: the console is here (serial).${RESET}"
-	[ "${no_gfx}" -eq 1 ] &&
-		display_flags='-nographic' ||
-		display_flags='-serial mon:stdio'
+	[ "${gfx}" -eq 1 ] && display_flags='' || display_flags='-display none'
+	# the serial console stays on the terminal (Ctrl-a c: monitor, Ctrl-a x:
+	# quit) and is logged; the previous boot's log is kept
+	[ ! -f "${workdir}/serial.log" ] || mv -f "${workdir}/serial.log" "${workdir}/serial.log.1"
+	rm -f "${workdir}/qmp.sock"
 
-	[ -n "${state_dir}" ] && say "State directory: ${BOLD}${state_dir}${RESET}"
-	net_user="user,hostfwd=tcp::${ssh_port}-:22${extra_fwds}"
+	if [ "${new_vm}" -eq 1 ]; then
+		say "New VM ${BOLD}${name}${RESET}: its disk, UEFI variables and TPM state are kept in ${BOLD}$(cd "${workdir}" && pwd -P)${RESET}"
+		if [ "${in_place}" -eq 1 ]; then
+			say "${DIM}--in-place: the guest writes ${image}${RESET}"
+		else
+			say "${DIM}${image} is left as it is (the guest writes an overlay); start over with: idiot vm reset ${name}${RESET}"
+		fi
+	fi
+	if [ -n "${prev_port}" ] && [ "${prev_port}" != "${ssh_port}" ]; then
+		say "VM ${BOLD}${name}${RESET}: ssh port ${BOLD}${ssh_port}${RESET} ${DIM}(was ${prev_port})${RESET}"
+	else
+		say "VM ${BOLD}${name}${RESET}: ssh port ${BOLD}${ssh_port}${RESET}"
+	fi
 
 	# shellcheck disable=SC2086
 	${qemu_env} "${qemu_path}" \
@@ -490,16 +629,21 @@ do_run() {
 		${machine_flags} \
 		${kvm_flags} \
 		-net nic,model=virtio \
-		-net "${net_user}" \
+		-net "user,${fwds}" \
 		${fw_flags} \
-		-drive "file=${image},if=none,format=raw,id=disk1" \
+		-drive "${disk_flags}" \
 		-device virtio-blk-pci,drive=disk1,bootindex=1 \
 		${tpm_flags} \
+		-chardev "stdio,id=con0,mux=on,logfile=${workdir}/serial.log" \
+		-serial chardev:con0 \
+		-mon chardev=con0,mode=readline \
 		${display_flags} \
+		-pidfile "${workdir}/qemu.pid" \
+		-qmp "unix:${workdir}/qmp.sock,server=on,wait=off" \
 		"$@" >&2
 	qemu_rc=$?
 
-	[ -z "${state_dir}" ] || say "State saved to ${BOLD}${state_dir}${RESET}"
+	say "${DIM}VM ${name} stopped; its state is kept (boot again: idiot vm --name ${name})${RESET}"
 	exit "${qemu_rc}"
 }
 
