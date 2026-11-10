@@ -30,11 +30,11 @@
 ## 4. Targeting a named VM from ssh, scp, vars, tpm
 
 - [x] 4.1 `do_ssh`/`do_scp`: `--name`, else `vm_resolve`; port from `vm.conf`; `--port` bypasses resolution; verify the "Choosing a VM" scenarios (one running on 8023; two running with `</dev/null` fails listing both; picker with two in a terminal; `scp --name a ./pc.snap vm:`)
-- [ ] 4.2 `do_vars [--name <n> | <state-dir>]` and `do_tpm [--name <n> | <state-dir>]` (tpm refuses a running VM and requires a name or dir); verify every "Saved UEFI variables" scenario still holds plus "Named VM", and `idiot vm tpm --name a` on a stopped VM serves `tpm2_pcrread`
-  - Done except `tpm2_pcrread` against `vm tpm --name a` (tpm2-tools not installed here; the inspect swtpm starts on the stopped VM, and a running VM is refused). The fzf picker with two running VMs on a terminal is not checked either.
+- [x] 4.2 `do_vars [--name <n> | <state-dir>]` and `do_tpm [--name <n> | <state-dir>]` (tpm refuses a running VM and requires a name or dir); verify every "Saved UEFI variables" scenario still holds plus "Named VM", and `idiot vm tpm --name a` on a stopped VM serves `tpm2_pcrread`
+  - bare-host (git78.cfce597, all components) reads PCR 7 with the bundled `tpm2_pcrread` from `vm tpm --name` on the stopped UC24 VM. That check found a bug from before this change: `vm tpm` gave swtpm no data socket, so the TCTI its help printed never connected. Fixed in cfce597. Picker: with two VMs on a pty, choosing `b` in fzf connected ssh to 8023.
 - [x] 4.3 Help and README; run `make check` and commit (`feat(vm): ssh, scp, vars and tpm target a named VM`)
 
 ## 5. Integration
 
 - [ ] 5.1 Walk every scenario in the change's vm spec once more on the snap (host side, components only, in the bare LXD container) and from a source checkout, and run `make check`
-  - Source checkout: every scenario walked (UC24 and firmware-only guests), `make check` passes. Snap: only what `bare-host.d/vm` covers (boot, overlay, serial log, TPM). Still open: the rest of the scenarios on the snap, the fzf picker on a terminal, and tpm2_pcrread against `vm tpm --name`.
+  - Source checkout: every scenario walked (UC24 and firmware-only guests), `make check` passes. Snap, in the bare LXD container: `bare-host.d/vm` covers boot, secure boot, TPM, overlay, pristine image, serial log and `vm tpm`, 156/156 passed. Not run under the snap: list/stop/reset/delete and ssh selection (same shell code, host side).
