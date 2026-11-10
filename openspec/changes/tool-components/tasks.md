@@ -29,4 +29,4 @@
 
 ## 5. Integration
 
-- [ ] 5.1 Walk every scenario in the change's bundled-tools, installation and vm specs once more on the final build (bare container, plus Lauren's host for "Host copy preferred"), and run `make check`
+- [x] 5.1 Walk every scenario in the change's bundled-tools, installation and vm specs once more on the final build (bare container, plus Lauren's host for "Host copy preferred"), and run `make check`

@@ -20,7 +20,7 @@ one a command needs, the command SHALL fail naming that component.
 - **THEN** `idiot auth list` still shows it
 
 #### Scenario: Inspection tools without the component
-- **WHEN** the snap is installed without `core` and the user runs `idiot run debugfs -V`
+- **WHEN** the snap is installed without `core`, the host has no debugfs, and the user runs `idiot run debugfs -V`
 - **THEN** the command fails telling the user to install `idiot+core`
 
 #### Scenario: TPM tools without the component
