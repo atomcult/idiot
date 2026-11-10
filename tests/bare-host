@@ -9,6 +9,7 @@
 #   data     tools that need data files, helpers or wrappers really work
 #   run      idiot run --list/--sudo/--shell, missing-component errors
 #            (as an unprivileged user)
+#   profile  profiles and auth bind run confined, as that user
 #   refresh  a refresh under a shell set up before it
 #   vm       (with --boot) an Ubuntu Core image boots with secure boot and
 #            a TPM from the vm and tpm components
@@ -152,6 +153,10 @@ on chmod -R a+rX /tmp/bare-host.d
 lxc exec "${target}" --user "${uid}" --group "${uid}" --cwd /home/tester \
 	--env HOME=/home/tester --env "XDG_RUNTIME_DIR=/run/user/${uid}" -- \
 	bash /tmp/bare-host.d/run | tee -a "${log}"
+say "profile (as tester)"
+lxc exec "${target}" --user "${uid}" --group "${uid}" --cwd /home/tester \
+	--env HOME=/home/tester --env "XDG_RUNTIME_DIR=/run/user/${uid}" -- \
+	bash /tmp/bare-host.d/profile | tee -a "${log}"
 say "refresh"
 # shellcheck disable=SC2086
 on bash "${d}/refresh" ${files} | tee -a "${log}"

@@ -1,0 +1,77 @@
+#!/bin/bash
+# tests/bare-host.d/profile - profiles and store pairing run confined, as a user
+#
+# Run as an unprivileged user (the runner sets one up). Checks that the
+# profile commands and auth bind never hand off to the host, that their
+# state lands in the snap's data dir, that a profile switch takes effect,
+# and that a pairing written host-side is seen by a confined command.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+data="${HOME}/snap/idiot/common"
+rundir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/snap.idiot"
+[ -d "${rundir}" ] || mkdir -m 700 "${rundir}"
+
+# Run the snap command with an eval file this check keeps: fail when it
+# queued a host handoff, else source what it queued. Sets out (stderr) and
+# rc (exit status).
+confined() {
+	_ef="$(mktemp -p "${rundir}" idiot.XXXXXX)"
+	rc=0
+	out="$(IDIOT_EVAL_FILE="${_ef}" /snap/bin/idiot "$@" 2>&1)" || rc=$?
+	if grep -q '/lib/idiot/idiot' "${_ef}"; then
+		fail "profile: idiot $* handed off to the host"
+	else
+		ok "profile: idiot $* ran confined"
+	fi
+	# shellcheck disable=SC1090
+	. "${_ef}"
+	rm -f "${_ef}"
+}
+
+# credentials and stores to point at (import is a host command: the wrapper)
+printf 'FAKE-CI-CRED\n' >/tmp/ci.cred
+idiot auth import ci /tmp/ci.cred 2>/dev/null
+idiot store add staging abc123 2>/dev/null
+idiot store add prod xyz789 2>/dev/null
+idiot auth login ci 2>/dev/null
+idiot store use staging 2>/dev/null
+idiot arch set arm64 2>/dev/null
+
+confined profile save sc
+[ "${rc}" -eq 0 ] && [ -f "${data}/profiles/sc" ] &&
+	ok "profile: saved in ${data}/profiles" || fail "profile save: rc ${rc}: ${out}"
+grep -q FAKE-CI-CRED "${data}/profiles/sc" 2>/dev/null &&
+	fail "profile: credential contents in the profile" || ok "profile: holds names only"
+
+idiot auth logout 2>/dev/null
+idiot store unset 2>/dev/null
+idiot arch unset 2>/dev/null
+confined profile use sc
+[ "${IDIOT_ACTIVE_CRED:-}" = ci ] && [ "${UBUNTU_STORE_ID:-}" = abc123 ] &&
+	[ "${UBUNTU_STORE_ARCH:-}" = arm64 ] && [ "${IDIOT_ACTIVE_PROFILE:-}" = sc ] &&
+	ok "profile use: switched all settings" ||
+	fail "profile use: cred=${IDIOT_ACTIVE_CRED:-} store=${UBUNTU_STORE_ID:-} arch=${UBUNTU_STORE_ARCH:-}: ${out}"
+
+confined profile list
+printf '%s' "${out}" | grep -q 'sc .*auth ci' && ok "profile list" || fail "profile list: ${out}"
+idiot arch set amd64 2>/dev/null
+confined profile status
+printf '%s' "${out}" | grep -q 'arm64 in the profile, amd64 now' &&
+	ok "profile status: drift shown" || fail "profile status: ${out}"
+
+# a pairing as host-side `auth add` writes it, seen by the confined login
+printf 'store: abc123\n' >"${data}/auth/.store.ci"
+idiot store use prod 2>/dev/null
+confined auth login ci
+printf '%s' "${out}" | grep -q "belong to store 'staging'" &&
+	ok "auth login: confined command sees a host-written pairing" ||
+	fail "auth login: no mismatch warning: ${out}"
+
+confined auth bind
+grep -qx 'store: xyz789' "${data}/auth/.store.ci" &&
+	ok "auth bind: re-paired with prod" || fail "auth bind: $(cat "${data}/auth/.store.ci")"
+
+confined profile remove sc
+[ ! -f "${data}/profiles/sc" ] && ok "profile remove" || fail "profile remove: ${out}"
