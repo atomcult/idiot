@@ -24,12 +24,13 @@ context: |
 
   Conventions: CLAUDE.md (layout, output discipline, helpers) and STYLE.md
   (naming, formatting, error phrasing) are authoritative; read them before
-  designing or implementing. `make check` (shfmt + shellcheck) must pass.
-  Conventional Commits, enforced by .githooks/commit-msg.
+  designing or implementing. `make check` (shfmt + shellcheck, cargo fmt +
+  clippy) must pass. Conventional Commits, enforced by .githooks/commit-msg.
 
-  Related prototype: ~/work/idiot-v2 is a Rust implementation of the Snap
-  Store macaroon login (login.ubuntu.com discharge) and whoami, intended to
-  replace idiot's dependency on `snapcraft export-login`/`snapcraft whoami`.
+  The one non-shell part is tools/idiot-store, a small Rust Snap Store client
+  (macaroon login with the login.ubuntu.com discharge, whoami) that replaced
+  `snapcraft export-login`/`snapcraft whoami`. The snap's optional components
+  bundle host tools (snap/local/component-build).
 
 rules:
   proposal:

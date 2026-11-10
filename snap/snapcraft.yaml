@@ -1,13 +1,35 @@
 name: idiot
 base: core24
 version: git
-summary: Shell environment manager for Ubuntu Core / IoT snap development
+summary: Shell environment manager for Ubuntu Core and snap development
 description: |
-  idiot is a CLI for Ubuntu Core and snap store development workflows.
-  It manages store credentials, dedicated snap stores, and target
-  architectures; inspects disk images and snap packages; launches QEMU
-  VMs; manages model assertions; and provides process checklists and
-  to-do lists for common IoT development tasks.
+  idiot (Interactive Devtools for IoT) switches the things snap and Ubuntu
+  Core development juggles, right in your current shell, and wraps the
+  day-to-day tasks around them.
+
+  - Store credentials: log in to the Snap Store without snapcraft, with
+    credentials scoped by permission, snap, channel and expiry; switch
+    between them and check what each one can do.
+  - Dedicated stores, target architecture and Launchpad identity, one
+    command each.
+  - Inspect Ubuntu Core disk images, snap files and recent snap changes.
+  - Boot images under QEMU for amd64, arm64, armhf and riscv64, with UEFI
+    secure boot and an emulated TPM, and inspect their saved TPM state and
+    UEFI variables.
+  - Pick model assertions from model repositories; clone Ubuntu kernels
+    and example repositories; clean up snapcraft build containers and
+    unasserted snaps.
+
+  Optional components bundle the tools those tasks need, and many that
+  Ubuntu Core lacks, so they work on a bare host or a Core device:
+  core (disk images), vm (qemu and UEFI firmware), tpm, network, hardware,
+  boot and debug. Install any of them with `snap install idiot+<name>`, and
+  run a bundled tool with `idiot run <tool>`.
+
+  Add the shell integration with `eval "$(idiot init bash)"` (or zsh;
+  `idiot init fish | source`). The snap is strictly confined and needs no
+  interfaces: commands that use host tools run in your shell, from the
+  snap's files, without changing your PATH.
 
 grade: devel
 # Strict with no plugs: confined, idiot only touches its own state and the
