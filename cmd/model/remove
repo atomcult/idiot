@@ -21,6 +21,7 @@ main() {
 			"no user model repos configured")" || exit 0
 	fi
 
+	validate_model_repo_name "${name}"
 	[ -f "${IDIOT_DATA_DIR}/models/${name}" ] && die "cannot remove built-in repo '${name}'"
 	[ -f "${IDIOT_MODEL_REPOS_DIR}/${name}" ] || die "unknown user model repo '${name}'"
 

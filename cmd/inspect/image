@@ -263,7 +263,9 @@ main() {
 			exit 0
 			;;
 		--extract-state)
-			if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+			# the next argument is the file only if the image still follows
+			# it: `--extract-state disk.img` saves to the default
+			if [ "$#" -ge 3 ] && [ "${2#-}" = "${2}" ]; then
 				extract_state="${2}"
 				shift
 			else
@@ -273,6 +275,7 @@ main() {
 			;;
 		--extract-state=*)
 			extract_state="${1#--extract-state=}"
+			[ -n "${extract_state}" ] || die "--extract-state= needs a file name"
 			shift
 			;;
 		--*)
@@ -308,7 +311,11 @@ main() {
 	echo >&2
 	print_seeded_snaps
 
-	[ -s "${tmpdir}/state.json" ] || return 0
+	if [ ! -s "${tmpdir}/state.json" ]; then
+		[ -z "${extract_state}" ] ||
+			die "no snapd state to save: the image hasn't booted yet, or its ubuntu-data is encrypted"
+		return 0
+	fi
 
 	echo >&2
 	print_installed_snaps

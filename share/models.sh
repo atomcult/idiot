@@ -40,6 +40,17 @@ model_list_section() {
     [ "${_mls_found}" -eq 1 ] || say "  ${DIM}(none)${RESET}"
 }
 
+# Die unless $1 is a repository name: letters, digits, - and _. Names
+# become file and directory names in the registries, so anything else
+# (a path, ..) could read or delete files outside them.
+validate_model_repo_name() {
+    case "${1}" in
+    '' | *[!A-Za-z0-9_-]*)
+        die "invalid repo name '${1}': use only letters, digits, hyphens, underscores"
+        ;;
+    esac
+}
+
 # Die unless at least one model repo has been cloned.
 require_models_repo() {
     if [ -d "${IDIOT_MODELS_DIR}" ]; then

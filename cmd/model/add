@@ -17,9 +17,7 @@ main() {
 
 	[ -n "${name}" ] && [ -n "${url}" ] || die "usage: idiot model add <name> <url>"
 
-	case "${name}" in
-	*[!A-Za-z0-9_-]*) die "invalid repo name '${name}': use only letters, digits, hyphens, underscores" ;;
-	esac
+	validate_model_repo_name "${name}"
 
 	[ -f "${IDIOT_DATA_DIR}/models/${name}" ] && die "cannot shadow built-in repo '${name}'"
 

@@ -42,6 +42,7 @@ main() {
 
 	if [ -n "${1:-}" ]; then
 		_target="${1}"
+		validate_model_repo_name "${_target}"
 		_url="$(resolve_model_repo_url "${_target}")" || exit 1
 		_update_repo "${_target}" "${_url}" ||
 			die "failed to update '${_target}'"
