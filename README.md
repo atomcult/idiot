@@ -96,6 +96,25 @@ The `iot` shorthand is also available.
 
 ---
 
+## Credentials and stores
+
+A credential belongs to the store you were using when you added it:
+`idiot auth add ci` with `staging` active pairs `ci` with `staging`. From
+then on `idiot status`, `auth login`, `store use` and `store unset` warn when
+the active credential and store don't match, and say how to fix it:
+
+```
+warning: credentials 'ci' belong to store 'staging', but store 'prod' is active
+         switch: idiot store use staging · re-pair: idiot auth bind ci
+```
+
+The warning never blocks anything. `idiot auth bind [<name>]` re-pairs a
+credential with the active store; imported credentials, and ones saved
+before idiot recorded pairings, have none and are never warned about until
+you bind them.
+
+---
+
 ## How it works
 
 The shell wrapper hands each `idiot` command a private temp file; commands

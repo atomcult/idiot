@@ -33,7 +33,7 @@ main() {
 	cred_file="${IDIOT_AUTH_DIR}/${name}"
 
 	rm "${cred_file}"
-	rm -f "$(whoami_cache_path "${name}")"
+	rm -f "$(whoami_cache_path "${name}")" "$(cred_store_path "${name}")"
 	say "Removed credentials '${BOLD}${name}${RESET}'"
 }
 main "$@"

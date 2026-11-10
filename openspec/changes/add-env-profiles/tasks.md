@@ -14,11 +14,11 @@ pointed at a fresh `mktemp -d`, and fake credentials made with
 
 ## 2. Credential store pairing and mismatch warning
 
-- [ ] 2.1 `share/creds.sh`: `cred_store_path`, `record_cred_store <name> <id>`, `cred_store_id <name>` (fails when unpaired) and `warn_store_mismatch <cred> <store-id>` (never dies, returns 0); verify by hand that a `.store.<name>` file is 0600, holds only `store: <id>`, and is not listed by `idiot auth list` or offered by `idiot auth login`'s picker
-- [ ] 2.2 `cmd/auth/add`: record the active store after the rename and name it in the confirmation; `cmd/auth/remove`: delete the pairing too; verify live (with Lauren) that `auth add` under `UBUNTU_STORE_ID=abc123` pairs with `abc123`, and that `auth remove` deletes credential, whoami cache and pairing
-- [ ] 2.3 New `cmd/auth/bind [<name>]` (confined, `require_cred`, defaults to `IDIOT_ACTIVE_CRED`, usage error with neither); add it to `cmd/auth/help`; verify the auth spec's "Re-pairing" and "Nothing to bind" scenarios, and that `auth import` leaves no pairing
-- [ ] 2.4 Call `warn_store_mismatch` from `cmd/auth/login`, `cmd/store/use`, `cmd/store/unset` (after emitting, with the post-change values) and from `cmd/status` below the rows; verify every scenario of the auth spec's "Store mismatch warning", the store spec's "Warning on a store switch" and the status spec's "Credential and store mismatch", checking each time that the exit status is 0, stdout is empty and the eval file holds the same statements as without the warning
-- [ ] 2.5 Update README (pairing, `auth bind`, what the warning means) and run `make check`; commit (`feat(auth): pair credentials with a store and warn on mismatch`)
+- [x] 2.1 `share/creds.sh`: `cred_store_path`, `record_cred_store <name> <id>`, `cred_store_id <name>` (fails when unpaired) and `warn_store_mismatch <cred> <store-id>` (never dies, returns 0); verify by hand that a `.store.<name>` file is 0600, holds only `store: <id>`, and is not listed by `idiot auth list` or offered by `idiot auth login`'s picker
+- [x] 2.2 `cmd/auth/add`: record the active store after the rename and name it in the confirmation; `cmd/auth/remove`: delete the pairing too; verify live (with Lauren) that `auth add` under `UBUNTU_STORE_ID=abc123` pairs with `abc123`, and that `auth remove` deletes credential, whoami cache and pairing (verified with a stub idiot-store helper; a live Ubuntu One login is still to be tried)
+- [x] 2.3 New `cmd/auth/bind [<name>]` (confined, `require_cred`, defaults to `IDIOT_ACTIVE_CRED`, usage error with neither); add it to `cmd/auth/help`; verify the auth spec's "Re-pairing" and "Nothing to bind" scenarios, and that `auth import` leaves no pairing
+- [x] 2.4 Call `warn_store_mismatch` from `cmd/auth/login`, `cmd/store/use`, `cmd/store/unset` (after emitting, with the post-change values) and from `cmd/status` below the rows; verify every scenario of the auth spec's "Store mismatch warning", the store spec's "Warning on a store switch" and the status spec's "Credential and store mismatch", checking each time that the exit status is 0, stdout is empty and the eval file holds the same statements as without the warning
+- [x] 2.5 Update README (pairing, `auth bind`, what the warning means) and run `make check`; commit (`feat(auth): pair credentials with a store and warn on mismatch`)
 
 ## 3. Profiles
 

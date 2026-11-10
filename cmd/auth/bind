@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+# cmd/auth/bind - pair a saved credential with the active store
+# Usage: idiot auth bind [<name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
+include stores.sh
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot auth bind [<name>]"
+		echo >&2
+		say "Records the active store as the one credential <name> (default: the"
+		say "active credential) belongs to, so idiot warns when they don't match."
+		exit 0
+		;;
+	esac
+	name="${1:-${IDIOT_ACTIVE_CRED:-}}"
+	[ -n "${name}" ] ||
+		die "usage: idiot auth bind [<name>] — or activate a credential first: idiot auth login"
+	validate_cred_name "${name}"
+	require_cred "${name}"
+
+	record_cred_store "${name}" "${UBUNTU_STORE_ID:-}"
+	say "Paired credentials '${BOLD}${name}${RESET}' with $(store_label "${UBUNTU_STORE_ID:-}")"
+}
+main "$@"

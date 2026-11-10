@@ -10,6 +10,7 @@
 
 . "$(dirname "${0}")/../../share/common.sh"
 include creds.sh
+include stores.sh
 
 usage() {
 	help_heading "Usage:" "idiot auth add <name> [options]"
@@ -132,6 +133,7 @@ main() {
 	[ "${rc}" -eq 0 ] || exit "${rc}"
 
 	mv "${tmpfile}" "${dest}"
-	say "Added credentials '${BOLD}${name}${RESET}' ${DIM}(expires ${expires%%T*})${RESET}"
+	record_cred_store "${name}" "${UBUNTU_STORE_ID:-}"
+	say "Added credentials '${BOLD}${name}${RESET}' for $(store_label "${UBUNTU_STORE_ID:-}") ${DIM}(expires ${expires%%T*})${RESET}"
 }
 main "$@"

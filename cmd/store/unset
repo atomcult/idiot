@@ -4,6 +4,7 @@
 # Outputs: eval-able unset statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
 include stores.sh
 
 main() {
@@ -15,5 +16,6 @@ main() {
 	esac
 	require_wrapper
 	emit_store_unset
+	warn_store_mismatch "${IDIOT_ACTIVE_CRED:-}" ''
 }
 main "$@"

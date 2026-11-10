@@ -4,6 +4,7 @@
 # Outputs: eval-able export statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
 include stores.sh
 include fzf.sh
 
@@ -26,5 +27,6 @@ main() {
 
 	mkdir -p "${IDIOT_STORES_DIR}"
 	emit_store_use "${name}"
+	warn_store_mismatch "${IDIOT_ACTIVE_CRED:-}" "$(store_id "${name}")"
 }
 main "$@"

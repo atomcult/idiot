@@ -43,6 +43,18 @@ store_name_for_id() {
     return 1
 }
 
+# Print store ID $1 for messages: the saved store's name where one matches,
+# else the ID; "the global store" when $1 is empty.
+store_label() {
+    if [ -z "${1}" ]; then
+        printf 'the global store'
+    elif _sl="$(store_name_for_id "${1}")"; then
+        printf "store '%s%s%s'" "${BOLD}" "${_sl}" "${RESET}"
+    else
+        printf 'store %s' "${1}"
+    fi
+}
+
 # Queue the export that activates saved store $1; die if it doesn't exist.
 emit_store_use() {
     _esu="$(store_id "${1}")" || exit 1

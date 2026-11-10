@@ -5,6 +5,7 @@
 
 . "$(dirname "${0}")/../../share/common.sh"
 include creds.sh
+include stores.sh
 include fzf.sh
 
 main() {
@@ -32,5 +33,6 @@ main() {
 	}
 
 	emit_cred_login "${name}"
+	warn_store_mismatch "${name}" "${UBUNTU_STORE_ID:-}"
 }
 main "$@"

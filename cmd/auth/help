@@ -15,6 +15,7 @@ main() {
 	help_command "remove" "Remove a saved credential"
 	help_command "list" "List saved credentials"
 	help_command "import" "Import a credential from a file"
+	help_command "bind" "Pair a credential with the active store"
 	help_command "export" "Output a credential"
 	echo >&2
 	help_heading "Environment:"

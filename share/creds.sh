@@ -49,6 +49,47 @@ emit_cred_logout() {
     emit_unset IDIOT_ACTIVE_CRED
 }
 
+# Print the path of the record of which store credential $1 belongs to.
+# Hidden (credential names can't start with '.'), so `auth list` and the
+# pickers skip it; it holds a store ID, never credential contents.
+cred_store_path() {
+    printf '%s/.store.%s' "${IDIOT_AUTH_DIR}" "${1}"
+}
+
+# Record that credential $1 belongs to store ID $2 (empty: the global store).
+record_cred_store() {
+    ensure_auth_dir
+    printf 'store: %s\n' "${2}" >"$(cred_store_path "${1}")"
+}
+
+# Print the store ID credential $1 belongs to (empty: global); fail when it
+# has no recorded store.
+cred_store_id() {
+    _csi="$(cred_store_path "${1}")"
+    [ -f "${_csi}" ] || return 1
+    sed -n 's/^store:[[:space:]]*//p' "${_csi}"
+}
+
+# Warn on stderr when credential $1 belongs to a store other than store ID
+# $2 (empty: global), the store active once the caller's change is made.
+# Silent without a credential name or a recorded store; never fails, never
+# dies, so it can't change a command's outcome. Callers include stores.sh.
+warn_store_mismatch() {
+    [ -n "${1}" ] || return 0
+    _wsm_own="$(cred_store_id "${1}")" || return 0
+    [ "${_wsm_own}" != "${2}" ] || return 0
+    if [ -z "${_wsm_own}" ]; then
+        _wsm_fix='idiot store unset'
+    elif _wsm_name="$(store_name_for_id "${_wsm_own}")"; then
+        _wsm_fix="idiot store use ${_wsm_name}"
+    else
+        _wsm_fix="idiot store add <name> ${_wsm_own}"
+    fi
+    say "${YELLOW}warning:${RESET} credentials '${BOLD}${1}${RESET}' belong to $(store_label "${_wsm_own}"), but $(store_label "${2}") is active"
+    say "         ${DIM}switch: ${_wsm_fix} · re-pair: idiot auth bind ${1}${RESET}"
+    return 0
+}
+
 # Print the path to the whoami cache file for credential $1.
 whoami_cache_path() {
     printf '%s/whoami/%s' "${IDIOT_CACHE_DIR}" "${1}"

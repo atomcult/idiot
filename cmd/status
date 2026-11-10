@@ -139,6 +139,8 @@ main() {
 		_row "lp" "${DIM}not set${RESET}"
 	fi
 
+	warn_store_mismatch "${IDIOT_ACTIVE_CRED:-}" "${UBUNTU_STORE_ID:-}"
+
 	# XP
 	echo >&2
 	_xp_bar
