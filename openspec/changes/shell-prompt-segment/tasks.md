@@ -9,7 +9,7 @@
 
 - [x] 2.1 Add `cmd/prompt` (header, `main()`, help with the fields and options): build the segment from the fields in `--format` (default `store,arch,cred`; also `lp`, `profile`), join non-empty ones with `--separator` (default `·`), print with a newline only when non-empty; unknown field → `die` naming it and the known fields; verify every scenario in the prompt spec's "Prompt segment" and "Segment format" requirements, including `idiot prompt | wc -c` printing `0` with nothing set
 - [x] 2.2 `idiot`: dispatch `prompt` next to `status` (before the `IDIOT_SHELL` check, no `_increment_count`) and list it in the top-level help under Shell; verify `env -u IDIOT_SHELL ./idiot prompt` works and that 100 calls leave `invoke-count` unchanged
-- [ ] 2.3 Under the snap (`snapcraft pack`, `snap install --dangerous`), verify `idiot prompt` runs confined (no handoff line in the eval file) and prints the same as from source
+- [x] 2.3 Under the snap (`snapcraft pack`, `snap install --dangerous`), verify `idiot prompt` runs confined (no handoff line in the eval file) and prints the same as from source
 - [x] 2.4 STYLE.md: add `prompt` to the commands that work without shell initialisation; run `make check` and commit (`feat(prompt): idiot prompt segment`)
 
 ## 3. `IDIOT_PROMPT` in the wrapper
@@ -22,4 +22,18 @@
 
 ## 4. Integration
 
-- [ ] 4.1 Walk every scenario in the change's prompt, store, shell-integration and status specs once more from a source install and from the snap, then run `make check`
+- [x] 4.1 Walk every scenario in the change's prompt, store, shell-integration and status specs once more from a source install and from the snap, then run `make check`
+
+## Notes
+
+- add-env-profiles had landed, so 1.1 went into `emit_store_use` /
+  `emit_store_unset` in `share/stores.sh` (also used by `profile use`).
+- 2.3 and the snap half of 4.1 ran in the bare-host container
+  (`tests/bare-host.d/prompt`, 72/72) instead of `snap install --dangerous`
+  on the development machine, which has its own idiot snap installed.
+- zsh isn't installed on the development machine: the zsh checks used
+  zsh 5.9 unpacked from the Ubuntu deb into a scratch directory.
+- 3.2's matrix (2 store ids × 2 names × 2 arches × 4 credential states × 3
+  shells) gave 96/96; 3.3: ten empty prompts start no more processes than
+  none.
+- An empty field (`--format store,,arch`) is an unknown-field error.
