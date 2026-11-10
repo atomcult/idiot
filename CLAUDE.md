@@ -85,7 +85,7 @@ cmd/             # one file per leaf command; dirs for subcommand groups
 share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
                  #   dispatch_subcmd, tool/tool_path/snap_app, git(), shell_quote,
-                 #   require_wrapper, emit_export, emit_unset
+                 #   require_wrapper, emit_export, emit_unset, stdout_colors
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu(), STORE_ARCHES,
                  #   is_store_arch
   clean.sh       # clean_list_*/clean_remove_*, clean_show, clean_confirm
@@ -200,6 +200,7 @@ shell_quote "${val}"            # POSIX single-quote escape for eval-safe output
 require_wrapper                 # die unless IDIOT_EVAL_FILE is usable
 emit_export VARNAME "${val}"    # queue a quoted export in the eval file
 emit_unset VARNAME              # queue unset (bash/zsh) or set --erase (fish)
+stdout_colors                   # set OUT_* colors for stdout (-t 1, NO_COLOR)
 snap_app cmd [args]             # run a bundled tool, else the host's (idiot run)
 snap_app_path cmd               # print the path snap_app would run, or die
 emit_handoff word...            # queue a host-side run of idiot <word...>

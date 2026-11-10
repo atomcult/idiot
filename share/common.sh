@@ -78,6 +78,32 @@ else
     RESET=''
 fi
 
+# Set OUT_BOLD, OUT_DIM, OUT_RED, OUT_GREEN, OUT_YELLOW, OUT_CYAN and
+# OUT_RESET for coloring stdout: escapes only when stdout is a terminal and
+# NO_COLOR is unset. FORCE_COLOR doesn't apply: it carries stderr's
+# terminal across the snap handoff, and a handed-off command's stdout is
+# the user's own, which -t 1 sees.
+# shellcheck disable=SC2034
+stdout_colors() {
+    if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+        OUT_BOLD="$(printf '\033[1m')"
+        OUT_DIM="$(printf '\033[2m')"
+        OUT_RED="$(printf '\033[31m')"
+        OUT_GREEN="$(printf '\033[32m')"
+        OUT_YELLOW="$(printf '\033[33m')"
+        OUT_CYAN="$(printf '\033[36m')"
+        OUT_RESET="$(printf '\033[0m')"
+    else
+        OUT_BOLD=''
+        OUT_DIM=''
+        OUT_RED=''
+        OUT_GREEN=''
+        OUT_YELLOW=''
+        OUT_CYAN=''
+        OUT_RESET=''
+    fi
+}
+
 # Resolve IDIOT_LOGO from invoke count.
 _idiot_count=0
 _idiot_count_file="${IDIOT_CACHE_DIR}/invoke-count"

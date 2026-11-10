@@ -9,8 +9,8 @@
 
 ## 2. stdout colors (`feat(common): add stdout_colors`)
 
-- [ ] 2.1 `share/common.sh`: `stdout_colors` setting `OUT_*` from `[ -t 1 ]` and `NO_COLOR` only (not `FORCE_COLOR`), documented in the CLAUDE.md helper list; skip this group if `inspect-assertion` already added it; verify `sh -c '. share/common.sh; stdout_colors; printf %s "$OUT_RED"' | od -c` is empty and non-empty when run on a terminal
-- [ ] 2.2 Run `make check` and commit
+- [x] 2.1 `share/common.sh`: `stdout_colors` setting `OUT_*` from `[ -t 1 ]` and `NO_COLOR` only (not `FORCE_COLOR`), documented in the CLAUDE.md helper list; skip this group if `inspect-assertion` already added it; verify `sh -c '. share/common.sh; stdout_colors; printf %s "$OUT_RED"' | od -c` is empty and non-empty when run on a terminal
+- [x] 2.2 Run `make check` and commit
 
 ## 3. `idiot inspect diff` (`feat(inspect): compare two Core images`)
 
