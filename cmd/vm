@@ -165,13 +165,7 @@ do_ssh() {
 	lp_user="$(require_lp_user)" || exit 1
 	_vm_port
 
-	exec ssh \
-		-p "${port}" \
-		-l "${lp_user}" \
-		-o StrictHostKeyChecking=no \
-		-o UserKnownHostsFile=/dev/null \
-		-o LogLevel=ERROR \
-		localhost "$@" >&2
+	vm_ssh_raw "${port}" "${lp_user}" "$@" >&2
 }
 
 do_scp() {
@@ -230,13 +224,7 @@ do_scp() {
 	done
 	shift "${_orig}"
 
-	exec scp \
-		-P "${port}" \
-		-o StrictHostKeyChecking=no \
-		-o UserKnownHostsFile=/dev/null \
-		-o LogLevel=ERROR \
-		-o "User=${lp_user}" \
-		"$@" >&2
+	vm_scp "${port}" "${lp_user}" "$@" >&2
 }
 
 # Sets state_dir and vm_name from vars/tpm arguments $1 $2: --name <name>

@@ -193,3 +193,40 @@ s.recv(4)
     fi
     rm -f "${_vss_pidf}"
 }
+
+# ssh options for every connection to a VM. Host keys aren't checked: a
+# VM's host key changes on every reset. VM_SSH_EXTRA adds options (no
+# spaces inside one), e.g. '-o BatchMode=yes' or '-t'.
+VM_SSH_OPTS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR'
+
+# Run ssh to the VM on host port $1 as user $2, passing the remaining
+# arguments to ssh as they are (as `idiot vm ssh` does).
+vm_ssh_raw() {
+    _vsr_port="${1}"
+    _vsr_user="${2}"
+    shift 2
+    # shellcheck disable=SC2086 # option lists are words without spaces
+    ssh -p "${_vsr_port}" -l "${_vsr_user}" ${VM_SSH_OPTS} ${VM_SSH_EXTRA:-} localhost "$@"
+}
+
+# Run a command in the VM on host port $1 as user $2: each remaining
+# argument reaches the guest as one word, quoted for its shell.
+vm_ssh() {
+    _vs_port="${1}"
+    _vs_user="${2}"
+    shift 2
+    _vs_cmd=''
+    for _vs_word in "$@"; do
+        _vs_cmd="${_vs_cmd:+${_vs_cmd} }$(shell_quote "${_vs_word}")"
+    done
+    vm_ssh_raw "${_vs_port}" "${_vs_user}" "${_vs_cmd}"
+}
+
+# Run scp with the VM on host port $1 as user $2 (the guest is localhost:).
+vm_scp() {
+    _vsc_port="${1}"
+    _vsc_user="${2}"
+    shift 2
+    # shellcheck disable=SC2086 # option lists are words without spaces
+    scp -P "${_vsc_port}" ${VM_SSH_OPTS} ${VM_SSH_EXTRA:-} -o "User=${_vsc_user}" "$@"
+}

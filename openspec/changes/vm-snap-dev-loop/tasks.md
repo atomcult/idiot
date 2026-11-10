@@ -2,8 +2,8 @@
 
 ## 1. Shared connection helpers
 
-- [ ] 1.1 `share/vm.sh`: `vm_ssh_opts`, `vm_ssh <port> <remote word>...` (each word `shell_quote`d) and `vm_scp <port> <args>...`; switch `do_ssh`/`do_scp` to the shared options with their current argument handling; verify `idiot vm ssh -- uname -a` and `idiot vm scp ./f vm:` behave as before, and `vm_ssh <port> printf '%s\n' 'a b' '$HOME'` prints `a b` and `$HOME` literally
-- [ ] 1.2 Run `make check` and commit (`refactor(vm): share the ssh and scp connection`)
+- [x] 1.1 `share/vm.sh`: `vm_ssh_opts`, `vm_ssh <port> <remote word>...` (each word `shell_quote`d) and `vm_scp <port> <args>...`; switch `do_ssh`/`do_scp` to the shared options with their current argument handling; verify `idiot vm ssh -- uname -a` and `idiot vm scp ./f vm:` behave as before, and `vm_ssh <port> printf '%s\n' 'a b' '$HOME'` prints `a b` and `$HOME` literally
+- [x] 1.2 Run `make check` and commit (`refactor(vm): share the ssh and scp connection`)
 
 ## 2. `idiot vm install`
 
