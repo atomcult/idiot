@@ -128,7 +128,10 @@ $ idiot vm reset gadget             # discard disk, UEFI vars, TPM: freshly flas
 $ idiot vm delete gadget            # forget it (the image is untouched)
 ```
 
-Without a name, `stop` and `console-log` act on the only running VM.
+`idiot vm ssh`, `scp` and `vars` take `--name <name>`; `tpm` takes
+`--name <name>` or a state directory. Without a name, `ssh`, `scp`, `vars`,
+`stop` and `console-log` act on the only running VM (with several, a
+picker on a terminal).
 
 **Changed:** before named VMs, `idiot vm` wrote to the image and threw
 the UEFI variables and TPM state away after each run (unless you gave

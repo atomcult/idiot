@@ -22,16 +22,17 @@
 - [x] 3.1 `do_list`: header + one line per VM (name, image, arch, running/stopped, port) on stdout, "no VMs" on stderr; verify the "Listing VMs" scenarios including a SIGKILLed qemu and `| grep running`
 - [ ] 3.2 `do_stop [--timeout N] [--force] [<name>]`: `system_powerdown`, poll, `quit`, TERM, KILL, then swtpm from `swtpm.pid`; SIGTERM path without python3; verify with Ubuntu Core (clean shutdown, launching terminal returns, no swtpm left) and with a guest stuck in firmware (`--timeout 5`), and with python3 hidden from PATH
   - Done except the Ubuntu Core clean-shutdown run (needs the image). Firmware-only guest: timeout path, --force, stale pid and both kill cases checked. swtpm now gets --terminate, and is stopped over its control socket because AppArmor refuses our signals.
-- [x] 3.3 `do_reset <name>` (refuse running; remove disk.qcow2, fw_vars.fd, tpm2-*, serial logs; `--in-place` says the image can't be reset) and `do_delete [--yes] <name>` (refuse running; confirm on `/dev/tty`; `--state-dir` VMs: remove idiot's files and the dir only if empty, and the symlink); verify "Freshly flashed" (install mode runs again after reset), running refusals, and that delete leaves the image and a `--state-dir` directory's foreign files alone
+- [ ] 3.3 `do_reset <name>` (refuse running; remove disk.qcow2, fw_vars.fd, tpm2-*, serial logs; `--in-place` says the image can't be reset) and `do_delete [--yes] <name>` (refuse running; confirm on `/dev/tty`; `--state-dir` VMs: remove idiot's files and the dir only if empty, and the symlink); verify "Freshly flashed" (install mode runs again after reset), running refusals, and that delete leaves the image and a `--state-dir` directory's foreign files alone
   - "Install mode runs again after reset" still needs an Ubuntu Core boot; the files reset removes were checked.
 - [x] 3.4 `do_console_log [-f] [--previous] [<name>]` (stdout; `-f` is `tail -f --pid`); verify both "Serial console log" scenarios and that `-f` exits when the VM stops
 - [x] 3.5 Help for each subcommand and README; run `make check` and commit (`feat(vm): list, stop, reset, delete and console-log`)
 
 ## 4. Targeting a named VM from ssh, scp, vars, tpm
 
-- [ ] 4.1 `do_ssh`/`do_scp`: `--name`, else `vm_resolve`; port from `vm.conf`; `--port` bypasses resolution; verify the "Choosing a VM" scenarios (one running on 8023; two running with `</dev/null` fails listing both; picker with two in a terminal; `scp --name a ./pc.snap vm:`)
+- [x] 4.1 `do_ssh`/`do_scp`: `--name`, else `vm_resolve`; port from `vm.conf`; `--port` bypasses resolution; verify the "Choosing a VM" scenarios (one running on 8023; two running with `</dev/null` fails listing both; picker with two in a terminal; `scp --name a ./pc.snap vm:`)
 - [ ] 4.2 `do_vars [--name <n> | <state-dir>]` and `do_tpm [--name <n> | <state-dir>]` (tpm refuses a running VM and requires a name or dir); verify every "Saved UEFI variables" scenario still holds plus "Named VM", and `idiot vm tpm --name a` on a stopped VM serves `tpm2_pcrread`
-- [ ] 4.3 Help and README; run `make check` and commit (`feat(vm): ssh, scp, vars and tpm target a named VM`)
+  - Done except `tpm2_pcrread` against `vm tpm --name a` (tpm2-tools not installed here; the inspect swtpm starts on the stopped VM, and a running VM is refused). The fzf picker with two running VMs on a terminal is not checked either.
+- [x] 4.3 Help and README; run `make check` and commit (`feat(vm): ssh, scp, vars and tpm target a named VM`)
 
 ## 5. Integration
 
