@@ -32,4 +32,5 @@ pointed at a fresh `mktemp -d`, and fake credentials made with
 ## 4. Integration under the snap
 
 - [ ] 4.1 Build the snap and install it without optional components; in a shell set up with the snap's `idiot init`, verify `profile save`/`use`/`list`/`status`/`remove` and `auth bind` run without a host handoff (no `/snap/.../lib/idiot/idiot` line in the eval file; `grep -L '# idiot: host' cmd/profile/* cmd/auth/bind` lists them all), that profiles land in `~/snap/idiot/common/profiles`, and that a pairing written by the host-side `auth add` is seen by the confined `auth login` warning
-- [ ] 4.2 Run `openspec validate add-env-profiles` and `make check` once more; commit any fixes (`fix(profile): ...`) or nothing if clean
+  - Done without the snap: none of the new commands has `# idiot: host`, and with `SNAP` set the dispatcher queues no handoff for them (control: `auth import` queues one). Still to do: build and install the snap.
+- [x] 4.2 Run `openspec validate add-env-profiles` and `make check` once more; commit any fixes (`fix(profile): ...`) or nothing if clean
