@@ -99,8 +99,11 @@ _find_qemu() {
 		[ ! -d "${qemu_comp}/${_fq_dir}" ] ||
 			qemu_data_flags="${qemu_data_flags} -L ${qemu_comp}/${_fq_dir}"
 	done
-	for _fq_mod in "${qemu_comp}"/usr/lib/*/qemu; do
-		[ -d "${_fq_mod}" ] && qemu_env="env QEMU_MODULE_DIR=${_fq_mod}"
+	# the modules dir (usr/lib/<triplet>/qemu), not usr/lib/ipxe/qemu's ROMs
+	for _fq_mod in "${qemu_comp}"/usr/lib/*/qemu/accel-*.so; do
+		[ -f "${_fq_mod}" ] || continue
+		qemu_env="env QEMU_MODULE_DIR=${_fq_mod%/*}"
+		break
 	done
 }
 
@@ -482,6 +485,8 @@ do_run() {
 	_build_fw_flags
 	_build_tpm_flags
 
+	[ "${no_gfx}" -eq 1 ] || [ -z "${qemu_comp}" ] ||
+		say "${DIM}The bundled qemu has no display window: the console is here (serial).${RESET}"
 	[ "${no_gfx}" -eq 1 ] &&
 		display_flags='-nographic' ||
 		display_flags='-serial mon:stdio'

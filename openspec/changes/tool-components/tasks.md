@@ -24,8 +24,8 @@
 
 ## 4. `idiot run --sudo` and `--list`
 
-- [ ] 4.1 `cmd/run`: `--sudo <tool> [args]` (sudo of the resolved path) and `--list` (tab-separated name, `installed`/`available`, tools, on stdout; source install: message on stderr, exit 0); `--shell` covers every installed component; update its help; verify in the container: `idiot run --sudo tcpdump -i any -c 1`, `idiot run --list | cut -f1,2` with only some components installed, `idiot run dig nonexistent.invalid; echo $?` passes dig's status through, and `--shell` leaves the parent's `PATH` unchanged
-- [ ] 4.2 README and CLAUDE.md: `run --sudo`/`--list`; run `make check` and commit (`feat(run): --sudo and --list`)
+- [x] 4.1 `cmd/run`: `--sudo <tool> [args]` (sudo of the resolved path) and `--list` (tab-separated name, `installed`/`available`, tools, on stdout; source install: message on stderr, exit 0); `--shell` covers every installed component; update its help; verify in the container: `idiot run --sudo tcpdump -i any -c 1`, `idiot run --list | cut -f1,2` with only some components installed, `idiot run dig nonexistent.invalid; echo $?` passes dig's status through, and `--shell` leaves the parent's `PATH` unchanged
+- [x] 4.2 README and CLAUDE.md: `run --sudo`/`--list`; run `make check` and commit (`feat(run): --sudo and --list`)
 
 ## 5. Integration
 

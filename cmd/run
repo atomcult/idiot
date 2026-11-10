@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/run - run a snap-bundled tool directly
 # idiot: host
-# Usage: idiot run [--shell] [<binary> [args...]]
+# Usage: idiot run [--sudo] <binary> [args...] | --shell | --list
 
 . "$(dirname "${0}")/../share/common.sh"
 
@@ -15,26 +15,76 @@ _snap_shell() {
 	PATH="${_ss_path}${PATH}" exec "${SHELL:-sh}"
 }
 
+# Every component on stdout, tab-separated: name, installed|available, and
+# its tools (space-separated), from the indexes the snap build writes.
+_list_components() {
+	if [ -z "$(snap_root)" ]; then
+		say "Tool components come with the snap (snap install idiot); a source install uses the host's tools."
+		exit 0
+	fi
+	_lc_index="${IDIOT_ROOT}/share/components"
+	_lc_installed=" $(snap_component_dirs | sed 's#.*/##' | tr '\n' ' ') "
+	_lc_names="${IDIOT_COMPONENTS}"
+	for _lc_file in "${_lc_index}"/*; do
+		[ -f "${_lc_file}" ] || continue
+		case " ${_lc_names} " in
+		*" ${_lc_file##*/} "*) ;;
+		*) _lc_names="${_lc_names} ${_lc_file##*/}" ;;
+		esac
+	done
+	for _lc_name in ${_lc_names}; do
+		case "${_lc_installed}" in
+		*" ${_lc_name} "*) _lc_state='installed' ;;
+		*) _lc_state='available' ;;
+		esac
+		_lc_tools=''
+		[ ! -f "${_lc_index}/${_lc_name}" ] ||
+			_lc_tools="$(tr '\n' ' ' <"${_lc_index}/${_lc_name}")"
+		printf '%s\t%s\t%s\n' "${_lc_name}" "${_lc_state}" "${_lc_tools% }"
+	done
+}
+
+usage() {
+	help_heading "Usage:" "idiot run [--sudo] <binary> [args...]"
+	help_heading "      " "idiot run --shell | --list"
+	echo >&2
+	say "Run a tool bundled with the idiot snap: from the snap itself or an"
+	say "installed component (snap install idiot+<component>). A tool idiot"
+	say "doesn't bundle runs from PATH, as does everything in a source install."
+	echo >&2
+	help_option "--sudo" "Run the tool as root (sudo resets PATH, so plain sudo can't find it)"
+	help_option "--shell" "Open an interactive shell with the bundled tools first on PATH"
+	help_option "--list" "List the components, whether each is installed, and their tools"
+	echo >&2
+	help_heading "Examples:"
+	say "  idiot run sfdisk --json /dev/sda"
+	say "  idiot run --sudo tcpdump -i any -c 10"
+	say "  idiot run --list | grep -w lspci"
+}
+
 main() {
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot run [--shell] [<binary> [args...]]"
-		echo >&2
-		say "Run a tool bundled inside the idiot snap. When not running"
-		say "inside a snap, falls back to the system PATH."
-		echo >&2
-		help_option "--shell" "Open an interactive shell with snap tools on PATH"
-		echo >&2
-		help_heading "Examples:"
-		say "  idiot run sfdisk --json /dev/sda"
-		say "  idiot run debugfs -R 'ls /' /dev/sda2"
+		usage
 		exit 0
 		;;
 	--shell)
 		_snap_shell
 		;;
+	--list)
+		_list_components
+		exit 0
+		;;
+	--sudo)
+		shift
+		[ -n "${1:-}" ] || die "usage: idiot run --sudo <binary> [args...]"
+		_rn_bin="$(snap_app_path "${1}")" || exit 1
+		shift
+		require sudo
+		exec sudo -- "${_rn_bin}" "$@"
+		;;
 	esac
-	[ -n "${1:-}" ] || die "usage: idiot run [--shell] [<binary> [args...]]"
+	[ -n "${1:-}" ] || die "usage: idiot run [--sudo] <binary> [args...]"
 	snap_app "$@"
 }
 main "$@"

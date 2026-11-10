@@ -58,8 +58,13 @@ device; a host qemu, with its own firmware, still wins when installed.
 armhf and riscv64 have no secure-boot firmware, so they boot without it.
 The bundled qemu has no display window: use `--no-gfx` (the default).
 
-Run a bundled tool with `idiot run <tool>`. A command that needs a tool
-you don't have says which component to install. Tools core24 itself ships
+Run a bundled tool with `idiot run <tool>` (the bundled copy first, then
+the host's), as root with `idiot run --sudo <tool>` (plain `sudo` resets
+`PATH`, so it can't find one), or open a shell with every installed
+component's tools first on `PATH` with `idiot run --shell`.
+`idiot run --list` prints each component, whether it's installed, and its
+tools, tab-separated. A command that needs a tool you don't have says
+which component to install. Tools core24 itself ships
 (ip, ethtool, iptables, unsquashfs, cryptsetup, nc, openssl) are on `PATH`
 on Ubuntu Core and aren't repeated. `swtpm_setup` can't create EK or
 platform certificates from the bundle (its certificate tool's path is

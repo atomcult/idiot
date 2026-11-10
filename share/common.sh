@@ -395,21 +395,27 @@ tool() {
     "${_tl_path}" "$@"
 }
 
-# Run a tool bundled in the snap (or an installed component), falling back
-# to the host's copy; a source install runs the host's. Anything a bundled
-# tool needs is set for its own process only, never in the user's shell;
-# the binaries are patched to find core24's libraries
-# (snap/local/patchelf-host), so today that's nothing.
-snap_app() {
-    _sa_cmd="${1}"
-    shift
-    if ! _sa_bin="$(snap_tool "${_sa_cmd}")"; then
-        _sa_bin="$(command -v "${_sa_cmd}" 2>/dev/null)" || _sa_bin=''
-        case "${_sa_bin}" in
+# Path of the copy of tool $1 that `idiot run` uses: the bundled one (snap
+# or an installed component), else the host's; a source install has only
+# the host's. Dies naming where to get it if there's neither.
+snap_app_path() {
+    if ! _sap_bin="$(snap_tool "${1}")"; then
+        _sap_bin="$(command -v "${1}" 2>/dev/null)" || _sap_bin=''
+        case "${_sap_bin}" in
         /*) ;;
-        *) missing_tool "${_sa_cmd}" ;;
+        *) missing_tool "${1}" ;;
         esac
     fi
+    printf '%s' "${_sap_bin}"
+}
+
+# Run a tool as snap_app_path finds it. Anything a bundled tool needs is set
+# for its own process only, never in the user's shell: the binaries are
+# patched to find core24's libraries (snap/local/patchelf-host), and the
+# few that need more carry a wrapper (snap/local/wrap/).
+snap_app() {
+    _sa_bin="$(snap_app_path "${1}")" || exit 1
+    shift
     "${_sa_bin}" "$@"
 }
 

@@ -179,6 +179,7 @@ require_wrapper                 # die unless IDIOT_EVAL_FILE is usable
 emit_export VARNAME "${val}"    # queue a quoted export in the eval file
 emit_unset VARNAME              # queue unset (bash/zsh) or set --erase (fish)
 snap_app cmd [args]             # run a bundled tool, else the host's (idiot run)
+snap_app_path cmd               # print the path snap_app would run, or die
 emit_handoff word...            # queue a host-side run of idiot <word...>
 dispatch_subcmd name dir [args] # exec cmd/<group>/<subcommand>
 ```

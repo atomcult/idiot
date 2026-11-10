@@ -46,8 +46,8 @@ including on Ubuntu Core.
 - **THEN** it runs, and `idiot run tcpdump` fails naming `idiot+network`
 
 ### Requirement: Finding a tool
-When a host command or `idiot run` needs a tool, idiot SHALL use the host's
-copy if it is on `PATH`, and otherwise the copy in any installed component.
+When a host command needs a tool, idiot SHALL use the host's copy if it is
+on `PATH`, and otherwise the copy in any installed component.
 If neither exists it SHALL fail naming the component that provides the tool
 (`install it with: snap install idiot+<component>`), or, for a tool no
 component provides, saying it is not bundled. Tool names that are not shell
@@ -73,9 +73,10 @@ use only the host's tools.
 - **THEN** `PATH` and `LD_LIBRARY_PATH` in the user's shell are the same afterwards
 
 ### Requirement: Running bundled tools
-`idiot run <tool> [args...]` SHALL run a tool found as in "Finding a tool"
+`idiot run <tool> [args...]` SHALL run the bundled copy of a tool (the
+snap's or an installed component's), or the host's when none is bundled,
 with the given arguments, passing its stdin, stdout, stderr and exit status
-through unchanged. `idiot run --sudo <tool> [args...]` SHALL run the same
+through unchanged; a missing tool fails as in "Finding a tool". `idiot run --sudo <tool> [args...]` SHALL run the same
 tool as root through `sudo`. `idiot run --shell` SHALL open a shell whose
 `PATH` starts with the bundled tool directories of every installed
 component. `idiot run --list` SHALL print to stdout every component, whether
