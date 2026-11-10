@@ -494,6 +494,8 @@ do_run() {
 			help_command "reset" "Make a VM a freshly flashed device again"
 			help_command "delete" "Remove a VM and its state"
 			help_command "console-log" "Print a VM's serial console log"
+			help_command "install" "Install snaps into a running VM"
+			help_command "logs" "Print a VM's journal (or a snap's logs)"
 			help_command "ssh" "SSH into a running VM"
 			help_command "scp" "Copy files to/from a running VM"
 			help_command "vars" "Inspect a VM's UEFI SB variables"
@@ -912,9 +914,262 @@ do_console_log() {
 	fi
 }
 
+# Sets lp_user and port for install/logs: the VM $name (or the only
+# running one) must be running and reachable as the Launchpad user.
+_vm_target() {
+	lp_user="$(require_lp_user)" || exit 1
+	name="$(vm_resolve "${name}")" || exit 1
+	vm_running "${name}" || die "VM '${name}' is not running — boot it: idiot vm --name ${name}"
+	port="$(vm_conf_get "${name}" ssh_port)"
+}
+
+# Runs a command in the VM as the target (see _vm_target), never prompting.
+_guest() {
+	VM_SSH_EXTRA='-o BatchMode=yes -o ConnectTimeout=5' vm_ssh "${port}" "${lp_user}" "$@"
+}
+
+# Waits until the VM answers ssh again, up to $1 seconds; dies when it
+# doesn't or qemu exits.
+_await_guest() {
+	_ag_t0="$(date +%s)"
+	until _guest true 2>/dev/null; do
+		vm_running "${name}" || die "VM '${name}' stopped while the change was in progress"
+		[ "$(($(date +%s) - _ag_t0))" -lt "${1}" ] ||
+			die "VM '${name}' didn't answer ssh within ${1}s — follow the change later: idiot vm ssh --name ${name} -- snap change ${change}"
+		sleep 2
+	done
+}
+
+# Removes the guest's copy of the snaps (when the guest still has it).
+_install_cleanup() {
+	[ -z "${gdir:-}" ] || _guest rm -rf "${gdir}" >/dev/null 2>&1 || :
+}
+
+do_install() {
+	name=''
+	dangerous=0
+	flags=''
+	timeout=300
+	files=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm install [--name <name>] [options] <file.snap>..."
+			echo >&2
+			help_heading "Options:"
+			help_option "--name <name>" "VM to install into (default: the running one)"
+			help_option "--dangerous" "Install without assertions even if there are some"
+			help_option "--classic" "Classic confinement"
+			help_option "--devmode" "Developer mode"
+			help_option "--timeout <seconds>" "Wait this long for a reboot (default: 300)"
+			echo >&2
+			say "Copies the snaps into the VM, installs them with snapd in one change and"
+			say "follows it, through the guest rebooting for a kernel, gadget or base."
+			say "With a ${BOLD}<file>.assert${RESET} next to every snap (as snap download"
+			say "leaves them) they install as asserted revisions, else --dangerous."
+			exit 0
+			;;
+		--name)
+			[ -n "${2:-}" ] || die "--name requires an argument"
+			name="${2}"
+			shift
+			;;
+		--dangerous) dangerous=1 ;;
+		--classic | --devmode) flags="${flags} ${1}" ;;
+		--timeout)
+			case "${2:-}" in
+			'' | *[!0-9]*) die "--timeout requires a number of seconds" ;;
+			esac
+			timeout="${2}"
+			shift
+			;;
+		--) ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -f "${1}" ] || die "file not found: ${1}"
+			case "${1}" in
+			*.snap) ;;
+			*) die "not a .snap file: ${1}" ;;
+			esac
+			case "${1}" in
+			*'
+'*) die "file names with newlines aren't supported: ${1}" ;;
+			esac
+			files="${files}${1}
+"
+			;;
+		esac
+		shift
+	done
+	[ -n "${files}" ] || die "usage: idiot vm install [--name <name>] [options] <file.snap>..."
+
+	# assertions next to every snap: an asserted install, else --dangerous
+	unasserted=''
+	_oifs="${IFS}"
+	IFS='
+'
+	for _f in ${files}; do
+		[ -f "${_f%.snap}.assert" ] || unasserted="${unasserted:+${unasserted}, }${_f##*/}"
+	done
+	IFS="${_oifs}"
+
+	_vm_target
+	_rc=0
+	_guest sudo -n true 2>/dev/null || _rc=$?
+	if [ "${_rc}" -eq 255 ]; then
+		die "can't reach VM '${name}' over ssh as ${lp_user} (port ${port}) — is the guest up, with your key for ${lp_user}?"
+	elif [ "${_rc}" -ne 0 ]; then
+		die "sudo in VM '${name}' asks ${lp_user} for a password — idiot vm install needs passwordless sudo"
+	fi
+
+	gdir="$(_guest mktemp -d)" || die "could not create a directory in VM '${name}'"
+	trap _install_cleanup EXIT
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+
+	# copy (scp takes the files one per word; names are kept)
+	_oifs="${IFS}"
+	IFS='
+'
+	set --
+	for _f in ${files}; do
+		set -- "$@" "${_f}"
+		[ ! -f "${_f%.snap}.assert" ] || set -- "$@" "${_f%.snap}.assert"
+	done
+	IFS="${_oifs}"
+	say "Copying $(printf '%s' "${files}" | wc -l) snap(s) into VM ${BOLD}${name}${RESET}"
+	VM_SSH_EXTRA='-o BatchMode=yes -q' vm_scp "${port}" "${lp_user}" "$@" "localhost:${gdir}/" >&2 ||
+		die "copying into VM '${name}' failed"
+
+	# the guest's paths, the asserts acknowledged, and the snaps' names
+	set --
+	snap_names=''
+	_oifs="${IFS}"
+	IFS='
+'
+	for _f in ${files}; do
+		_g="${gdir}/${_f##*/}"
+		if [ -z "${unasserted}" ] && [ "${dangerous}" -eq 0 ]; then
+			_guest sudo -n snap ack "${_g%.snap}.assert" >&2 ||
+				die "the guest's snapd refused ${_f%.snap}.assert"
+		fi
+		_n="$(_guest snap info "${_g}" 2>/dev/null | sed -n 's/^name: *//p')"
+		snap_names="${snap_names:+${snap_names} }${_n:-${_f##*/}}"
+		set -- "$@" "${_g}"
+	done
+	IFS="${_oifs}"
+	if [ -n "${unasserted}" ] && [ "${dangerous}" -eq 0 ]; then
+		say "${DIM}No assertions for ${unasserted}: installing with --dangerous${RESET}"
+		dangerous=1
+	fi
+	[ "${dangerous}" -eq 0 ] || flags="${flags} --dangerous"
+
+	# shellcheck disable=SC2086 # flags are words
+	change="$(_guest sudo -n snap install --no-wait ${flags} "$@")" ||
+		die "snapd refused to install into VM '${name}'"
+	change="$(printf '%s' "${change}" | tr -dc '0-9')"
+	say "Installing ${BOLD}${snap_names}${RESET} into VM ${BOLD}${name}${RESET} ${DIM}(change ${change})${RESET}"
+
+	# follow the change; a lost connection (255) is the guest rebooting
+	while :; do
+		_rc=0
+		_t=''
+		[ ! -t 2 ] || _t='-t'
+		VM_SSH_EXTRA="-o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=5 ${_t}" \
+			vm_ssh "${port}" "${lp_user}" snap watch "${change}" >&2 || _rc=$?
+		if [ "${_rc}" -eq 255 ]; then
+			say "Guest rebooting — waiting for ssh ${DIM}(up to ${timeout}s)${RESET}"
+			_await_guest "${timeout}"
+			continue
+		fi
+		status="$(_guest snap changes 2>/dev/null | awk -v id="${change}" '$1 == id { print $2 }')" || status=''
+		case "${status}" in
+		Done) break ;;
+		Error | Undone | Hold)
+			say "${RED}Change ${change} failed${RESET} (${status}):"
+			_guest snap change "${change}" >&2 || :
+			exit 1
+			;;
+		'')
+			# the connection broke between watch and changes
+			_await_guest "${timeout}"
+			;;
+		*) sleep 1 ;;
+		esac
+	done
+
+	for _n in ${snap_names}; do
+		_l="$(_guest snap list "${_n}" 2>/dev/null | awk 'NR == 2 { print $1 " " $2 " (" $3 ")" }')"
+		say "Installed ${BOLD}${_l:-${_n}}${RESET}"
+	done
+}
+
+do_logs() {
+	name=''
+	follow=0
+	lines=''
+	snap=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm logs [--name <name>] [<snap>[.<app>]] [-f] [-n <lines>]"
+			echo >&2
+			help_heading "Options:"
+			help_option "--name <name>" "VM to read (default: the running one)"
+			help_option "-f, --follow" "Keep printing new entries"
+			help_option "-n <lines>" "Only the last <lines> (default: 10 for a snap)"
+			echo >&2
+			say "A snap's service logs (snap logs), or without a snap the guest's whole"
+			say "journal for the current boot, on stdout."
+			exit 0
+			;;
+		--name)
+			[ -n "${2:-}" ] || die "--name requires an argument"
+			name="${2}"
+			shift
+			;;
+		-f | --follow) follow=1 ;;
+		-n)
+			case "${2:-}" in
+			'' | *[!0-9]*) die "-n requires a number of lines" ;;
+			esac
+			lines="${2}"
+			shift
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${snap}" ] || die "usage: idiot vm logs [--name <name>] [<snap>[.<app>]] [-f] [-n <lines>]"
+			snap="${1}"
+			;;
+		esac
+		shift
+	done
+	_vm_target
+
+	if [ -n "${snap}" ]; then
+		set -- sudo -n snap logs "-n=${lines:-10}"
+		[ "${follow}" -eq 0 ] || set -- "$@" -f
+		set -- "$@" "${snap}"
+	else
+		set -- sudo -n journalctl -b --no-pager
+		[ -z "${lines}" ] || set -- "$@" -n "${lines}"
+		[ "${follow}" -eq 0 ] || set -- "$@" -f
+	fi
+	# the journal is the data asked for: stdout, unlike idiot vm ssh
+	VM_SSH_EXTRA='-o BatchMode=yes -o ConnectTimeout=5' vm_ssh "${port}" "${lp_user}" "$@"
+}
+
 main() {
 	case "${1:-}" in
 	"") do_run --help ;;
+	install)
+		shift
+		do_install "$@"
+		;;
+	logs)
+		shift
+		do_logs "$@"
+		;;
 	list)
 		shift
 		do_list "$@"

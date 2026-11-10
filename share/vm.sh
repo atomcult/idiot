@@ -205,8 +205,13 @@ vm_ssh_raw() {
     _vsr_port="${1}"
     _vsr_user="${2}"
     shift 2
-    # shellcheck disable=SC2086 # option lists are words without spaces
-    ssh -p "${_vsr_port}" -l "${_vsr_user}" ${VM_SSH_OPTS} ${VM_SSH_EXTRA:-} localhost "$@"
+    # option lists are words split on spaces, whatever the caller's IFS
+    _vsr_ifs="${IFS}"
+    IFS=' '
+    # shellcheck disable=SC2086
+    set -- -p "${_vsr_port}" -l "${_vsr_user}" ${VM_SSH_OPTS} ${VM_SSH_EXTRA:-} localhost "$@"
+    IFS="${_vsr_ifs}"
+    ssh "$@"
 }
 
 # Run a command in the VM on host port $1 as user $2: each remaining
@@ -227,6 +232,10 @@ vm_scp() {
     _vsc_port="${1}"
     _vsc_user="${2}"
     shift 2
-    # shellcheck disable=SC2086 # option lists are words without spaces
-    scp -P "${_vsc_port}" ${VM_SSH_OPTS} ${VM_SSH_EXTRA:-} -o "User=${_vsc_user}" "$@"
+    _vsc_ifs="${IFS}"
+    IFS=' '
+    # shellcheck disable=SC2086 # option lists are words split on spaces
+    set -- -P "${_vsc_port}" ${VM_SSH_OPTS} ${VM_SSH_EXTRA:-} -o "User=${_vsc_user}" "$@"
+    IFS="${_vsc_ifs}"
+    scp "$@"
 }

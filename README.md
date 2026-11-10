@@ -133,6 +133,24 @@ $ idiot vm delete gadget            # forget it (the image is untouched)
 `stop` and `console-log` act on the only running VM (with several, a
 picker on a terminal).
 
+The dev loop, from a built snap to its logs:
+
+```
+$ idiot vm install ./my-app_1.0_amd64.snap     # copy, install, follow the change
+$ idiot vm logs -f my-app                      # its services' journal
+$ idiot vm install ./pc-kernel_custom.snap     # follows it through the reboot
+```
+
+`install` copies the snaps in and installs them as root in one snapd change,
+following it to the end (waiting for ssh when a kernel, gadget or base snap
+reboots the guest), then reports each snap's version and revision, or the
+failed tasks. A `<file>.assert` next to every snap (as `snap download`
+leaves them) makes it an asserted install; otherwise it is `--dangerous`,
+and idiot says so. The guest user (your Launchpad username, as for `ssh`)
+needs passwordless sudo, as console-conf and system-user accounts have.
+`logs` prints a snap's service logs, or the whole journal of the current
+boot, on stdout.
+
 **Changed:** before named VMs, `idiot vm` wrote to the image and threw
 the UEFI variables and TPM state away after each run (unless you gave
 `--state-dir`). Now nothing is thrown away until you reset or delete the
