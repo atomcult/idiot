@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# cmd/auth/login - set store credential environment variables from a credential file
+# cmd/auth/login - activate a saved credential (and say when it expires soon)
 # Usage: idiot auth login [<name>]
 # Outputs: eval-able export statements (via the eval file)
 
@@ -32,7 +32,24 @@ main() {
 			"sh -c '${preview_cmd}'") || exit 0
 	}
 
+	require_cred "${name}"
+	# a credential saved before idiot recorded expiries: read it now where
+	# the helper can run (not confined in the snap: auth status does it)
+	if ! exp="$(read_expiry "${name}")"; then
+		exp=''
+		if [ -z "${SNAP:-}" ]; then
+			record_expiry "${name}" && exp="$(read_expiry "${name}")" || exp=''
+		else
+			say "${DIM}expiry unknown — run: idiot auth status${RESET}"
+		fi
+	fi
+
 	emit_cred_login "${name}"
 	warn_store_mismatch "${name}" "${UBUNTU_STORE_ID:-}"
+	if [ -n "${exp}" ]; then
+		now="$(date -u '+%s %Y-%m-%d')"
+		! cred_expiry_notice "${name}" "${exp}" "${now%% *}" ||
+			expiry_stamp "${now#* }" "${name}"
+	fi
 }
 main "$@"

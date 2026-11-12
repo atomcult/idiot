@@ -17,7 +17,7 @@
 
 - [ ] 3.1 `cmd/auth/login`: export `IDIOT_CRED_EXPIRES` or unset it, backfill a missing record when `SNAP` is unset, print the expiring/expired notice and write the day's stamp; `cmd/auth/logout`: unset it; verify the "Activating a credential" scenarios through the wrapper in bash and fish, including the snap case with no record (`snapcraft pack`, `snap install --dangerous`)
 - [ ] 3.2 `idiot`: call `cred_expiry_warn` where `_increment_count` is called; verify "Expiring soon", "Only once a day" (second shell too), "Expired", "Window configured", "Early warning disabled" and "Expiry unknown" by writing records and stamps by hand; under the snap verify a host command (e.g. `idiot auth status`) warns exactly once although it is dispatched twice
-- [ ] 3.3 Verify the warning check adds nothing measurable without an active credential (100 × `idiot store list` with and without the change, timing as in shell-prompt-segment's design) and one `date` call with one; run `make check` and commit (`feat(auth): warn before the active credential expires`)
+- [x] 3.3 Verify the warning check adds nothing measurable without an active credential (100 × `idiot store list` with and without the change, timing as in shell-prompt-segment's design) and one `date` call with one; run `make check` and commit (`feat(auth): warn before the active credential expires`)
 
 ## 4. Integration
 

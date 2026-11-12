@@ -75,6 +75,17 @@ _increment_count() {
 	unset _ic _ic_file
 }
 
+# Count the command and, once a day, warn about the active credential's
+# expiry. creds.sh is only read when a credential with a known expiry is
+# active, so other shells pay nothing. `auth login` gives its own notice.
+_counted() {
+	_increment_count
+	[ -n "${IDIOT_CRED_EXPIRES:-}" ] || return 0
+	[ "${1}" != "auth login" ] || return 0
+	include creds.sh
+	cred_expiry_warn
+}
+
 main() {
 	while [ $# -gt 0 ]; do
 		case "${1}" in
@@ -105,7 +116,7 @@ main() {
 		if [ -d "${cmd_file}" ]; then
 			case "${1:-}" in
 			"" | -h | --help | help) ;;
-			*) _increment_count ;;
+			*) _counted "${cmd} ${1}" ;;
 			esac
 			dispatch_subcmd "${cmd}" "${cmd_file}" "$@"
 		elif [ -x "${cmd_file}" ]; then
@@ -113,7 +124,7 @@ main() {
 			init) exec "${cmd_file}" "$@" ;;
 			*)
 				[ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
-				_increment_count
+				_counted "${cmd}"
 				run_cmd "${cmd_file}" 1 "${cmd}" "$@"
 				;;
 			esac
