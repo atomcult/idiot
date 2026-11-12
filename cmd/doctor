@@ -1,0 +1,519 @@
+#!/usr/bin/env sh
+# cmd/doctor - check everything idiot depends on and say what to fix
+# idiot: host
+#
+# Read-only and offline: every check looks, none changes anything. Under the
+# snap it runs host-side (it has to see /dev/kvm, PATH, /usr/share and
+# ~/.local); without a current shell integration the dispatcher runs it
+# directly instead, confined under the snap, and the host checks are skipped.
+
+. "$(dirname "${0}")/../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+include models.sh
+include vm-firmware.sh
+
+quiet=0
+problems=0
+warnings=0
+printed=0
+section=''
+lines=''
+
+# Start a section named $1 (printed when it ends, see _end).
+_section() {
+	section="${1}"
+	lines=''
+	shown=0
+}
+
+# Add a result line to the current section: $1 is the mark, $2 the line.
+# $3 is 1 when --quiet shows it.
+_line() {
+	lines="${lines}  ${1} ${2}
+"
+	[ "${3}" -eq 0 ] || shown=1
+}
+
+# A check that's fine: $1 what, $2 optional dim detail.
+_ok() {
+	if [ "${quiet}" -eq 1 ]; then return 0; fi
+	_line "${GREEN}✓${RESET}" "$(_pad "${1}")${2:+${DIM}${2}${RESET}}" 0
+}
+
+# Degraded or worth knowing: $1 what, $2 what to do about it.
+_warn() {
+	warnings=$((warnings + 1))
+	_line "${YELLOW}!${RESET}" "${1} — ${2}" 1
+}
+
+# Broken: $1 what, $2 what to do about it.
+_fail() {
+	problems=$((problems + 1))
+	_line "${RED}✗${RESET}" "${1} — ${2}" 1
+}
+
+# Print the current section: always, or with --quiet only if it has a ! or ✗.
+_end() {
+	[ "${quiet}" -eq 0 ] || [ "${shown}" -eq 1 ] || return 0
+	[ -n "${lines}" ] || return 0
+	[ "${printed}" -eq 0 ] || echo >&2
+	say "${BOLD}${section}${RESET}"
+	printf '%s' "${lines}" >&2
+	printed=1
+}
+
+# $1 padded to the name column, when it's short enough to line up.
+_pad() {
+	printf '%-28s' "${1}"
+}
+
+# $1 with $HOME shown as ~, for hints the user copies.
+# shellcheck disable=SC2088 # a literal ~, for the user to read
+_tilde() {
+	case "${1}" in
+	"${HOME}"/*) printf '~/%s' "${1#"${HOME}"/}" ;;
+	*) printf '%s' "${1}" ;;
+	esac
+}
+
+# The number of words in $@.
+_words() {
+	printf '%s' "$#"
+}
+
+# `<n> <word>` or `<n> <word>s`.
+_plural() {
+	if [ "${1}" -eq 1 ]; then printf '1 %s' "${2}"; else printf '%s %ss' "${1}" "${2}"; fi
+}
+
+# What loads the integration, for hints.
+# shellcheck disable=SC2016 # a command for the user, not expanded here
+_init_hint() {
+	case "${IDIOT_SHELL:-}" in
+	bash | zsh) printf 'run: eval "$(idiot init %s)"' "${IDIOT_SHELL}" ;;
+	fish) printf 'run: idiot init fish | source' ;;
+	*) printf 'run: eval "$(idiot init bash)"  or: idiot init fish | source' ;;
+	esac
+}
+
+# Where a tool was found, for a ✓ line: the snap, a component, or its path.
+_where() {
+	if [ -n "${IDIOT_SNAP:-}" ]; then
+		case "${1}" in
+		"${IDIOT_SNAP}"/*)
+			printf 'snap'
+			return 0
+			;;
+		esac
+		for _wh_comp in $(snap_component_dirs); do
+			case "${1}" in
+			"${_wh_comp}"/*)
+				printf '%s component' "${_wh_comp##*/}"
+				return 0
+				;;
+			esac
+		done
+	fi
+	_tilde "${1}"
+}
+
+# How to get tool $1 (host package $2): the package, and under the snap the
+# component that bundles it — the same advice missing_tool gives.
+_get_hint() {
+	if [ -n "$(snap_root)" ] && _gh_comp="$(tool_component "${1}")"; then
+		printf 'snap install %s+%s (or install the %s package)' "$(snap_instance)" "${_gh_comp}" "${2}"
+	else
+		printf 'install the %s package' "${2}"
+	fi
+}
+
+# Shell integration --------------------------------------------------------
+
+# Judged as in the change's design: confined, doctor only runs directly
+# when the dispatcher couldn't hand off; host-side of the snap, reaching
+# here took a handoff, which needs a current wrapper.
+check_integration() {
+	_section 'Shell integration'
+	if [ -n "${SNAP:-}" ]; then
+		if [ -z "${IDIOT_SHELL:-}" ]; then
+			_fail 'shell integration not loaded' "$(_init_hint)"
+		else
+			_fail "shell integration (${IDIOT_SHELL}) is out of date" "$(_init_hint)"
+		fi
+	elif [ -n "${IDIOT_SNAP:-}" ]; then
+		if [ -d "${IDIOT_SNAP}" ]; then
+			_ok 'shell integration' "${IDIOT_SHELL:-loaded}, from the snap"
+		else
+			_fail "IDIOT_SNAP (${IDIOT_SNAP}) is not a directory" "$(_init_hint)"
+		fi
+		_ic_common="${HOME}/snap/$(snap_instance)/common"
+		if [ "${IDIOT_DATA_HOME}" = "${_ic_common}" ]; then
+			_ok 'data directory' "$(_tilde "${IDIOT_DATA_HOME}")"
+		else
+			_warn "IDIOT_DATA_HOME is $(_tilde "${IDIOT_DATA_HOME}"), not the snap's $(_tilde "${_ic_common}")" \
+				"unset it, then $(_init_hint)"
+		fi
+	elif [ -z "${IDIOT_SHELL:-}" ]; then
+		_fail 'shell integration not loaded' "$(_init_hint)"
+	elif [ -n "${IDIOT_EVAL_FILE:-}" ] && [ -f "${IDIOT_EVAL_FILE}" ] && [ -w "${IDIOT_EVAL_FILE}" ]; then
+		_ok 'shell integration' "${IDIOT_SHELL}"
+	else
+		_fail "shell integration (${IDIOT_SHELL}) is out of date" "$(_init_hint)"
+	fi
+	_end
+}
+
+# Install -------------------------------------------------------------------
+
+check_install() {
+	_section 'Install'
+	_ci_version='dev'
+	[ ! -f "${IDIOT_ROOT}/share/version" ] || _ci_version="$(cat "${IDIOT_ROOT}/share/version")"
+	if [ -n "${SNAP:-}" ]; then
+		_ok 'snap' "$(snap_instance), revision ${SNAP_REVISION:-?}, ${_ci_version}"
+	elif [ -n "${IDIOT_SNAP:-}" ]; then
+		_ci_rev="$(readlink "${IDIOT_SNAP}" 2>/dev/null || :)"
+		_ok 'snap' "$(snap_instance), revision ${_ci_rev##*/}, ${_ci_version}"
+		for _ci_src in "${HOME}/.local/bin/idiot" "${HOME}/.local/lib/idiot"; do
+			[ -e "${_ci_src}" ] || continue
+			_warn "a source install is also present ($(_tilde "${_ci_src}")); this shell uses the snap" \
+				"remove it with: make uninstall (in the idiot checkout)"
+			break
+		done
+	else
+		_ok 'source' "$(_tilde "${IDIOT_ROOT}"), ${_ci_version}"
+		[ ! -e /snap/bin/idiot ] ||
+			_warn "the snap is also installed; this shell uses the source install" \
+				"load the one you want: $(_init_hint | sed 's/^run: //')"
+	fi
+	if ! _ci_helper="$(store_helper_path)"; then
+		_fail 'idiot-store helper not found' 'idiot auth add and auth status need it — build it with: make install'
+	elif ! "${_ci_helper}" --version >/dev/null 2>&1; then
+		_fail "idiot-store helper doesn't run ($(_tilde "${_ci_helper}"))" 'rebuild it with: make install'
+	else
+		_ok 'idiot-store helper' "$(_tilde "${_ci_helper}")"
+	fi
+	_end
+}
+
+# Tools and components -------------------------------------------------------
+
+# command|tool|host package, from the commands' require/tool_path calls
+# (cmd/vm, cmd/inspect/*, cmd/kernel, cmd/example, cmd/clean/*): keep in step.
+_tool_table() {
+	_tt_qemu="$(snap_arch_to_qemu "$(uname_to_snap_arch)")"
+	cat <<EOF
+vm|qemu-system-${_tt_qemu}|$(vm_qemu_package "${_tt_qemu}")
+vm|qemu-img|qemu-utils
+vm ssh|ssh|openssh-client
+vm vars|python3|python3
+vm --tpm|swtpm|swtpm
+inspect image|sfdisk|fdisk
+inspect image|python3|python3
+inspect image|debugfs|e2fsprogs
+inspect image|mcopy|mtools
+inspect image|mdir|mtools
+inspect diff|sfdisk|fdisk
+inspect diff|python3|python3
+inspect diff|debugfs|e2fsprogs
+inspect diff|mcopy|mtools
+inspect diff|mdir|mtools
+inspect snap|unsquashfs|squashfs-tools
+inspect assertion|python3|python3
+inspect changes|snap|snapd
+inspect changes|fzf|fzf
+kernel|git|git
+kernel|fzf|fzf
+example|git|git
+example|fzf|fzf
+example --subdir|nnn|nnn
+clean containers|lxc|lxd (snap install lxd)
+clean snaps|snap|snapd
+EOF
+}
+
+check_tools() {
+	_section 'Tools'
+	_ct_table="$(_tool_table)"
+	for _ct_tool in $(printf '%s\n' "${_ct_table}" | cut -d'|' -f2 | awk '!seen[$0]++'); do
+		_ct_users="$(printf '%s\n' "${_ct_table}" | awk -F'|' -v t="${_ct_tool}" '$2 == t { printf "%sidiot %s", (n++ ? ", " : ""), $1 }')"
+		_ct_pkg="$(printf '%s\n' "${_ct_table}" | awk -F'|' -v t="${_ct_tool}" '$2 == t { print $3; exit }')"
+		# without common.sh's git() in the way, which runs PATH's git
+		if _ct_path="$(
+			unset -f "${_ct_tool}" 2>/dev/null
+			tool_path "${_ct_tool}"
+		)"; then
+			_ok "${_ct_tool}" "$(_where "${_ct_path}")"
+		else
+			_warn "${_ct_tool} not found" "needed by ${_ct_users}; $(_get_hint "${_ct_tool}" "${_ct_pkg}")"
+		fi
+	done
+	if [ -n "$(snap_root)" ]; then
+		_ct_inst="$(snap_component_table | awk -F'\t' '$2 == "installed" { printf "%s%s", (n++ ? " " : ""), $1 }')"
+		_ct_avail="$(snap_component_table | awk -F'\t' '$2 == "available" { printf "%s%s", (n++ ? " " : ""), $1 }')"
+		_ok 'components' "installed: ${_ct_inst:-none}${_ct_avail:+ · available: ${_ct_avail}}"
+	fi
+	_end
+}
+
+# VMs -------------------------------------------------------------------------
+
+# One firmware line for arch $1, secure boot $2, for the qemu idiot vm would
+# run (vm_find_qemu has set the context).
+_firmware_line() {
+	_fl_what="${1} UEFI firmware"
+	[ "${2}" -eq 0 ] || _fl_what="${1} secure boot firmware"
+	if _fl_code="$(vm_find_firmware "${1}" "${2}" code)" &&
+		_fl_vars="$(vm_find_firmware "${1}" "${2}" vars)"; then
+		_ok "${_fl_what}" "${_fl_code} ${_fl_vars##*/}"
+	elif [ -n "${qemu_comp}" ]; then
+		_warn "${_fl_what} missing from the vm component" "reinstall it: snap install $(snap_instance)+vm"
+	elif [ -n "$(snap_root)" ]; then
+		_warn "${_fl_what} not found" "idiot vm needs it; install the $(vm_firmware_package "${1}") package, or: snap install $(snap_instance)+vm"
+	else
+		_warn "${_fl_what} not found" "idiot vm needs it; install the $(vm_firmware_package "${1}") package"
+	fi
+}
+
+check_vms() {
+	_section 'VMs'
+	if [ ! -e /dev/kvm ]; then
+		_warn '/dev/kvm not found' "$(uname_to_snap_arch) VMs will be emulated (slow); enable virtualisation in the firmware, or load the kvm module"
+	elif [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+		_ok '/dev/kvm' 'accessible'
+	else
+		_warn '/dev/kvm is not accessible' "VMs will be emulated (slow); run: sudo usermod -aG kvm ${USER:-$(id -un)}, then log in again"
+	fi
+	_cv_host="$(uname_to_snap_arch)"
+	for _cv_arch in amd64 arm64 armhf riscv64; do
+		if vm_find_qemu "${_cv_arch}"; then
+			:
+		elif [ "${_cv_arch}" != "${_cv_host}" ]; then
+			continue
+		fi
+		if vm_firmware_secboot "${_cv_arch}"; then
+			_firmware_line "${_cv_arch}" 1
+		fi
+		_firmware_line "${_cv_arch}" 0
+	done
+	_end
+}
+
+# Credentials and stores -----------------------------------------------------
+
+check_credentials() {
+	_section 'Credentials and stores'
+	_cc_names=''
+	if [ -d "${IDIOT_AUTH_DIR}" ]; then
+		_cc_mode="$(stat -c %a "${IDIOT_AUTH_DIR}")"
+		case "${_cc_mode}" in
+		*00) ;;
+		*) _fail "$(_tilde "${IDIOT_AUTH_DIR}") is accessible by others (mode ${_cc_mode})" "run: chmod 700 $(_tilde "${IDIOT_AUTH_DIR}")" ;;
+		esac
+		_cc_loose=0
+		for _cc_file in "${IDIOT_AUTH_DIR}"/* "${IDIOT_AUTH_DIR}"/.[!.]*; do
+			[ -f "${_cc_file}" ] || continue
+			_cc_fmode="$(stat -c %a "${_cc_file}")"
+			case "${_cc_fmode}" in
+			[0-7]00) ;;
+			*)
+				_cc_loose=1
+				_fail "$(_tilde "${_cc_file}") is readable or writable by others (mode ${_cc_fmode})" \
+					"run: chmod 600 $(_tilde "${_cc_file}")"
+				;;
+			esac
+		done
+		_cc_count=0
+		for _cc_file in "${IDIOT_AUTH_DIR}"/*; do
+			[ -f "${_cc_file}" ] || continue
+			_cc_names="${_cc_names} ${_cc_file##*/}"
+			_cc_count=$((_cc_count + 1))
+		done
+		case "${_cc_mode}" in
+		*00) [ "${_cc_loose}" -eq 1 ] || _ok 'credentials' "$(_plural "${_cc_count}" credential), private" ;;
+		esac
+	else
+		_ok 'credentials' 'none saved'
+	fi
+
+	if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
+		_cc_active="${IDIOT_AUTH_DIR}/${IDIOT_ACTIVE_CRED}"
+		if [ ! -f "${_cc_active}" ]; then
+			_fail "active credential '${IDIOT_ACTIVE_CRED}' no longer exists" \
+				'run: idiot auth login <name>  or: idiot auth logout'
+		elif [ "${SNAPCRAFT_STORE_CREDENTIALS:-}" != "$(cat "${_cc_active}")" ]; then
+			# compared in this shell: the credential is in no argv or output
+			_warn "active credential '${IDIOT_ACTIVE_CRED}' differs from the saved one" \
+				"run: idiot auth login ${IDIOT_ACTIVE_CRED}"
+		else
+			_ok 'active credential' "${IDIOT_ACTIVE_CRED}"
+		fi
+	elif [ -n "${UBUNTU_STORE_AUTH:-}${SNAPCRAFT_STORE_CREDENTIALS:-}" ]; then
+		_ok 'active credential' 'set by hand (not a saved one)'
+	fi
+
+	# Expiry, from the records `idiot auth` keeps (never the network).
+	_cc_now="$(date +%s)"
+	_cc_window="$(cred_warn_window)"
+	_cc_unknown=''
+	for _cc_name in ${_cc_names}; do
+		if ! _cc_exp="$(read_expiry "${_cc_name}")"; then
+			_cc_unknown="${_cc_unknown:+${_cc_unknown}, }${_cc_name}"
+			continue
+		fi
+		_cc_phrase="$(expiry_phrase "${_cc_exp}" "${_cc_now}")"
+		if [ "${_cc_exp}" -le "${_cc_now}" ]; then
+			if [ "${_cc_name}" = "${IDIOT_ACTIVE_CRED:-}" ]; then
+				_fail "active credential '${_cc_name}' has expired" 'create a new one with: idiot auth add'
+			else
+				_warn "credential '${_cc_name}' has expired" "create a new one with: idiot auth add, or remove it: idiot auth remove ${_cc_name}"
+			fi
+		elif [ $((_cc_exp - _cc_now)) -lt "${_cc_window}" ]; then
+			_warn "credential '${_cc_name}' ${_cc_phrase}" 'renew it with: idiot auth add'
+		else
+			_ok "${_cc_name}" "${_cc_phrase}"
+		fi
+	done
+	[ -z "${_cc_unknown}" ] ||
+		_warn "expiry unknown: ${_cc_unknown}" 'log in to each and run: idiot auth status'
+
+	_cc_stores=0
+	if [ -d "${IDIOT_STORES_DIR}" ]; then
+		for _cc_file in "${IDIOT_STORES_DIR}"/*; do
+			[ -f "${_cc_file}" ] || continue
+			_cc_stores=$((_cc_stores + 1))
+			_cc_lines="$(wc -l <"${_cc_file}")"
+			if [ ! -s "${_cc_file}" ]; then
+				_warn "store '${_cc_file##*/}' is empty" "set its ID: idiot store remove ${_cc_file##*/} && idiot store add ${_cc_file##*/} <id>"
+			elif [ "${_cc_lines}" -gt 1 ]; then
+				_warn "store '${_cc_file##*/}' has ${_cc_lines} lines (one ID expected)" "fix $(_tilde "${_cc_file}")"
+			fi
+		done
+	fi
+	_ok 'stores' "$(_plural "${_cc_stores}" 'saved store')"
+	if [ -n "${UBUNTU_STORE_ID:-}" ] && ! store_name_for_id "${UBUNTU_STORE_ID}" >/dev/null; then
+		_warn "UBUNTU_STORE_ID (${UBUNTU_STORE_ID}) matches no saved store" \
+			"save it: idiot store add <name> ${UBUNTU_STORE_ID}"
+	fi
+	_end
+}
+
+# Data directories ----------------------------------------------------------
+
+# Names in $1/{auth,stores,models} that $2 lacks, space-separated.
+_unseen() {
+	for _un_kind in auth stores models; do
+		for _un_file in "${1}/${_un_kind}"/*; do
+			[ -e "${_un_file}" ] || continue
+			[ -e "${2}/${_un_kind}/${_un_file##*/}" ] ||
+				printf '%s/%s ' "${_un_kind}" "${_un_file##*/}"
+		done
+	done
+}
+
+check_data() {
+	_section 'Data directories'
+	_cd_inst="$(snap_instance)"
+	_cd_snapdir="${HOME}/snap/${_cd_inst}"
+	if [ -n "${IDIOT_SNAP:-}" ]; then
+		_cd_other="${XDG_DATA_HOME:-${HOME}/.local/share}/idiot"
+		_cd_what="the snap"
+	else
+		_cd_other="${_cd_snapdir}/common"
+		_cd_what="this source install"
+	fi
+	_cd_unseen="$(_unseen "${_cd_other}" "${IDIOT_DATA_HOME}")"
+	if [ -n "${_cd_unseen}" ]; then
+		# shellcheck disable=SC2086 # counting the words
+		_cd_count="$(_words ${_cd_unseen})"
+		_warn "$(_tilde "${_cd_other}") holds $(_plural "${_cd_count}" item) ${_cd_what} doesn't see (${_cd_unseen% })" \
+			"copy them over: cp -an $(_tilde "${_cd_other}")/. $(_tilde "${IDIOT_DATA_HOME}")/"
+	else
+		_ok 'data' "$(_tilde "${IDIOT_DATA_HOME}")"
+	fi
+	for _cd_rev in "${_cd_snapdir}"/*; do
+		[ -d "${_cd_rev}" ] && [ ! -L "${_cd_rev}" ] || continue
+		case "${_cd_rev##*/}" in common | current) continue ;; esac
+		for _cd_kind in auth stores models; do
+			[ -d "${_cd_rev}/${_cd_kind}" ] || continue
+			_warn "$(_tilde "${_cd_rev}") holds idiot state from an old snap layout" \
+				"move what you need to $(_tilde "${_cd_snapdir}/common") (cp -an $(_tilde "${_cd_rev}")/. $(_tilde "${_cd_snapdir}/common")/), then delete it"
+			break
+		done
+	done
+	if [ -n "${IDIOT_SNAP:-}" ]; then
+		_cd_evdir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/snap.${_cd_inst}"
+	else
+		_cd_evdir="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+	fi
+	_cd_stale=0
+	[ ! -d "${_cd_evdir}" ] ||
+		_cd_stale="$(find "${_cd_evdir}" -maxdepth 1 -type f -name 'idiot.??????' -user "$(id -u)" -mtime +0 2>/dev/null | wc -l)"
+	if [ "${_cd_stale}" -gt 0 ]; then
+		_warn "$(_plural "${_cd_stale}" 'stale eval file') in ${_cd_evdir}" \
+			"left by interrupted commands; remove them: find ${_cd_evdir} -maxdepth 1 -name 'idiot.??????' -user \$(id -u) -mtime +0 -delete"
+	else
+		_ok 'eval files' 'none stale'
+	fi
+	_end
+}
+
+# A host section that can't run confined: one ! line under its heading.
+_skipped() {
+	_section "${1}"
+	_warn 'skipped' 'load the shell integration first, then run idiot doctor again'
+	_end
+}
+
+usage() {
+	help_heading "Usage:" "idiot doctor [--quiet]"
+	echo >&2
+	say "Check the shell integration, install, tools, VM support, credentials"
+	say "and data directories, and say what to do about anything amiss."
+	say "Read-only and offline. ${GREEN}✓${RESET} fine, ${YELLOW}!${RESET} worth knowing, ${RED}✗${RESET} broken"
+	say "(exit status 1)."
+	echo >&2
+	help_heading "Options:"
+	help_option "-q, --quiet" "Show only what isn't fine (nothing when all is)"
+}
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		usage
+		exit 0
+		;;
+	-q | --quiet) quiet=1 ;;
+	'') ;;
+	*) die "unknown option: ${1} (see: idiot doctor --help)" ;;
+	esac
+
+	check_integration
+	check_install
+	if [ -n "${SNAP:-}" ]; then
+		_skipped 'Tools'
+		_skipped 'VMs'
+		check_credentials
+		_skipped 'Data directories'
+	else
+		check_tools
+		check_vms
+		check_credentials
+		check_data
+	fi
+
+	if [ "${problems}" -gt 0 ] || [ "${warnings}" -gt 0 ]; then
+		echo >&2
+		_dm_summary=''
+		[ "${problems}" -eq 0 ] || _dm_summary="${RED}$(_plural "${problems}" problem)${RESET}"
+		[ "${warnings}" -eq 0 ] || _dm_summary="${_dm_summary:+${_dm_summary}, }${YELLOW}$(_plural "${warnings}" warning)${RESET}"
+		say "${_dm_summary}"
+	elif [ "${quiet}" -eq 0 ]; then
+		echo >&2
+		say "No problems found"
+	fi
+	[ "${problems}" -eq 0 ]
+}
+main "$@"

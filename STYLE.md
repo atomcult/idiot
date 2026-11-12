@@ -483,9 +483,12 @@ Most commands require the shell wrapper to be active (`IDIOT_SHELL` set).
 The check lives in `dispatch_subcmd` and in the main `idiot` dispatcher.
 
 Commands that work without shell initialisation — currently `version`, `init`,
-`status` and `prompt` — are special-cased **before** the `IDIOT_SHELL` check in the
-main `idiot` script. A command belongs in this set only if it is purely
-display-only and cannot modify the shell environment.
+`status`, `prompt` and `doctor` — are special-cased **before** the `IDIOT_SHELL`
+check in the main `idiot` script. A command belongs in this set only if it is
+purely display-only and cannot modify the shell environment. `doctor` is a host
+command: with a current integration it is counted and handed off as usual;
+without one it runs directly (confined under the snap) and reports, in a
+limited form, that the integration is what's missing.
 
 ---
 

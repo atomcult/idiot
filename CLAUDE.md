@@ -82,6 +82,7 @@ context and artifact rules are in `openspec/config.yaml`. Check with
 ```
 idiot            # main dispatcher; sets IDIOT_ROOT, sources share/common.sh
 cmd/             # one file per leaf command; dirs for subcommand groups
+                 #   (cmd/doctor: read-only checks of all of the below)
 share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
                  #   dispatch_subcmd, tool/tool_path/snap_app, git(), shell_quote,

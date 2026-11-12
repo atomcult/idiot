@@ -288,6 +288,55 @@ idiot: credential 'ci' expires in 3d — renew with: idiot auth add
 
 ---
 
+## Troubleshooting
+
+When something doesn't work, run `idiot doctor`. It checks the shell
+integration, the install, every tool idiot's commands use (and which copy
+they'd run: yours or a snap component's), KVM and the VM firmware,
+credential permissions and expiry, saved stores, and data left behind by
+another install, without changing anything or touching the network:
+
+```
+$ idiot doctor
+Shell integration
+  ✓ shell integration           bash, from the snap
+  ✓ data directory              ~/snap/idiot/common
+
+Install
+  ✓ snap                        idiot, revision x7, v0.1.0
+  ✓ idiot-store helper          /snap/idiot/x7/lib/idiot/libexec/idiot-store
+
+Tools
+  ✓ qemu-system-x86_64          vm component
+  ! swtpm not found — needed by idiot vm --tpm; snap install idiot+tpm (or install the swtpm package)
+  ...
+
+VMs
+  ! /dev/kvm is not accessible — VMs will be emulated (slow); run: sudo usermod -aG kvm you, then log in again
+  ✓ amd64 secure boot firmware  /snap/idiot/components/x7/vm/usr/share/OVMF/OVMF_CODE_4M.secboot.fd OVMF_VARS_4M.ms.fd
+  ...
+
+Credentials and stores
+  ✓ credentials                 2 credentials, private
+  ✓ active credential           work
+  ✓ work                        expires in 41d
+  ! credential 'ci' expires in 3d — renew it with: idiot auth add
+  ✓ stores                      1 saved store
+
+Data directories
+  ✓ data                        ~/snap/idiot/common
+  ✓ eval files                  none stale
+
+3 warnings
+```
+
+`✓` is fine, `!` is worth knowing (something some commands need is
+missing), `✗` is broken, and makes it exit 1. `idiot doctor --quiet` prints
+only the `!` and `✗` lines, and nothing when all is well. It runs without
+the shell integration too, to tell you that's what's missing.
+
+---
+
 ## How it works
 
 The shell wrapper hands each `idiot` command a private temp file; commands
