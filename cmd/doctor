@@ -320,7 +320,12 @@ check_credentials() {
 			[0-7]00) ;;
 			*)
 				_cc_loose=1
-				_fail "$(_tilde "${_cc_file}") is readable or writable by others (mode ${_cc_fmode})" \
+				# a credential is a secret; idiot's records beside it aren't
+				case "${_cc_file##*/}" in
+				.*) _cc_report=_warn ;;
+				*) _cc_report=_fail ;;
+				esac
+				"${_cc_report}" "$(_tilde "${_cc_file}") is readable or writable by others (mode ${_cc_fmode})" \
 					"run: chmod 600 $(_tilde "${_cc_file}")"
 				;;
 			esac
