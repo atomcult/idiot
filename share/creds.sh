@@ -246,6 +246,12 @@ whoami_cache_path() {
 # this checkout, else one on PATH. Dies when there's none. Use as
 # `h="$(store_helper)" || exit 1`.
 store_helper() {
+    store_helper_path ||
+        die "idiot-store not found — build it with: make install"
+}
+
+# The idiot-store helper's path, as store_helper finds it, or fail quietly.
+store_helper_path() {
     for _sh in "${IDIOT_ROOT}/libexec/idiot-store" \
         "${IDIOT_ROOT}/tools/idiot-store/target/release/idiot-store"; do
         if [ -x "${_sh}" ]; then
@@ -253,8 +259,7 @@ store_helper() {
             return 0
         fi
     done
-    command -v idiot-store 2>/dev/null ||
-        die "idiot-store not found — build it with: make install"
+    command -v idiot-store 2>/dev/null
 }
 
 # Store permissions idiot knows: name, then what it lets a credential do.

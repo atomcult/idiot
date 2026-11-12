@@ -85,12 +85,13 @@ cmd/             # one file per leaf command; dirs for subcommand groups
 share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
                  #   dispatch_subcmd, tool/tool_path/snap_app, git(), shell_quote,
-                 #   require_wrapper, emit_export, emit_unset, stdout_colors
+                 #   require_wrapper, emit_export, emit_unset, stdout_colors,
+                 #   snap_component_dirs, snap_component_table
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu(), STORE_ARCHES,
                  #   is_store_arch
   clean.sh       # clean_list_*/clean_remove_*, clean_show, clean_confirm
   creds.sh       # IDIOT_AUTH_DIR, validate_cred_name, ensure_auth_dir,
-                 #   require_cred/no_cred, whoami_cache_path, store_helper,
+                 #   require_cred/no_cred, whoami_cache_path, store_helper(_path),
                  #   STORE_PERMISSIONS, map_permission, is_store_permission,
                  #   emit_cred_login/logout, cred_store_path/_id,
                  #   record_cred_store, warn_store_mismatch (+ stores.sh),
@@ -110,7 +111,9 @@ share/           # sourced helper modules (never executed directly)
                  #   validate_store_name, store_id, store_name_for_id,
                  #   store_label, emit_store_use/unset
   vm-firmware.sh # vm_firmware (the UEFI images idiot vm boots; also prunes
-                 #   the snap's vm component), vm_firmware_secboot/_package
+                 #   the snap's vm component), vm_firmware_secboot/_package,
+                 #   vm_qemu_package, vm_find_qemu, vm_find_firmware (the
+                 #   lookups idiot vm boots with; never die)
   uefi-vars.py   # run, not sourced: lists an OVMF/AAVMF variable store
                  #   (idiot vm vars); python3 standard library only
   assertion.py   # run, not sourced: summarises and verifies an assertion

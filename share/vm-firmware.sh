@@ -4,7 +4,9 @@
 #
 # One table for both users: cmd/vm picks firmware from it, and the snap's
 # vm part keeps exactly these files of the firmware packages (snap/local/
-# vm-build), so the two can't drift.
+# vm-build), so the two can't drift. vm_find_qemu and vm_find_firmware are
+# the lookups `idiot vm` boots with, shared with `idiot doctor`; they need
+# common.sh and arch.sh, and never die.
 
 # Candidate paths for arch $1, secure boot $2 (1|0), $3 code|vars, one per
 # line, best first. Plain UEFI images must be 64 MiB pflash images:
@@ -56,4 +58,71 @@ vm_firmware_all() {
             vm_firmware "${_vfa_arch}" "${_vfa_sb}" vars
         done
     done | sort -u
+}
+
+# The package providing qemu-system-$1 (a qemu arch name).
+vm_qemu_package() {
+    case "${1}" in
+    x86_64 | i386) printf 'qemu-system-x86' ;;
+    aarch64 | arm) printf 'qemu-system-arm' ;;
+    riscv64) printf 'qemu-system-misc' ;;
+    *) printf 'qemu-system' ;;
+    esac
+}
+
+# Finds qemu for arch $1 (the host's first, see tool_path). Sets qemu_path;
+# vm_comp (the installed vm component, or empty); qemu_comp (that component
+# when it's the one running, else empty); and qemu_env and
+# qemu_data_flags, which point the component's qemu at its own modules and
+# ROMs (it was built for /usr, which on the host is another qemu or none).
+# Fails, with qemu_path empty, when there's no qemu for $1.
+# shellcheck disable=SC2034 # the caller uses what this sets
+vm_find_qemu() {
+    vm_comp="$(snap_component_dirs | sed -n '/\/vm$/p')"
+    qemu_comp=''
+    qemu_env=''
+    qemu_data_flags=''
+    qemu_path="$(tool_path "qemu-system-$(snap_arch_to_qemu "${1}")")" || {
+        qemu_path=''
+        return 1
+    }
+    [ -n "${vm_comp}" ] || return 0
+    case "${qemu_path}" in
+    "${vm_comp}"/*) ;;
+    *) return 0 ;;
+    esac
+    qemu_comp="${vm_comp}"
+    # Ubuntu's qemu searches these for ROMs (its --firmwarepath)
+    for _vfq_dir in usr/share/qemu usr/share/seabios usr/lib/ipxe/qemu; do
+        [ ! -d "${qemu_comp}/${_vfq_dir}" ] ||
+            qemu_data_flags="${qemu_data_flags} -L ${qemu_comp}/${_vfq_dir}"
+    done
+    # the modules dir (usr/lib/<triplet>/qemu), not usr/lib/ipxe/qemu's ROMs
+    for _vfq_mod in "${qemu_comp}"/usr/lib/*/qemu/accel-*.so; do
+        [ -f "${_vfq_mod}" ] || continue
+        qemu_env="env QEMU_MODULE_DIR=${_vfq_mod%/*}"
+        break
+    done
+}
+
+# The first firmware file for arch $1, secure boot $2, $3 code|vars, for
+# the qemu vm_find_qemu found: the host's qemu boots the host's firmware,
+# or the vm component's when the host has none; the component's qemu boots
+# only the component's. Fails, printing nothing, when there's none.
+vm_find_firmware() {
+    if [ -z "${qemu_comp:-}" ]; then
+        _vff_roots="/ ${vm_comp:-}"
+    else
+        _vff_roots="${qemu_comp}"
+    fi
+    for _vff_root in ${_vff_roots}; do
+        for _vff_path in $(vm_firmware "${1}" "${2}" "${3}"); do
+            _vff_file="${_vff_root%/}${_vff_path}"
+            if [ -f "${_vff_file}" ]; then
+                printf '%s' "${_vff_file}"
+                return 0
+            fi
+        done
+    done
+    return 1
 }

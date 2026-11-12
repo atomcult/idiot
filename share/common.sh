@@ -344,6 +344,33 @@ snap_component_dirs() {
     done
 }
 
+# Every component on stdout, tab-separated: name, installed|available, and
+# its tools (space-separated), from the indexes the snap build writes
+# (`idiot run --list`, `idiot doctor`). Nothing for a source install.
+snap_component_table() {
+    [ -n "$(snap_root)" ] || return 0
+    _sct_index="${IDIOT_ROOT}/share/components"
+    _sct_installed=" $(snap_component_dirs | sed 's#.*/##' | tr '\n' ' ') "
+    _sct_names="${IDIOT_COMPONENTS}"
+    for _sct_file in "${_sct_index}"/*; do
+        [ -f "${_sct_file}" ] || continue
+        case " ${_sct_names} " in
+        *" ${_sct_file##*/} "*) ;;
+        *) _sct_names="${_sct_names} ${_sct_file##*/}" ;;
+        esac
+    done
+    for _sct_name in ${_sct_names}; do
+        case "${_sct_installed}" in
+        *" ${_sct_name} "*) _sct_state='installed' ;;
+        *) _sct_state='available' ;;
+        esac
+        _sct_tools=''
+        [ ! -f "${_sct_index}/${_sct_name}" ] ||
+            _sct_tools="$(tr '\n' ' ' <"${_sct_index}/${_sct_name}")"
+        printf '%s\t%s\t%s\n' "${_sct_name}" "${_sct_state}" "${_sct_tools% }"
+    done
+}
+
 # Directories holding the snap's bundled tools, one per line. Confined, the
 # packaged fzf (core24 is / there). Host-side, the copies patched to load
 # core24's libraries from /snap/core24/current, which a confined process

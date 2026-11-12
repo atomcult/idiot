@@ -15,35 +15,6 @@ _snap_shell() {
 	PATH="${_ss_path}${PATH}" exec "${SHELL:-sh}"
 }
 
-# Every component on stdout, tab-separated: name, installed|available, and
-# its tools (space-separated), from the indexes the snap build writes.
-_list_components() {
-	if [ -z "$(snap_root)" ]; then
-		say "Tool components come with the snap (snap install idiot); a source install uses the host's tools."
-		exit 0
-	fi
-	_lc_index="${IDIOT_ROOT}/share/components"
-	_lc_installed=" $(snap_component_dirs | sed 's#.*/##' | tr '\n' ' ') "
-	_lc_names="${IDIOT_COMPONENTS}"
-	for _lc_file in "${_lc_index}"/*; do
-		[ -f "${_lc_file}" ] || continue
-		case " ${_lc_names} " in
-		*" ${_lc_file##*/} "*) ;;
-		*) _lc_names="${_lc_names} ${_lc_file##*/}" ;;
-		esac
-	done
-	for _lc_name in ${_lc_names}; do
-		case "${_lc_installed}" in
-		*" ${_lc_name} "*) _lc_state='installed' ;;
-		*) _lc_state='available' ;;
-		esac
-		_lc_tools=''
-		[ ! -f "${_lc_index}/${_lc_name}" ] ||
-			_lc_tools="$(tr '\n' ' ' <"${_lc_index}/${_lc_name}")"
-		printf '%s\t%s\t%s\n' "${_lc_name}" "${_lc_state}" "${_lc_tools% }"
-	done
-}
-
 usage() {
 	help_heading "Usage:" "idiot run [--sudo] <binary> [args...]"
 	help_heading "      " "idiot run --shell | --list"
@@ -72,7 +43,11 @@ main() {
 		_snap_shell
 		;;
 	--list)
-		_list_components
+		[ -n "$(snap_root)" ] || {
+			say "Tool components come with the snap (snap install idiot); a source install uses the host's tools."
+			exit 0
+		}
+		snap_component_table
 		exit 0
 		;;
 	--sudo)
