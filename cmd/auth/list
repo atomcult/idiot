@@ -15,9 +15,22 @@ main() {
 	[ -d "${IDIOT_AUTH_DIR}" ] ||
 		exit 0
 
+	now="$(date -u +%s)"
+	width=0
 	for f in "${IDIOT_AUTH_DIR}"/*; do
 		[ -f "${f}" ] || continue
-		say "$(basename "${f}")"
+		n="${f##*/}"
+		[ "${#n}" -le "${width}" ] || width="${#n}"
+	done
+	for f in "${IDIOT_AUTH_DIR}"/*; do
+		[ -f "${f}" ] || continue
+		n="${f##*/}"
+		if exp="$(read_expiry "${n}")"; then
+			ann="$(expiry_colour "${exp}" "${now}")$(expiry_phrase "${exp}" "${now}")${RESET}"
+		else
+			ann="${DIM}expiry unknown${RESET}"
+		fi
+		say "$(printf "%-${width}s" "${n}")  ${ann}"
 	done
 }
 main "$@"

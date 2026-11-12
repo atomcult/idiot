@@ -57,6 +57,17 @@ main() {
 		fetch_status
 	fi
 
+	# backfill the expiry record of a named credential saved before idiot
+	# kept one: from its caveats, else the store's answer (not with
+	# --cached, which may run confined where the helper can't)
+	if [ -n "${IDIOT_ACTIVE_CRED:-}" ] && [ "${cached}" -eq 0 ] &&
+		[ -f "${IDIOT_AUTH_DIR}/${IDIOT_ACTIVE_CRED}" ] &&
+		! read_expiry "${IDIOT_ACTIVE_CRED}" >/dev/null; then
+		record_expiry "${IDIOT_ACTIVE_CRED}" \
+			"$(printf '%s\n' "${raw}" | sed -n 's/^expires: //p')" || :
+	fi
+	now="$(date -u +%s)"
+
 	printf '%s\n' "${raw}" | while IFS= read -r line; do
 		case "${line}" in
 		'permissions: '*)
@@ -68,6 +79,15 @@ main() {
 				perm="${perm% }"
 				printf '%s\n' "  ${DIM}-${RESET} $(map_permission "${perm}")" >&2
 			done
+			;;
+		'expires: '*)
+			val="${line#*: }"
+			left=''
+			if exp="$(date -u -d "${val}" +%s 2>/dev/null)"; then
+				left="$(expiry_phrase "${exp}" "${now}")"
+				left=" $(expiry_colour "${exp}" "${now}")(${left#expires })${RESET}"
+			fi
+			printf '%s\n' "${CYAN}expires${RESET}: ${val}${left}" >&2
 			;;
 		*:' '*)
 			key="${line%%:*}"

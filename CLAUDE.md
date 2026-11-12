@@ -93,7 +93,10 @@ share/           # sourced helper modules (never executed directly)
                  #   require_cred/no_cred, whoami_cache_path, store_helper,
                  #   STORE_PERMISSIONS, map_permission, is_store_permission,
                  #   emit_cred_login/logout, cred_store_path/_id,
-                 #   record_cred_store, warn_store_mismatch (+ stores.sh)
+                 #   record_cred_store, warn_store_mismatch (+ stores.sh),
+                 #   expiry_record_path, record_expiry, read_expiry,
+                 #   expiry_phrase/_colour, cred_warn_window,
+                 #   cred_expiry_notice, cred_expiry_warn (dispatcher)
   examples.sh    # IDIOT_EXAMPLES_DIR, resolve_example_url
   fzf.sh         # file_preview_cmd, fzf_pick_from_dir
   image.sh       # image_load (an Ubuntu Core image into a work dir of
@@ -225,8 +228,10 @@ IDIOT_DATA_HOME          IDIOT_AUTH_DIR, IDIOT_STORES_DIR, IDIOT_MODELS_DIR,
                          IDIOT_EXAMPLES_DIR, IDIOT_LP_USER_FILE,
                          IDIOT_PROFILES_DIR live here; IDIOT_AUTH_DIR also
                          holds .store.<cred> (the store a credential is for)
+                         and .expires.<cred> (its expiry, Unix time)
                          source: ~/.local/share/idiot  snap: ~/snap/idiot/common
-IDIOT_CACHE_DIR          whoami cache, example mirrors
+IDIOT_CACHE_DIR          whoami cache, expiry-warned/<cred> stamps,
+                         example mirrors
                          source: ~/.cache/idiot        snap: ~/snap/idiot/common/cache
 ~/.local/lib/idiot/      installed cmd/ and share/ (IDIOT_ROOT when installed)
 ```

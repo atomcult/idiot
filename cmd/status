@@ -116,6 +116,16 @@ main() {
 				_email="$(grep '^email: ' "${_whoami_cache}" | sed 's/^email: //')"
 				[ -n "${_email}" ] && _auth_ann="${IDIOT_ACTIVE_CRED} · ${_email}"
 			fi
+			# expiry: from the login export, else the record (older shells)
+			_exp="${IDIOT_CRED_EXPIRES:-}"
+			case "${_exp}" in
+			'' | *[!0-9]*) _exp="$(read_expiry "${IDIOT_ACTIVE_CRED}")" || _exp='' ;;
+			esac
+			if [ -n "${_exp}" ]; then
+				_now="$(date -u +%s)"
+				# the row's annotation is dim: colour the phrase, then back to dim
+				_auth_ann="${_auth_ann} · $(expiry_colour "${_exp}" "${_now}")$(expiry_phrase "${_exp}" "${_now}")${RESET}${DIM}"
+			fi
 		fi
 	else
 		_auth_value="${DIM}not logged in${RESET}"

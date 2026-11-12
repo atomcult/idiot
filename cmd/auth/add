@@ -134,6 +134,7 @@ main() {
 
 	mv "${tmpfile}" "${dest}"
 	record_cred_store "${name}" "${UBUNTU_STORE_ID:-}"
+	record_expiry "${name}" "${expires}" || :
 	say "Added credentials '${BOLD}${name}${RESET}' for $(store_label "${UBUNTU_STORE_ID:-}") ${DIM}(expires ${expires%%T*})${RESET}"
 }
 main "$@"

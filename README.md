@@ -273,6 +273,19 @@ credential with the active store; imported credentials, and ones saved
 before idiot recorded pairings, have none and are never warned about until
 you bind them.
 
+idiot also knows when each credential expires, read offline from the
+credential itself when it's added or imported (or from the store, the
+first time `idiot auth status` runs for an older one). `idiot status`,
+`idiot auth list` and `idiot auth status` show it (`expires in 41d`,
+yellow within a week, red once expired), and the first idiot command
+each day warns when the active credential expires within
+`IDIOT_CRED_WARN_DAYS` days (default 7; `0` warns only once it has
+expired):
+
+```
+idiot: credential 'ci' expires in 3d — renew with: idiot auth add
+```
+
 ---
 
 ## How it works

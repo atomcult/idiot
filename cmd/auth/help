@@ -20,5 +20,6 @@ main() {
 	echo >&2
 	help_heading "Environment:"
 	help_env "IDIOT_AUTH_DIR" "Credentials directory"
+	help_env "IDIOT_CRED_WARN_DAYS" "Warn this many days before expiry (default 7)"
 }
 main "$@"
