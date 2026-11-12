@@ -1,0 +1,94 @@
+#!/bin/bash
+# tests/bare-host.d/expiry - credential expiry under the snap
+#
+# Usage: expiry   (offline)
+# Builds fake store credentials (V1 macaroons with dummy signatures and an
+# expires caveat), then checks: auth import (a host command) records the
+# expiry with the snap's idiot-store, auth list (confined) shows it, login
+# exports IDIOT_CRED_EXPIRES and warns, a host command warns exactly once
+# although it's dispatched twice, login to a credential with no record says
+# the expiry is unknown, and the auth directory stays private.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+# One V1 macaroon packet: 4 hex digits of length (all of it), key, value.
+_pkt() {
+	_b="${1} ${2}"
+	printf '%04x%s\n' $((${#_b} + 5)) "${_b}"
+}
+# A base64url V1 macaroon: location, identifier, first-party caveats.
+_mac() {
+	{
+		_pkt location "${1}"
+		_pkt identifier "${2}"
+		shift 2
+		for _c in "$@"; do _pkt cid "${_c}"; done
+		printf '002fsignature '
+		head -c 32 /dev/zero
+		printf '\n'
+	} | base64 -w0 | tr '+/' '-_' | tr -d '='
+}
+# A credential whose root caveat expires at $1 (none when empty).
+_cred() {
+	_loc=myapps.developer.ubuntu.com
+	if [ -n "${1}" ]; then
+		_r="$(_mac "${_loc}" root-id "${_loc}|expires|${1}")"
+	else
+		_r="$(_mac "${_loc}" root-id "${_loc}|valid_since|2026-01-01T00:00:00")"
+	fi
+	_d="$(_mac login.ubuntu.com dis-id 'login.ubuntu.com|account|eyJ4IjogMX0=')"
+	printf '{"t":"u1-macaroon","v":{"r":"%s","d":"%s"}}' "${_r}" "${_d}" | base64 -w0
+}
+
+work="$(mktemp -d)"
+auth="${HOME}/snap/idiot/common/auth"
+_cred "$(date -u -d '+3 days 1 hour' +%Y-%m-%dT%H:%M:%S.000123)" >"${work}/soon.cred"
+_cred '' >"${work}/old.cred"
+
+idiot auth import bare-soon "${work}/soon.cred" 2>"${work}/err"
+[ -f "${auth}/.expires.bare-soon" ] &&
+	ok "expiry: import records it with the snap's idiot-store" ||
+	fail "expiry: no record after import: $(tr '\n' ' ' <"${work}/err")"
+
+idiot auth list 2>&1 | grep -q '^bare-soon  *expires in 3d' &&
+	ok "expiry: auth list (confined) shows it" ||
+	fail "expiry: auth list: $(idiot auth list 2>&1 | tr '\n' ' ')"
+
+out="$(idiot auth login bare-soon 2>&1 >/dev/null)"
+idiot auth login bare-soon 2>/dev/null
+[ "${IDIOT_CRED_EXPIRES:-}" = "$(cat "${auth}/.expires.bare-soon" 2>/dev/null)" ] &&
+	printf '%s' "${out}" | grep -q "credential 'bare-soon' expires in 3d" &&
+	ok "expiry: login exports IDIOT_CRED_EXPIRES and warns" ||
+	fail "expiry: login: IDIOT_CRED_EXPIRES=[${IDIOT_CRED_EXPIRES:-}] stderr=[${out}]"
+
+printf '2000-01-01\n' >"${HOME}/snap/idiot/common/cache/expiry-warned/bare-soon"
+n="$(idiot run true 2>&1 | grep -c "credential 'bare-soon'")"
+[ "${n}" = 1 ] &&
+	ok "expiry: a host command warns exactly once" ||
+	fail "expiry: a host command warned ${n} times"
+n="$(idiot run true 2>&1 | grep -c "credential 'bare-soon'")"
+[ "${n}" = 0 ] &&
+	ok "expiry: and not again that day" ||
+	fail "expiry: warned again (${n})"
+
+install -m 600 "${work}/old.cred" "${auth}/bare-old"
+out="$(idiot auth login bare-old 2>&1 >/dev/null)"
+idiot auth login bare-old 2>/dev/null
+[ -z "${IDIOT_CRED_EXPIRES+set}" ] &&
+	printf '%s' "${out}" | grep -q 'expiry unknown' &&
+	ok "expiry: no record under the snap: unknown, IDIOT_CRED_EXPIRES unset" ||
+	fail "expiry: no record: IDIOT_CRED_EXPIRES=[${IDIOT_CRED_EXPIRES:-}] stderr=[${out}]"
+idiot auth logout 2>/dev/null
+
+bad="$(find "${auth}" -mindepth 1 \( -type f ! -perm 600 \) -o \( ! -type f \) | head -3)"
+[ "$(stat -c %a "${auth}")" = 700 ] && [ -z "${bad}" ] &&
+	ok "expiry: auth directory 0700, every file 0600" ||
+	fail "expiry: auth dir $(stat -c %a "${auth}"), not 0600: ${bad}"
+
+idiot auth remove bare-soon 2>/dev/null
+idiot auth remove bare-old 2>/dev/null
+[ ! -e "${auth}/.expires.bare-soon" ] &&
+	ok "expiry: remove deletes the record" ||
+	fail "expiry: record left after remove"
+rm -rf "${work}"
