@@ -2,9 +2,9 @@
 
 ## 1. `idiot-store expiry`
 
-- [ ] 1.1 Confirm the caveat format on a real credential before writing the matcher: with a throwaway Rust test or `examples/` binary run locally (not committed), print only each first-party caveat's predicate *key* (`<location>|<key>`) and, for `expires`, its value, for the root and discharge of one credential made with `idiot auth add probe --expires 2d` (Lauren runs the login); never print signatures, the account caveat's value, or the credential. Record the observed format in design.md's Assumptions and delete `probe` afterwards
-- [ ] 1.2 Add the caveat reader next to `credential::decode` and `src/cmd/expiry.rs` (`--file`, else `UBUNTU_STORE_AUTH`, like `whoami`); register `Expiry` in `main.rs` and list it in the crate doc comment; add the unit tests from design.md ("Helper tests"); verify `cargo test --manifest-path tools/idiot-store/Cargo.toml` passes offline (no network namespace: `unshare -rn cargo test …`) and that `idiot-store expiry --file <probe credential>` prints the expected lines and nothing else
-- [ ] 1.3 Run `make check` and commit (`feat(idiot-store): read a credential's expiry offline`)
+- [x] 1.1 Confirm the caveat format on a real credential before writing the matcher: with a throwaway Rust test or `examples/` binary run locally (not committed), print only each first-party caveat's predicate *key* (`<location>|<key>`) and, for `expires`, its value, for the root and discharge of one credential made with `idiot auth add probe --expires 2d` (Lauren runs the login); never print signatures, the account caveat's value, or the credential. Record the observed format in design.md's Assumptions and delete `probe` afterwards
+- [x] 1.2 Add the caveat reader next to `credential::decode` and `src/cmd/expiry.rs` (`--file`, else `UBUNTU_STORE_AUTH`, like `whoami`); register `Expiry` in `main.rs` and list it in the crate doc comment; add the unit tests from design.md ("Helper tests"); verify `cargo test --manifest-path tools/idiot-store/Cargo.toml` passes offline (no network namespace: `unshare -rn cargo test …`) and that `idiot-store expiry --file <probe credential>` prints the expected lines and nothing else
+- [x] 1.3 Run `make check` and commit (`feat(idiot-store): read a credential's expiry offline`)
 
 ## 2. Expiry record and display
 

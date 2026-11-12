@@ -188,9 +188,16 @@ ignored by older versions (dotfiles are skipped everywhere).
 
 ## Assumptions
 
-- Store root macaroons carry `dashboard.snapcraft.io|expires|<ISO time>`
-  first-party caveats and SSO discharges may carry
-  `login.ubuntu.com|expires|<ISO time>`; to be confirmed in task 1.1.
+- Confirmed in task 1.1 on two real credentials (made with `idiot auth
+  add`, default one year): the root macaroon's location is
+  `myapps.developer.ubuntu.com` and it carries
+  `myapps.developer.ubuntu.com|expires|2027-11-10T01:47:03.000180`
+  (microseconds, no zone; one year after creation) next to `valid_since`
+  and `acl` caveats; the `login.ubuntu.com` discharge carries `account`,
+  `valid_since` and `last_auth` but no `expires`. So the matcher accepts
+  any location with the key `expires`, and discharge expiry stays
+  supported but is not relied on. `date -u -d` parses the fractional
+  seconds once `Z` is appended.
 - The effective expiry is the earliest of all expiry caveats.
 - Warning window default of 7 days, set by `IDIOT_CRED_WARN_DAYS`.
 - "Once per day per credential, across shells" is acceptable instead of

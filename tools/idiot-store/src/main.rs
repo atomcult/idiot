@@ -3,6 +3,8 @@
 //! A leaf tool for idiot's `auth` commands: it only talks to the store.
 //! Credentials never go through argv (visible in ps) or stdout: `login`
 //! writes a private file, `whoami` reads the environment or a file.
+//! `expiry` reads a credential's expiry caveats offline and prints only
+//! those timestamps.
 //!
 //! Exit status: 0 ok, 1 usage or local error, 2 authentication failed or
 //! credential rejected, 3 network or store error.
@@ -32,6 +34,8 @@ enum Commands {
     Login(LoginArgs),
     /// Show the account behind a credential, as `snapcraft whoami` does
     Whoami(WhoamiArgs),
+    /// Print a credential's expiry caveats (offline): `root|discharge <time>`
+    Expiry(ExpiryArgs),
 }
 
 #[derive(Args)]
@@ -63,6 +67,13 @@ pub struct WhoamiArgs {
     file: Option<std::path::PathBuf>,
 }
 
+#[derive(Args)]
+pub struct ExpiryArgs {
+    /// Read the credential from FILE instead of UBUNTU_STORE_AUTH
+    #[arg(long, value_name = "FILE")]
+    file: Option<std::path::PathBuf>,
+}
+
 fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -78,6 +89,7 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Commands::Login(args) => cmd::login::run(args),
         Commands::Whoami(args) => cmd::whoami::run(args),
+        Commands::Expiry(args) => cmd::expiry::run(args),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
