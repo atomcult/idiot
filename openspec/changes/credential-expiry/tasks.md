@@ -15,10 +15,33 @@
 
 ## 3. Login export and warning
 
-- [ ] 3.1 `cmd/auth/login`: export `IDIOT_CRED_EXPIRES` or unset it, backfill a missing record when `SNAP` is unset, print the expiring/expired notice and write the day's stamp; `cmd/auth/logout`: unset it; verify the "Activating a credential" scenarios through the wrapper in bash and fish, including the snap case with no record (`snapcraft pack`, `snap install --dangerous`)
-- [ ] 3.2 `idiot`: call `cred_expiry_warn` where `_increment_count` is called; verify "Expiring soon", "Only once a day" (second shell too), "Expired", "Window configured", "Early warning disabled" and "Expiry unknown" by writing records and stamps by hand; under the snap verify a host command (e.g. `idiot auth status`) warns exactly once although it is dispatched twice
+- [x] 3.1 `cmd/auth/login`: export `IDIOT_CRED_EXPIRES` or unset it, backfill a missing record when `SNAP` is unset, print the expiring/expired notice and write the day's stamp; `cmd/auth/logout`: unset it; verify the "Activating a credential" scenarios through the wrapper in bash and fish, including the snap case with no record (`snapcraft pack`, `snap install --dangerous`)
+- [x] 3.2 `idiot`: call `cred_expiry_warn` where `_increment_count` is called; verify "Expiring soon", "Only once a day" (second shell too), "Expired", "Window configured", "Early warning disabled" and "Expiry unknown" by writing records and stamps by hand; under the snap verify a host command (e.g. `idiot auth status`) warns exactly once although it is dispatched twice
 - [x] 3.3 Verify the warning check adds nothing measurable without an active credential (100 × `idiot store list` with and without the change, timing as in shell-prompt-segment's design) and one `date` call with one; run `make check` and commit (`feat(auth): warn before the active credential expires`)
 
 ## 4. Integration
 
-- [ ] 4.1 Walk every scenario in the change's auth and status specs on a source install and the snap, check `ls -la "$IDIOT_AUTH_DIR"` shows only 0600 files and a 0700 directory, then run `make check`
+- [x] 4.1 Walk every scenario in the change's auth and status specs on a source install and the snap, check `ls -la "$IDIOT_AUTH_DIR"` shows only 0600 files and a 0700 directory, then run `make check`
+
+## Notes
+
+- 1.1 used Lauren's two existing credentials (key-only probe, deleted)
+  instead of a new `probe` login: same format check, no extra credential.
+  The expiry caveat lives under `myapps.developer.ubuntu.com` (see
+  design.md Assumptions), so the matcher takes any location.
+- Source scenarios used fake credentials (V1 macaroons with dummy
+  signatures, built by a scratch script) and a scratch install whose
+  `idiot-store login` was a stand-in writing such a credential; every
+  other helper call was the real binary.
+- `IDIOT_CRED_EXPIRES` is exported by the shared `emit_cred_login`, so
+  `profile use` sets it too; `emit_cred_logout` unsets it.
+- The dispatcher skips its warning for `auth login` itself, which gives
+  its own notice (otherwise the first login of the day printed it twice).
+- From source, login to a credential whose expiry can't be read says
+  nothing (only the snap's "expiry unknown — run: idiot auth status",
+  where auth status can fill it in).
+- 3.3: 3 × 100 `idiot store list` without a credential: 62.8 ms old vs
+  62.9 ms new (noise); with one: exactly one extra execve (`date`).
+- The snap halves of 3.1, 3.2 and 4.1 ran in the bare-host container
+  (`tests/bare-host.d/expiry`, 80/80), not `snap install --dangerous` on
+  the development machine.
