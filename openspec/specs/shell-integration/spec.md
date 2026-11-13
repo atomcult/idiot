@@ -95,12 +95,13 @@ subcommand SHALL fail with an error naming it.
 - **THEN** the command exits non-zero with `unknown command: frobnicate`
 
 ### Requirement: Wrapper required for commands
-Apart from help, version, status, prompt and `init`, a command SHALL refuse
-to run when `IDIOT_SHELL` is unset, with an error telling the user how to
-install the shell integration. A command that changes the environment SHALL
-refuse to run when `IDIOT_SHELL` is set but `IDIOT_EVAL_FILE` is not (an
-outdated wrapper), telling the user to reload the integration, and SHALL
-change nothing.
+Apart from help, version, status, prompt, `init` and `doctor` (which then
+runs a limited report, see the doctor capability), a command SHALL refuse
+to run when `IDIOT_SHELL` is unset, with an error telling the user how to install
+the shell integration. A command that changes the environment SHALL refuse
+to run when `IDIOT_SHELL` is set but `IDIOT_EVAL_FILE` is not (an outdated
+wrapper), telling the user to reload the integration, and SHALL change
+nothing.
 
 #### Scenario: Not initialised
 - **WHEN** `IDIOT_SHELL` is unset and the user runs `idiot store use prod`
@@ -113,6 +114,10 @@ change nothing.
 #### Scenario: Prompt without wrapper
 - **WHEN** `IDIOT_SHELL` is unset and the user runs `idiot prompt`
 - **THEN** the segment is printed and the exit status is zero
+
+#### Scenario: Doctor without wrapper
+- **WHEN** `IDIOT_SHELL` is unset and the user runs `idiot doctor`
+- **THEN** a report is shown that marks the shell integration as broken
 
 #### Scenario: Outdated wrapper
 - **WHEN** a shell loaded the previous integration and the user runs `idiot store use prod`
