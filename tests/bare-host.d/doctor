@@ -1,0 +1,110 @@
+#!/bin/bash
+# tests/bare-host.d/doctor - idiot doctor under the snap, as a user
+#
+# Usage: doctor   (as an unprivileged user with passwordless sudo)
+# Checks the report through the snap's integration (handed off to the
+# host: real tool, component and firmware lines), that a kvm-less (or, with
+# --kvm, kvm-inaccessible) container gives only warnings, that nothing
+# reaches stdout and it's counted once; the confined fallback without the
+# integration; a missing component's tools and firmware; two installs,
+# data left in the source install's directory and stale eval files.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+# shellcheck disable=SC2016 # matching literal commands in the report
+. "$(dirname "$0")/lib"
+
+[ "$(id -u)" -ne 0 ] || {
+	fail "doctor: must not run as root"
+	exit 1
+}
+case "$(dpkg --print-architecture)" in
+amd64) qemu='qemu-system-x86_64' ;;
+arm64) qemu='qemu-system-aarch64' ;;
+*) qemu="qemu-system-$(dpkg --print-architecture)" ;;
+esac
+rev="$(readlink /snap/idiot/current)"
+comps="/snap/idiot/components/${rev}"
+
+count="${HOME}/snap/idiot/common/cache/invoke-count"
+before="$(cat "${count}" 2>/dev/null || echo 0)"
+out="$(idiot doctor 2>&1)"
+rc=$?
+after="$(cat "${count}" 2>/dev/null || echo 0)"
+bad="$(printf '%s\n' "${out}" | grep '✗')"
+[ "${rc}" -eq 0 ] && [ -z "${bad}" ] &&
+	ok "doctor: exit 0 and only warnings with every component" ||
+	fail "doctor: rc=${rc}: ${bad}"
+[ "$((after - before))" -eq 1 ] && ok "doctor: counted once (not again host-side)" ||
+	fail "doctor: invoke-count went from ${before} to ${after}"
+printf '%s\n' "${out}" | grep -q '✓ shell integration *bash, from the snap' &&
+	printf '%s\n' "${out}" | grep -q "✓ snap *idiot, revision ${rev}," &&
+	printf '%s\n' "${out}" | grep -q '✓ idiot-store helper *.*/libexec/idiot-store' &&
+	ok "doctor: integration, install and helper ✓ (handed off)" ||
+	fail "doctor: $(printf '%s\n' "${out}" | sed -n '1,8p' | tr '\n' '|')"
+if [ -e /dev/kvm ]; then
+	printf '%s\n' "${out}" | grep -q '! /dev/kvm is not accessible — .*usermod -aG kvm tester' &&
+		ok "doctor: KVM not accessible (a user outside kvm)" || fail "doctor: kvm line: $(printf '%s\n' "${out}" | grep kvm)"
+else
+	printf '%s\n' "${out}" | grep -q '! /dev/kvm not found — .* VMs will be emulated' &&
+		ok "doctor: no /dev/kvm is a warning" || fail "doctor: kvm line: $(printf '%s\n' "${out}" | grep kvm)"
+fi
+printf '%s\n' "${out}" | grep -q "✓ ${qemu} *vm component" &&
+	printf '%s\n' "${out}" | grep -q '✓ swtpm *tpm component' &&
+	ok "doctor: tools from components" || fail "doctor: $(printf '%s\n' "${out}" | grep -E "${qemu}|swtpm")"
+printf '%s\n' "${out}" | grep -q '✓ components *installed: core vm tpm network hardware boot debug' &&
+	ok "doctor: component list" || fail "doctor: $(printf '%s\n' "${out}" | grep components)"
+fw="$(printf '%s\n' "${out}" | awk '/✓ .* secure boot firmware/ && /'"$(dpkg --print-architecture)"'/ { print $(NF - 1); exit }')"
+case "${fw}" in
+"${comps}"/vm/*) [ -f "${fw}" ] && ok "doctor: firmware from the vm component (${fw##*/})" || fail "doctor: ${fw} missing" ;;
+*) fail "doctor: firmware [${fw}]" ;;
+esac
+n="$(idiot doctor 2>/dev/null | wc -c)"
+[ "${n}" -eq 0 ] && ok "doctor: nothing on stdout" || fail "doctor: ${n} bytes on stdout"
+out="$(idiot doctor --quiet 2>&1)"
+[ "$(printf '%s\n' "${out}" | grep -c '^  [✓]')" -eq 0 ] && printf '%s\n' "${out}" | grep -q '^VMs' &&
+	! printf '%s\n' "${out}" | grep -q '^Install' && printf '%s\n' "${out}" | grep -q 'warning' &&
+	ok "doctor --quiet: only the warnings, their headings and the count" || fail "doctor --quiet: $(printf '%s' "${out}" | tr '\n' '|')"
+
+# the confined fallback: an outdated integration, then none
+out="$(/snap/bin/idiot doctor 2>&1)"
+rc=$?
+[ "${rc}" -eq 1 ] && printf '%s\n' "${out}" | grep -q '✗ shell integration (bash) is out of date' &&
+	[ "$(printf '%s\n' "${out}" | grep -c '! skipped — load the shell integration first')" -eq 3 ] &&
+	printf '%s\n' "${out}" | grep -q '^Credentials and stores' &&
+	ok "doctor: outdated integration: confined, host checks skipped, exit 1" ||
+	fail "doctor: outdated: rc=${rc} $(printf '%s' "${out}" | tr '\n' '|')"
+out="$(env -u IDIOT_SHELL /snap/bin/idiot doctor 2>&1)"
+rc=$?
+[ "${rc}" -eq 1 ] && printf '%s\n' "${out}" | grep -q '✗ shell integration not loaded — run: eval "$(idiot init bash)"  or: idiot init fish | source' &&
+	ok "doctor: no integration: ✗ with the command to load it" || fail "doctor: none: rc=${rc} $(printf '%s' "${out}" | head -3 | tr '\n' '|')"
+
+# two installs, data left in the source install's directory, stale eval files
+mkdir -p "${HOME}/.local/bin" "${HOME}/.local/share/idiot/auth" "${HOME}/.local/share/idiot/stores"
+printf '#!/bin/sh\n' >"${HOME}/.local/bin/idiot"
+(umask 077 && printf 'x' >"${HOME}/.local/share/idiot/auth/old-work")
+printf 'id\n' >"${HOME}/.local/share/idiot/stores/old-store"
+evdir="${XDG_RUNTIME_DIR}/snap.idiot"
+for x in aaaaaa bbbbbb cccccc; do touch -d '2 days ago' "${evdir}/idiot.${x}"; done
+out="$(idiot doctor 2>&1)"
+printf '%s\n' "${out}" | grep -q '! a source install is also present (~/.local/bin/idiot); this shell uses the snap' &&
+	ok "doctor: two installs" || fail "doctor: two installs: $(printf '%s\n' "${out}" | grep -i install)"
+printf '%s\n' "${out}" | grep -qF "! ~/.local/share/idiot holds 2 items the snap doesn't see (auth/old-work stores/old-store) — copy them over: cp -an ~/.local/share/idiot/. ~/snap/idiot/common/" &&
+	ok "doctor: data left behind after switching to the snap" || fail "doctor: data: $(printf '%s\n' "${out}" | grep -A1 '^Data')"
+printf '%s\n' "${out}" | grep -q "! 3 stale eval files in ${evdir} — " &&
+	ok "doctor: stale eval files" || fail "doctor: eval files: $(printf '%s\n' "${out}" | grep eval)"
+rm -rf "${HOME:?}/.local/bin/idiot" "${HOME:?}/.local/share/idiot" "${evdir}"/idiot.aaaaaa "${evdir}"/idiot.bbbbbb "${evdir}"/idiot.cccccc
+
+# a missing component: its tools and the firmware, with what to install
+sudo snap remove idiot+vm idiot+tpm >/dev/null
+out="$(idiot doctor 2>&1)"
+rc=$?
+printf '%s\n' "${out}" | grep -q "! swtpm not found — needed by idiot vm --tpm; snap install idiot+tpm (or install the swtpm package)" &&
+	ok "doctor: missing tool names its component" || fail "doctor: $(printf '%s\n' "${out}" | grep swtpm)"
+printf '%s\n' "${out}" | grep -q "! ${qemu} not found — needed by idiot vm; snap install idiot+vm" &&
+	printf '%s\n' "${out}" | grep -q "! $(dpkg --print-architecture) secure boot firmware not found — idiot vm needs it; install the .* package, or: snap install idiot+vm" &&
+	[ "${rc}" -eq 0 ] && ok "doctor: firmware missing (warning, exit 0)" ||
+	fail "doctor: rc=${rc} $(printf '%s\n' "${out}" | grep -E 'firmware|qemu')"
+printf '%s\n' "${out}" | grep -q '✓ components *installed: core network hardware boot debug · available: vm tpm' &&
+	ok "doctor: installed and available components" || fail "doctor: $(printf '%s\n' "${out}" | grep components)"
+sudo snap install --dangerous /tmp/bare-host.d/comps/idiot+vm.comp /tmp/bare-host.d/comps/idiot+tpm.comp >/dev/null &&
+	installed vm && installed tpm || fail "doctor: could not reinstall idiot+vm and idiot+tpm"

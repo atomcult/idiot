@@ -62,7 +62,7 @@ printf '%s' "${out}" | grep -q 'arm64 in the profile, amd64 now' &&
 	ok "profile status: drift shown" || fail "profile status: ${out}"
 
 # a pairing as host-side `auth add` writes it, seen by the confined login
-printf 'store: abc123\n' >"${data}/auth/.store.ci"
+(umask 077 && printf 'store: abc123\n' >"${data}/auth/.store.ci") # as idiot writes it
 idiot store use prod 2>/dev/null
 confined auth login ci
 printf '%s' "${out}" | grep -q "belong to store 'staging'" &&

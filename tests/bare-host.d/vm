@@ -26,6 +26,9 @@ for t in "${qemu}" swtpm; do
 	! command -v "${t}" >/dev/null || fail "vm: the host has its own ${t}; this isn't a bare host"
 done
 
+# the secure boot firmware idiot doctor reports, to find in qemu's arguments
+fw="$(idiot doctor 2>&1 | awk '/✓ .* secure boot firmware/ && /'"$(dpkg --print-architecture)"'/ { print $(NF - 1); exit }')"
+
 log="$(mktemp)"
 state="$(mktemp -d)"
 sum="$(sha256sum <"${image}")"
@@ -36,6 +39,11 @@ for _ in $(seq "${secs}"); do
 	kill -0 "${pid}" 2>/dev/null || break
 	sleep 1
 done
+qargs="$(pgrep -a -x "$(printf '%s' "${qemu}" | cut -c1-15)")"
+case "${qargs}" in
+*"file=${fw},"* | *"file=${fw} "*) ok "vm: boots the firmware idiot doctor reports (${fw##*/})" ;;
+*) fail "vm: doctor reported [${fw}], qemu runs: ${qargs}" ;;
+esac
 # qemu's process name is cut to 15 characters
 pkill -x "$(printf '%s' "${qemu}" | cut -c1-15)" 2>/dev/null
 wait "${pid}"

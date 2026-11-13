@@ -14,6 +14,8 @@
 #   run      idiot run --list/--sudo/--shell, missing-component errors
 #            (as an unprivileged user)
 #   profile  profiles and auth bind run confined, as that user
+#   doctor   idiot doctor handed off and confined, missing components,
+#            leftovers (as that user; removes and reinstalls vm and tpm)
 #   refresh  a refresh under a shell set up before it
 #   vm       (with --boot) an Ubuntu Core image boots with secure boot and
 #            a TPM from the vm and tpm components
@@ -161,6 +163,15 @@ say "profile (as tester)"
 lxc exec "${target}" --user "${uid}" --group "${uid}" --cwd /home/tester \
 	--env HOME=/home/tester --env "XDG_RUNTIME_DIR=/run/user/${uid}" -- \
 	bash /tmp/bare-host.d/profile | tee -a "${log}"
+say "doctor (as tester)"
+on mkdir -p /tmp/bare-host.d/comps
+for c in "$@"; do
+	on cp "/root/bare-host/$(basename "${c}")" /tmp/bare-host.d/comps/
+done
+on chmod -R a+rX /tmp/bare-host.d
+lxc exec "${target}" --user "${uid}" --group "${uid}" --cwd /home/tester \
+	--env HOME=/home/tester --env "XDG_RUNTIME_DIR=/run/user/${uid}" -- \
+	bash /tmp/bare-host.d/doctor | tee -a "${log}"
 say "refresh"
 # shellcheck disable=SC2086
 on bash "${d}/refresh" ${files} | tee -a "${log}"
