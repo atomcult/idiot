@@ -20,6 +20,7 @@
 case "$(dpkg --print-architecture)" in
 amd64) qemu='qemu-system-x86_64' ;;
 arm64) qemu='qemu-system-aarch64' ;;
+armhf) qemu='qemu-system-arm' ;;
 *) qemu="qemu-system-$(dpkg --print-architecture)" ;;
 esac
 rev="$(readlink /snap/idiot/current)"
