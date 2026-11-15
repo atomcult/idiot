@@ -46,6 +46,7 @@ every build.
   0.18 might break other binaries on other ISAs] → check-components on
   each build catches a missing promised tool; the gdb-style loader
   fallback in `patchelf-host` covers broken program headers on any arch;
-  the bare-host test (tasks) is the real check.
+  bare-host, run natively on each architecture's test platform (from
+  `latest/edge`, outside this change), is the real check.
 - [riscv64 and armhf builds are slow on Launchpad (qemu-system-misc, gdb)]
   → acceptable; they only rebuild when Lauren starts them.

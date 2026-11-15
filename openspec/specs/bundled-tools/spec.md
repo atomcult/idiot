@@ -34,8 +34,10 @@ listed:
 - `debug`: `strace`, `ltrace`, `gdb`, `lsof`, `file`, `readelf`, `objdump`,
   `nm`, `strings`, `eu-readelf`, `eu-stack`, `jq`, `pstree`, `fuser`,
   `iostat`, `mpstat`, `pidstat`, `htop`, `hexdump`, `patchelf`.
-Every bundled tool SHALL run on the host with no host packages installed,
-including on Ubuntu Core.
+Each component SHALL provide its listed tools on every architecture the
+snap is built for, except `ltrace`, which Ubuntu does not build for
+riscv64. Every bundled tool SHALL run on the host with no host packages
+installed, including on Ubuntu Core.
 
 #### Scenario: Component on a bare host
 - **WHEN** the host has no tcpdump and the user installs `idiot+network` and runs `idiot run tcpdump --version`
@@ -44,6 +46,10 @@ including on Ubuntu Core.
 #### Scenario: Only what's installed
 - **WHEN** only `idiot+hardware` is installed and the user runs `idiot run lspci`
 - **THEN** it runs, and `idiot run tcpdump` fails naming `idiot+network`
+
+#### Scenario: ltrace on riscv64
+- **WHEN** `idiot+debug` is installed on a riscv64 host without ltrace and the user runs `idiot run ltrace`
+- **THEN** it fails saying ltrace is not on PATH and not bundled with idiot, and every other debug tool runs
 
 ### Requirement: Finding a tool
 When a host command needs a tool, idiot SHALL use the host's copy if it is

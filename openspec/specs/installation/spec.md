@@ -19,7 +19,9 @@ launcher at `PREFIX/bin/idiot`; `make uninstall` SHALL remove both, and
 - **THEN** `~/.local/bin/idiot` runs idiot and `idiot version` shows the installed version
 
 ### Requirement: Snap install
-The snap SHALL be strictly confined and SHALL declare no plugs or slots. It
+The snap SHALL be built for amd64, arm64, armhf and riscv64, with every
+component available on each. It SHALL be strictly confined and SHALL declare
+no plugs or slots. It
 SHALL keep idiot's state in the snap's per-user common directory
 (`~/snap/<instance>/common`), shared by all revisions and by host commands.
 Tools beyond the snap's own fzf SHALL come from optional components (`core`,
@@ -50,6 +52,10 @@ one a command needs, the command SHALL fail naming that component.
 #### Scenario: Components across refreshes
 - **WHEN** `idiot+vm` is installed and the snap is refreshed to a new revision
 - **THEN** `idiot vm` uses the `vm` component of the new revision without the shell integration being reloaded
+
+#### Scenario: On an arm64 device
+- **WHEN** the user runs `snap install idiot idiot+core` on an arm64 Ubuntu Core device
+- **THEN** both install and `idiot run sgdisk --version` runs the arm64 build
 
 ### Requirement: Data directory
 idiot's data directory SHALL be `${XDG_DATA_HOME:-~/.local/share}/idiot` for

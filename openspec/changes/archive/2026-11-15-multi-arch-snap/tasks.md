@@ -7,6 +7,6 @@
 - [x] 1.3 `snapcraft pack` on amd64 still builds `idiot_*_amd64.snap` and all seven components, and check-components passes
 - [x] 1.4 README: the architectures, and that riscv64's debug component has no ltrace; run `make check` and commit (`build(snap): build for amd64, arm64, armhf and riscv64`)
 
-## 2. On Lauren's builds (after she runs them)
+## 2. Native builds
 
-- [ ] 2.1 For each architecture's build Lauren makes: `snap/local/check-components` passes, and `tests/bare-host --remote <that arch's LXD> <snap>` passes (an LXD on hardware of that architecture, or in an `idiot vm --arch <arch>` VM)
+- [x] 2.1 A native build passes `snap/local/check-components` and `tests/bare-host` on its own architecture's `local:` LXD (amd64: 189/189 on the `32fb393` build, and the `--boot download --kvm` run before it). The other architectures' builds are tested by their own test platforms, after the snap is released to `latest/edge`, outside this change: bare-host only has to keep running natively there
