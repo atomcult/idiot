@@ -1,0 +1,51 @@
+#!/bin/bash
+# tests/bare-host.d/no-python - idiot needs no python3 on the host
+#
+# Usage: no-python   (as root, after tests/bare-host hid python3)
+# The runner bind-mounts an empty file over every /usr/bin/python3*, as on
+# an Ubuntu Core 26 device, before the checks that use what python3 did
+# (inspect, assertion, vm). This checks python3 really is gone and covers
+# what those checks don't: vm vars on a variable store from the vm
+# component, and --ssh-port refusing a port something listens on.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+if python3 -c 'print(1)' >/dev/null 2>&1; then
+	fail "no-python: python3 still runs; the runner didn't hide it"
+	exit 1
+fi
+ok "no-python: python3 is unavailable"
+
+work="$(mktemp -d)"
+if installed vm; then
+	# a secure-boot variable store as the vm component ships it
+	vars="$(find -L /snap/idiot/components -type f \
+		\( -name 'OVMF_VARS_4M.ms.fd' -o -name 'AAVMF_VARS.ms.fd' \) 2>/dev/null | head -n 1)"
+	[ -n "${vars}" ] && cp "${vars}" "${work}/fw_vars.fd" ||
+		fail "no-python: no secure-boot variable store in the vm component"
+	out="$(idiot vm vars "${work}" 2>&1)"
+	printf '%s\n' "${out}" | grep -q '^KEK ' &&
+		printf '%s\n' "${out}" | grep -q 'X.509: .*Microsoft Corporation KEK CA 2011' &&
+		ok "no-python: vm vars lists the secure boot keys (${vars##*/})" ||
+		fail "no-python: vm vars: $(printf '%s' "${out}" | head -n 3 | tr '\n' ' ')"
+
+	# something listens on the port: refused before qemu starts
+	idiot run socat TCP-LISTEN:9437,reuseaddr,fork /dev/null >/dev/null 2>&1 &
+	listener=$!
+	for _ in $(seq 20); do
+		ss -ltn 2>/dev/null | grep -q ':9437 ' && break
+		sleep 0.2
+	done
+	truncate -s 64M "${work}/disk.img"
+	out="$(idiot vm --name taken --ssh-port 9437 --no-gfx "${work}/disk.img" </dev/null 2>&1)"
+	rc=$?
+	[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'port 9437 is in use' &&
+		! pgrep -f 'qemu-system.*taken' >/dev/null &&
+		ok "no-python: --ssh-port on a taken port is refused before qemu" ||
+		fail "no-python: --ssh-port 9437: rc=${rc} ${out}"
+	kill "${listener}" 2>/dev/null
+	wait 2>/dev/null
+	idiot vm delete --yes taken >/dev/null 2>&1
+fi
+rm -rf "${work}"

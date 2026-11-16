@@ -49,5 +49,27 @@
 
 ## 8. Integration
 
-- [ ] 8.1 `tests/bare-host.d/no-python` (and a step in `tests/bare-host`): with python3 hidden in the container, `inspect image`, `inspect diff`, `inspect assertion`, `vm vars`, `vm --ssh-port` on a taken port, and `vm stop` of a `--tpm` VM behave as with python3. Run `make check`; commit (`test: bare-host without python3`)
-- [ ] 8.2 `snapcraft pack`; `snap/local/check-components` passes; `tests/bare-host --boot download --kvm <snap>` on `local:` passes in full
+- [x] 8.1 `tests/bare-host.d/no-python` (and a step in `tests/bare-host`): with python3 hidden in the container, `inspect image`, `inspect diff`, `inspect assertion`, `vm vars`, `vm --ssh-port` on a taken port, and `vm stop` of a `--tpm` VM behave as with python3. Run `make check`; commit (`test: bare-host without python3`)
+- [x] 8.2 `snapcraft pack`; `snap/local/check-components` passes; `tests/bare-host --boot download --kvm <snap>` on `local:` passes in full
+
+## Notes
+
+- Full run (`tests/bare-host --boot download --kvm` on `local:`, python3
+  hidden in the container): 201 passed, 2 failed, both in the new
+  no-python check's own setup (the vm component's variable store path, and
+  the disk image the taken-port test used). Fixed, and rerun without
+  `--boot`: 192 passed, 0 failed. Every check that uses what python3 did
+  (inspect, assertion, vm with a TPM, vm stop, doctor) passed without it.
+- Byte-for-byte comparisons with the Python versions: image work files and
+  `inspect image`/`inspect diff` output on fresh, booted, install-mode,
+  LUKS and non-Core images; 166 `inspect assertion` runs; 19 variable
+  stores. The one difference left is `uefi-vars` on a missing file (Python
+  crashed with a traceback; cmd/vm checks the file first).
+- Changed during implementation: `snapd-state --report` formats the three
+  state sections of `inspect image` (design.md says why), and the helper
+  parses its own arguments instead of using clap.
+- Found on the way, not changed here: an incremental `snapcraft pack`
+  keeps files the `idiot` part no longer installs (the deleted .py files
+  were still in the snap until `snapcraft clean idiot`); and when the
+  host's AppArmor-confined swtpm can't create its socket (e.g. under
+  /run/user), `idiot vm --tpm` blames the 107-byte path limit.

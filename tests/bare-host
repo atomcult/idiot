@@ -4,7 +4,9 @@
 #
 # Launches a throwaway LXD container with none of the bundled tools'
 # packages, installs the snap and components given (default: every
-# idiot+*.comp next to the snap), and runs the checks in bare-host.d/:
+# idiot+*.comp next to the snap), hides python3 (as on Ubuntu Core 26),
+# and runs the checks in bare-host.d/:
+#   no-python  python3 is gone; vm vars and a taken --ssh-port without it
 #   tools    every tool the bundled-tools spec promises executes
 #   data     tools that need data files, helpers or wrappers really work
 #   inspect  inspect image and diff on images built with core's tools
@@ -18,7 +20,7 @@
 #            leftovers (as that user; removes and reinstalls vm and tpm)
 #   refresh  a refresh under a shell set up before it
 #   vm       (with --boot) an Ubuntu Core image boots with secure boot and
-#            a TPM from the vm and tpm components
+#            a TPM from the vm and tpm components, and vm stop powers it down
 # Prints one ok/FAIL line per check; exits 1 if any failed.
 #
 # The container is created on --remote (default: local), never on the
@@ -148,8 +150,15 @@ on sh -c 'useradd -m -s /bin/bash tester &&
 	loginctl enable-linger tester && sleep 2'
 uid="$(on id -u tester)"
 
+# as on an Ubuntu Core 26 device: idiot must not need python3 (setup above
+# is done; cloud-init and apt are the only users here)
+say "hiding python3"
+# shellcheck disable=SC2016 # expanded in the container
+on sh -c 'e="$(mktemp)"; for p in /usr/bin/python3*; do
+	[ -f "${p}" ] && [ ! -L "${p}" ] && mount --bind "${e}" "${p}"; done; :'
+
 d=/root/bare-host/bare-host.d
-for check in tools data inspect assertion prompt expiry; do
+for check in no-python tools data inspect assertion prompt expiry; do
 	say "${check}"
 	on bash "${d}/${check}" | tee -a "${log}"
 done

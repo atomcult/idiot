@@ -4,7 +4,8 @@
 # Usage: vm <image> [<seconds>]   (as root; needs idiot+vm and idiot+tpm)
 # Boots the image with secure boot and an emulated TPM, with no qemu,
 # firmware or swtpm packages on the host, until it reaches console-conf or
-# <seconds> (default 600) pass. A first boot runs install mode and reboots.
+# <seconds> (default 600) pass, then stops it with vm stop (a graceful power
+# down). A first boot runs install mode and reboots.
 # The image is booted through an overlay, so it must come out unchanged.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
@@ -44,9 +45,15 @@ case "${qargs}" in
 *"file=${fw},"* | *"file=${fw} "*) ok "vm: boots the firmware idiot doctor reports (${fw##*/})" ;;
 *) fail "vm: doctor reported [${fw}], qemu runs: ${qargs}" ;;
 esac
-# qemu's process name is cut to 15 characters
-pkill -x "$(printf '%s' "${qemu}" | cut -c1-15)" 2>/dev/null
+# a graceful stop: the ACPI power button over QMP, as vm stop sends it
+name="$(basename "${image%.img}")"
+out="$(idiot vm stop --timeout 120 "${name}" 2>&1)"
 wait "${pid}"
+printf '%s' "${out}" | grep -q "Stopped VM ${name}" &&
+	! printf '%s' "${out}" | grep -q 'did not shut down' &&
+	grep -aq 'reboot: Power down' "${log}" &&
+	ok "vm: vm stop powers the guest down" ||
+	fail "vm: vm stop: ${out} (see ${log})"
 
 check() { # <label> <pattern>
 	grep -aqE -- "${2}" "${log}" && ok "vm: ${1}" || fail "vm: ${1} (see ${log})"
@@ -63,7 +70,6 @@ grep -aq 'Press enter to configure' "${state}/serial.log" 2>/dev/null &&
 	ok "vm: serial console logged" || fail "vm: no console-conf in ${state}/serial.log"
 
 # the stopped VM's TPM, served by idiot vm tpm, read with the bundled tools
-name="$(basename "${image%.img}")"
 idiot vm tpm --name "${name}" >"${log}.tpm" 2>&1 &
 for _ in $(seq 10); do
 	[ -S "${state}/inspect.sock" ] && break
