@@ -146,6 +146,21 @@ parts:
       - enable-patchelf
     organize:
       bin/idiot-store: lib/idiot/libexec/idiot-store
+  # parsing, hashing and sockets for host commands (no python3 needed on
+  # the host); built exactly like idiot-store
+  idiot-helper:
+    plugin: rust
+    rust-channel: "1.91.1"
+    source: tools/idiot-helper
+    override-pull: |
+      "${CRAFT_PROJECT_DIR}/snap/local/pull-tracked" tools/idiot-helper
+      rustup toolchain install 1.91.1 --profile minimal
+    build-packages:
+      - git
+    build-attributes:
+      - enable-patchelf
+    organize:
+      bin/idiot-helper: lib/idiot/libexec/idiot-helper
   packages:
     plugin: nil
     build-packages:

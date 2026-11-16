@@ -241,25 +241,15 @@ whoami_cache_path() {
     printf '%s/whoami/%s' "${IDIOT_CACHE_DIR}" "${1}"
 }
 
-# Print the path of the idiot-store helper: the installed one (make install,
-# or the snap, both at $IDIOT_ROOT/libexec), else a development build in
-# this checkout, else one on PATH. Dies when there's none. Use as
+# Print the path of the idiot-store helper (see helper_path), or die. Use as
 # `h="$(store_helper)" || exit 1`.
 store_helper() {
-    store_helper_path ||
-        die "idiot-store not found — build it with: make install"
+    helper idiot-store
 }
 
 # The idiot-store helper's path, as store_helper finds it, or fail quietly.
 store_helper_path() {
-    for _sh in "${IDIOT_ROOT}/libexec/idiot-store" \
-        "${IDIOT_ROOT}/tools/idiot-store/target/release/idiot-store"; do
-        if [ -x "${_sh}" ]; then
-            printf '%s' "${_sh}"
-            return 0
-        fi
-    done
-    command -v idiot-store 2>/dev/null
+    helper_path idiot-store
 }
 
 # Store permissions idiot knows: name, then what it lets a credential do.

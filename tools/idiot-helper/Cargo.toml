@@ -1,0 +1,20 @@
+[package]
+name = "idiot-helper"
+version = "0.1.0"
+edition = "2021"
+description = "Host-side parsing, hashing and socket work for idiot (no credentials, no network)"
+publish = false
+
+# Standard library first; a crate only where the job needs one (hashes,
+# bignums, JSON). No network crates: --remote runs `snap known --remote`.
+[dependencies]
+base64 = "0.22.1"
+num-bigint = "0.4"
+serde_json = "1.0.140"
+sha2 = "0.10"
+sha3 = "0.10"
+
+[profile.release]
+strip = true
+lto = true
+panic = "abort"

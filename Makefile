@@ -13,8 +13,9 @@ VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || printf '
 SHARE_FILES := $(wildcard share/*.sh)
 SHELL_FILES := idiot $(SHARE_FILES) snap/local/patchelf-host snap/local/pull-tracked snap/local/component-build snap/local/vm-build snap/local/check-components tests/bare-host $(shell find cmd tests/bare-host.d -type f ! -name '*.model')
 
-HELPER_DIR  = tools/idiot-store
-HELPER_BIN  = $(HELPER_DIR)/target/release/idiot-store
+# Rust binaries installed to lib/idiot/libexec: idiot-store (the store
+# client) and idiot-helper (parsing, hashing and sockets)
+HELPERS     = idiot-store idiot-helper
 CARGO      ?= cargo
 
 LOG := printf '  \033[1;36m%-12s\033[0m %s\n'
@@ -32,22 +33,28 @@ check: fmt-check
 	find tests/bare-host.d -type f ! -name '*.model' | xargs shellcheck -x || rc=1; \
 	find cmd -type f | xargs shellcheck -x || rc=1; \
 	exit $$rc
-	@$(LOG) "CLIPPY" "$(HELPER_DIR)"
-	@$(CARGO) clippy --quiet --locked --all-targets --manifest-path '$(HELPER_DIR)/Cargo.toml' -- -D warnings
+	@for h in $(HELPERS); do \
+	    $(LOG) "CLIPPY" "tools/$$h"; \
+	    $(CARGO) clippy --quiet --locked --all-targets --manifest-path "tools/$$h/Cargo.toml" -- -D warnings || exit 1; \
+	done
 
 fmt:
 	@$(LOG) "SHFMT" "(writing)"
 	@shfmt -w $(SHELL_FILES)
-	@$(LOG) "CARGO FMT" "$(HELPER_DIR)"
-	@$(CARGO) fmt --manifest-path '$(HELPER_DIR)/Cargo.toml'
+	@for h in $(HELPERS); do \
+	    $(LOG) "CARGO FMT" "tools/$$h"; \
+	    $(CARGO) fmt --manifest-path "tools/$$h/Cargo.toml" || exit 1; \
+	done
 
 fmt-check:
 	@$(LOG) "SHFMT" "(checking)"
 	@shfmt -d $(SHELL_FILES) || { printf '  \033[1;33m%-12s\033[0m %s\n' "HINT" "run: make fmt"; exit 1; }
-	@$(CARGO) fmt --check --manifest-path '$(HELPER_DIR)/Cargo.toml' || { printf '  \033[1;33m%-12s\033[0m %s\n' "HINT" "run: make fmt"; exit 1; }
+	@for h in $(HELPERS); do \
+	    $(CARGO) fmt --check --manifest-path "tools/$$h/Cargo.toml" || { printf '  \033[1;33m%-12s\033[0m %s\n' "HINT" "run: make fmt"; exit 1; }; \
+	done
 
-# the shell tree and the store helper; the snap builds the helper in its own
-# part and runs install-sh only
+# the shell tree and the Rust helpers; the snap builds each helper in its
+# own part and runs install-sh only
 install: install-sh install-helper
 
 install-sh:
@@ -67,14 +74,18 @@ install-sh:
 
 helper:
 	@command -v '$(CARGO)' >/dev/null 2>&1 || { \
-	    printf '  \033[1;31m%-12s\033[0m %s\n' "ERROR" "cargo not found: idiot-store (used by idiot auth) needs a Rust toolchain"; exit 1; }
-	@$(LOG) "CARGO" "build --release $(HELPER_DIR)"
-	@$(CARGO) build --quiet --release --locked --manifest-path '$(HELPER_DIR)/Cargo.toml'
+	    printf '  \033[1;31m%-12s\033[0m %s\n' "ERROR" "cargo not found: idiot-store and idiot-helper need a Rust toolchain"; exit 1; }
+	@for h in $(HELPERS); do \
+	    $(LOG) "CARGO" "build --release tools/$$h"; \
+	    $(CARGO) build --quiet --release --locked --manifest-path "tools/$$h/Cargo.toml" || exit 1; \
+	done
 
 install-helper: helper
-	@$(LOG) "INSTALL" "$(LIBDIR)/libexec/idiot-store"
 	@install -d '$(LIBDIR)/libexec'
-	@install -m755 '$(HELPER_BIN)' '$(LIBDIR)/libexec/idiot-store'
+	@for h in $(HELPERS); do \
+	    $(LOG) "INSTALL" "$(LIBDIR)/libexec/$$h"; \
+	    install -m755 "tools/$$h/target/release/$$h" '$(LIBDIR)/libexec/'"$$h" || exit 1; \
+	done
 
 uninstall:
 	@$(LOG) "RM" "$(LIBDIR)"

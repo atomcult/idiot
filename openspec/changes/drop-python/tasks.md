@@ -2,11 +2,11 @@
 
 ## 1. The helper's skeleton and packaging
 
-- [ ] 1.1 `tools/idiot-helper`: a crate with clap subcommands (empty stubs exiting 2), release profile with `strip`, `lto` and `panic = "abort"`, and a `Cargo.lock`. Verify that `cargo build --release` produces `target/release/idiot-helper` and that `idiot-helper --help` lists the six subcommands
-- [ ] 1.2 Makefile: build, install (`lib/idiot/libexec/idiot-helper`) and uninstall it beside `idiot-store`; `make check` runs `cargo fmt --check` and `clippy` on both crates. Verify with `make install PREFIX=<scratch>`, then `make uninstall PREFIX=<scratch>` leaving nothing behind, and `make check` passing
-- [ ] 1.3 `share/common.sh`: `helper_path <name>` and `helper <name>` (libexec, then the crate's `target/release`, then PATH; `helper` dies with `<name> not found — build it with: make install`). `store_helper_path` and `store_helper` become wrappers around them. Verify that `idiot auth status` still finds `idiot-store`, and that `helper idiot-helper` finds the new binary from source and from a scratch install
-- [ ] 1.4 snapcraft.yaml: an `idiot-helper` part mirroring `idiot-store`'s (pull-tracked, the pinned rust-channel, `enable-patchelf`, organised to `lib/idiot/libexec/`). Verify that `snapcraft pack` puts `lib/idiot/libexec/idiot-helper` in the snap with core24's interpreter (`patchelf --print-interpreter`)
-- [ ] 1.5 `make check` passes; commit (`build(helper): add the idiot-helper crate`)
+- [x] 1.1 `tools/idiot-helper`: a crate with hand-rolled subcommand dispatch (no clap: `assertion` must keep `assertion.py`'s exact arguments and errors; empty stubs exiting 2), release profile with `strip`, `lto` and `panic = "abort"`, and a `Cargo.lock`. Verify that `cargo build --release` produces `target/release/idiot-helper` and that `idiot-helper --help` lists the six subcommands
+- [x] 1.2 Makefile: build, install (`lib/idiot/libexec/idiot-helper`) and uninstall it beside `idiot-store`; `make check` runs `cargo fmt --check` and `clippy` on both crates. Verify with `make install PREFIX=<scratch>`, then `make uninstall PREFIX=<scratch>` leaving nothing behind, and `make check` passing
+- [x] 1.3 `share/common.sh`: `helper_path <name>` and `helper <name>` (libexec, then the crate's `target/release`, then PATH; `helper` dies with `<name> not found — build it with: make install`). `store_helper_path` and `store_helper` become wrappers around them. Verify that `idiot auth status` still finds `idiot-store`, and that `helper idiot-helper` finds the new binary from source and from a scratch install
+- [x] 1.4 snapcraft.yaml: an `idiot-helper` part mirroring `idiot-store`'s (pull-tracked, the pinned rust-channel, `enable-patchelf`, organised to `lib/idiot/libexec/`). Verify that `snapcraft pack` puts `lib/idiot/libexec/idiot-helper` in the snap with core24's interpreter (`patchelf --print-interpreter`; checked with `snapcraft prime idiot-helper`, whose patchelf step set `/snap/core24/current/lib64/ld-linux-x86-64.so.2`; the full pack is 8.2)
+- [x] 1.5 `make check` passes; commit (`build(helper): add the idiot-helper crate`)
 
 ## 2. Shell instead of Python in image.sh
 

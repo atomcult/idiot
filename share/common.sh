@@ -439,6 +439,31 @@ tool_path() {
     snap_tool "${1}"
 }
 
+# Path of idiot's own Rust binary $1 (idiot-store, idiot-helper): the
+# installed one (make install, or the snap, both at $IDIOT_ROOT/libexec),
+# else a development build in this checkout, else one on PATH. Fails,
+# printing nothing, when there's none.
+helper_path() {
+    for _hp in "${IDIOT_ROOT}/libexec/${1}" \
+        "${IDIOT_ROOT}/tools/${1}/target/release/${1}"; do
+        if [ -x "${_hp}" ]; then
+            printf '%s' "${_hp}"
+            return 0
+        fi
+    done
+    _hp="$(command -v "${1}" 2>/dev/null)" || return 1
+    case "${_hp}" in
+    /*) printf '%s' "${_hp}" ;;
+    *) return 1 ;;
+    esac
+}
+
+# Print helper_path $1, or die saying how to build it. Use as
+# `h="$(helper idiot-helper)" || exit 1`.
+helper() {
+    helper_path "${1}" || die "${1} not found — build it with: make install"
+}
+
 # Run tool $1 (as tool_path finds it) with the remaining arguments, or die
 # naming where to get it. Works for any name, unlike a function from
 # require.
