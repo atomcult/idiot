@@ -305,6 +305,7 @@ Shell integration
 Install
   ✓ snap                        idiot, revision x7, v0.1.0
   ✓ idiot-store helper          /snap/idiot/x7/lib/idiot/libexec/idiot-store
+  ✓ idiot-helper                /snap/idiot/x7/lib/idiot/libexec/idiot-helper
 
 Tools
   ✓ qemu-system-x86_64          vm component

@@ -195,6 +195,13 @@ check_install() {
 	else
 		_ok 'idiot-store helper' "$(_tilde "${_ci_helper}")"
 	fi
+	if ! _ci_helper="$(helper_path idiot-helper)"; then
+		_fail 'idiot-helper not found' 'inspect image, inspect diff, inspect assertion, vm vars and vm need it — build it with: make install'
+	elif ! "${_ci_helper}" --version >/dev/null 2>&1; then
+		_fail "idiot-helper doesn't run ($(_tilde "${_ci_helper}"))" 'rebuild it with: make install'
+	else
+		_ok 'idiot-helper' "$(_tilde "${_ci_helper}")"
+	fi
 	_end
 }
 

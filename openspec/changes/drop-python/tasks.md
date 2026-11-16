@@ -44,8 +44,8 @@
 
 ## 7. doctor
 
-- [ ] 7.1 `cmd/doctor`: report `idiot-helper` beside `idiot-store` (`✓` with its path, or `✗` naming the commands that need it and `make install`). Verify from source: healthy, and with the binary moved away (`✗`, exit 1)
-- [ ] 7.2 `tests/bare-host.d/doctor`: expect the `idiot-helper` line. README's Troubleshooting sample shows it. Run `make check`; commit (`feat(doctor): check idiot-helper`)
+- [x] 7.1 `cmd/doctor`: report `idiot-helper` beside `idiot-store` (`✓` with its path, or `✗` naming the commands that need it and `make install`). Verify from source: healthy, and with the binary moved away (`✗`, exit 1)
+- [x] 7.2 `tests/bare-host.d/doctor`: expect the `idiot-helper` line. README's Troubleshooting sample shows it. Run `make check`; commit (`feat(doctor): check idiot-helper`)
 
 ## 8. Integration
 

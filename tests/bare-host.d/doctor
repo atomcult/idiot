@@ -40,7 +40,8 @@ bad="$(printf '%s\n' "${out}" | grep '✗')"
 printf '%s\n' "${out}" | grep -q '✓ shell integration *bash, from the snap' &&
 	printf '%s\n' "${out}" | grep -q "✓ snap *idiot, revision ${rev}," &&
 	printf '%s\n' "${out}" | grep -q '✓ idiot-store helper *.*/libexec/idiot-store' &&
-	ok "doctor: integration, install and helper ✓ (handed off)" ||
+	printf '%s\n' "${out}" | grep -q '✓ idiot-helper *.*/libexec/idiot-helper' &&
+	ok "doctor: integration, install and helpers ✓ (handed off)" ||
 	fail "doctor: $(printf '%s\n' "${out}" | sed -n '1,8p' | tr '\n' '|')"
 if [ -e /dev/kvm ]; then
 	printf '%s\n' "${out}" | grep -q '! /dev/kvm is not accessible — .*usermod -aG kvm tester' &&
