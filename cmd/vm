@@ -386,6 +386,19 @@ _build_fw_flags() {
 	fw_flags="${fw_flags} -drive if=pflash,format=raw,unit=1,file=${fw_vars}"
 }
 
+# Prints a hint (with a leading " — ") when the host's swtpm may have been
+# refused by its AppArmor profile, which lets it create sockets only under
+# the home directory and /tmp; nothing otherwise.
+_swtpm_hint() {
+	_sh_path="$(tool_path swtpm 2>/dev/null)" || return 0
+	[ "$(readlink -f "${_sh_path}")" = /usr/bin/swtpm ] || return 0
+	[ -e /sys/kernel/security/apparmor ] || return 0
+	case "${1}/" in
+	"${HOME}"/* | /tmp/*) return 0 ;;
+	esac
+	printf ' — AppArmor lets the host'"'"'s swtpm create sockets only under ~ and /tmp, not in %s: use a --state-dir there' "${1}"
+}
+
 # Sets tpm_flags and starts a background swtpm daemon. No-ops when tpm=0.
 _build_tpm_flags() {
 	tpm_flags=''
@@ -394,14 +407,20 @@ _build_tpm_flags() {
 	tpm_sock="${workdir}/swtpm.sock"
 	# _cleanup kills it by this pid when the VM exits
 	tpm_pidfile="${workdir}/swtpm.pid"
-	swtpm socket \
+	# _check_socket_paths ruled out a too-long path: say what swtpm said
+	_btf_err="${workdir}/swtpm.err"
+	if ! swtpm socket \
 		--tpmstate "dir=${workdir}" \
 		--ctrl "type=unixio,path=${tpm_sock}" \
 		--tpm2 \
 		--pid "file=${tpm_pidfile}" \
 		--terminate \
-		--daemon ||
-		die "swtpm failed to start (UNIX socket paths are limited to 107 bytes: ${tpm_sock})"
+		--daemon 2>"${_btf_err}"; then
+		_btf_msg="$(sed 's/^swtpm: //' "${_btf_err}" | tr '\n' ' ')"
+		rm -f "${_btf_err}"
+		die "swtpm failed to start${_btf_msg:+: ${_btf_msg% }}$(_swtpm_hint "${workdir}")"
+	fi
+	rm -f "${_btf_err}"
 	tpm_dev="$(tpm_device_for_arch "${arch}")"
 	tpm_flags="-chardev socket,id=chrtpm,path=${tpm_sock}"
 	tpm_flags="${tpm_flags} -tpmdev emulator,id=tpm0,chardev=chrtpm"
