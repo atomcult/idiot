@@ -30,21 +30,14 @@ _normalise() {
 	awk -F '\t' '{ print $1 "\tstart\t" $2; print $1 "\tsize\t" $3
 		print $1 "\ttype\t" $4 }' "${1}/partitions.tsv" >"${1}/partition.tsv"
 	[ -f "${1}/state.json" ] || return 0
-	python3 - "${1}" <<'PYEOF'
-import json, os, sys
-d = sys.argv[1]
-with open(os.path.join(d, "state.json")) as f:
-    data = json.load(f).get("data", {})
-with open(os.path.join(d, "installed.tsv"), "w") as f:
-    for name, s in sorted(data.get("snaps", {}).items()):
-        print(name, "revision", s.get("current", ""), sep="\t", file=f)
-        chan = s.get("tracking-channel") or s.get("channel", "")
-        if chan:
-            print(name, "channel", chan, sep="\t", file=f)
-with open(os.path.join(d, "connection.tsv"), "w") as f:
-    for key in sorted(data.get("conns", {})):
-        print(key, "connected", "yes", sep="\t", file=f)
-PYEOF
+	"$(helper_path idiot-helper)" snapd-state "${1}/state.json" >"${1}/state.tsv" ||
+		return 1
+	awk -F '\t' -v d="${1}" '
+		BEGIN { snaps = d "/installed.tsv"; conns = d "/connection.tsv"
+			printf "" > snaps; printf "" > conns }
+		$1 == "snap" { print $2 "\trevision\t" $3 > snaps
+			if ($4 != "") print $2 "\tchannel\t" $4 > snaps }
+		$1 == "conn" { print $2 " " $3 "\tconnected\tyes" > conns }' "${1}/state.tsv"
 }
 
 # Print section $1, item, field, a, b for every field whose values differ
@@ -158,7 +151,7 @@ main() {
 	done
 
 	require sfdisk
-	require python3
+	helper idiot-helper >/dev/null || exit 1
 	require debugfs "install e2fsprogs"
 	require mcopy "install mtools"
 	require mdir "install mtools"

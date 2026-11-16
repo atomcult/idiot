@@ -1,7 +1,8 @@
 # shellcheck shell=sh
 # share/image.sh - read an Ubuntu Core disk image into a work directory
-# Source this file; do not execute directly. Needs sfdisk, python3, mtools
-# (mdir, mcopy) and debugfs: callers `require` them first.
+# Source this file; do not execute directly. Needs sfdisk, mtools (mdir,
+# mcopy), debugfs and idiot-helper: callers `require` (and `helper`) them
+# first.
 #
 # image_load <img> <dir> records what the image holds as small files in
 # <dir>, so two images can be loaded side by side. Nothing recorded carries
@@ -160,12 +161,9 @@ image_read_data() {
     debugfs -R "dump /system-data/var/lib/snapd/state.json ${2}/state.json" \
         "${1}?offset=${_ird_off}" >/dev/null 2>&1
     if [ -s "${2}/state.json" ]; then
-        python3 -c "
-import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f).get('data', {})
-print('yes' if data.get('preseed') else 'no')
-" "${2}/state.json" >"${2}/preseeded" 2>/dev/null || printf 'no\n' >"${2}/preseeded"
+        "$(helper_path idiot-helper)" snapd-state "${2}/state.json" 2>/dev/null |
+            awk -F '\t' '$1 == "preseed" { print $2; exit }' >"${2}/preseeded"
+        [ -s "${2}/preseeded" ] || printf 'no\n' >"${2}/preseeded"
     else
         rm -f "${2}/state.json"
     fi

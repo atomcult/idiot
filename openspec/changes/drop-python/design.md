@@ -121,23 +121,26 @@ answer or invalid input, 2 usage or unreadable input.
   - It ports `vm-qmp.py` with the same exit codes.
   - It reads the greeting, sends `qmp_capabilities`, then the command,
     with a 5-second timeout on each read.
-- `snapd-state <state.json>`
-  - It prints one tab-separated record per line:
+- `snapd-state [--report snaps|connections|changes] <state.json>`
+  - By default it prints one tab-separated record per line, sorted as the
+    Python sorted them:
     - `preseed\t<yes|no>`
     - `snap\t<name>\t<revision>\t<channel>`
     - `conn\t<plug-snap:plug>\t<slot-snap:slot>`
-    - `change\t<id>\t<status code>\t<status>\t<time>\t<summary>`
-    - `error\t<change id>\t<message>`: one line per ERROR log line of a
-      failed change's tasks.
-  - Records are sorted as the Python sorts them.
-  - Tabs and newlines inside values are replaced by spaces.
-  - `cmd/inspect/image` formats the three sections from these lines with
-    `awk`, padding columns as the Python did.
-  - `share/image.sh` reads `preseed`.
-  - `cmd/inspect/diff` builds `installed.tsv` and `connection.tsv` with
-    `awk`.
-  - JSON parsing lives in one place, and the shell owns the colours and
-    layout, as it does for every other report.
+
+    Tabs and newlines inside values become spaces; snapd's names never
+    contain them.
+  - `share/image.sh` reads `preseed`, and `cmd/inspect/diff` builds
+    `installed.tsv` and `connection.tsv` from the records with `awk`.
+  - With `--report`, it prints that section of `inspect image`'s report
+    instead, coloured from `CYAN`, `DIM`, `RESET`, `GREEN`, `YELLOW` and
+    `RED`, as the Python snippets did.
+  - *Changed during implementation:* the plan was for the shell to format
+    these sections with `awk`. It can't do so portably: Python pads by
+    characters, but mawk (Ubuntu's default `awk`, and the one on minimal
+    and Core hosts) and `printf` count bytes, so a non-ASCII snap name or
+    summary would misalign. The report stays in the binary, like
+    `assertion`'s.
 - `port-free <port>`: exits 0 if it can bind `0.0.0.0:<port>` with
   `SO_REUSEADDR`, which is what qemu's hostfwd will do, and 1 otherwise.
 - `swtpm-shutdown <socket>`: sends `CMD_SHUTDOWN` (big-endian 3) on

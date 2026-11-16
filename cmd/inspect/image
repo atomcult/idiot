@@ -54,94 +54,22 @@ print_seeded_snaps() {
 # Prints installed snaps from state.json
 print_installed_snaps() {
 	say "${BOLD}Installed snaps:${RESET}"
-	CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" python3 - "${work}/state.json" >&2 <<'PYEOF'
-import json, os, sys
-C = os.environ.get("CYAN", "")
-D = os.environ.get("DIM", "")
-R = os.environ.get("RESET", "")
-with open(sys.argv[1]) as f:
-    snaps = json.load(f).get("data", {}).get("snaps", {})
-if not snaps:
-    print("  (none)")
-    sys.exit(0)
-max_name = max(len(n) for n in snaps)
-max_rev  = max(len(str(v.get("current", ""))) for v in snaps.values())
-for name in sorted(snaps):
-    s    = snaps[name]
-    rev  = str(s.get("current", "?"))
-    chan = s.get("tracking-channel") or s.get("channel", "")
-    suffix = f"  {chan}" if chan else ""
-    print(f"  {C}{name:<{max_name}}{R}  {D}{rev:>{max_rev}}{suffix}{R}")
-PYEOF
+	CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" \
+		"$(helper_path idiot-helper)" snapd-state --report snaps "${work}/state.json" >&2
 }
 
 # Prints interface connections from state.json
 print_connections() {
 	say "${BOLD}Connections:${RESET}"
-	CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" python3 - "${work}/state.json" >&2 <<'PYEOF'
-import json, os, sys
-C = os.environ.get("CYAN", "")
-D = os.environ.get("DIM", "")
-R = os.environ.get("RESET", "")
-with open(sys.argv[1]) as f:
-    conns = json.load(f).get("data", {}).get("conns", {})
-if not conns:
-    print("  (none)")
-    sys.exit(0)
-def fmt_side(side):
-    snap, _, iface = side.partition(":")
-    return f"{C}{snap}{R}{D}:{iface}{R}"
-pairs = [(k.split(" ", 1)[0], k.split(" ", 1)[1]) for k in sorted(conns)]
-max_plug = max(len(plug) for plug, _ in pairs)
-for plug_side, slot_side in pairs:
-    pad = max_plug - len(plug_side)
-    print(f"  {fmt_side(plug_side)}{' ' * pad}  {D}→{R}  {fmt_side(slot_side)}")
-PYEOF
+	CYAN="${CYAN}" DIM="${DIM}" RESET="${RESET}" \
+		"$(helper_path idiot-helper)" snapd-state --report connections "${work}/state.json" >&2
 }
 
 # Prints snap changes from state.json
 print_changes() {
 	say "${BOLD}Changes:${RESET}"
 	DIM="${DIM}" RESET="${RESET}" GREEN="${GREEN}" YELLOW="${YELLOW}" RED="${RED}" \
-		python3 - "${work}/state.json" >&2 <<'PYEOF'
-import json, os, sys
-D  = os.environ.get("DIM", "")
-R  = os.environ.get("RESET", "")
-GR = os.environ.get("GREEN", "")
-YE = os.environ.get("YELLOW", "")
-RE = os.environ.get("RED", "")
-STATUS = {0: "Hold", 1: "Do", 2: "Doing", 3: "Done", 4: "Abort",
-          5: "Undo", 6: "Undoing", 7: "Undone", 8: "Wait", 9: "Error"}
-STATUS_COLOR = {3: GR, 9: RE}
-with open(sys.argv[1]) as f:
-    state   = json.load(f)
-changes = state.get("changes", {})
-tasks   = state.get("tasks", {})
-if not changes:
-    print("  (none)")
-    sys.exit(0)
-rows = []
-for cid in sorted(changes, key=lambda x: int(x)):
-    c      = changes[cid]
-    code   = c.get("status", -1)
-    status = STATUS.get(code, str(code))
-    sc     = STATUS_COLOR.get(code, YE)
-    ts     = c.get("ready-time") or c.get("spawn-time") or ""
-    ts     = ts[:19].replace("T", " ") if ts else ""
-    rows.append((cid, status, sc, ts, c.get("summary", ""), code, c.get("task-ids", [])))
-max_id = max(len(r[0]) for r in rows)
-max_st = max(len(r[1]) for r in rows)
-max_ts = max(len(r[3]) for r in rows)
-for cid, status, sc, ts, summary, code, task_ids in rows:
-    print(f"  {D}{cid:>{max_id}}{R}  {sc}{status:<{max_st}}{R}  {D}{ts:<{max_ts}}{R}  {summary}")
-    if code == 9:
-        for tid in task_ids:
-            task = tasks.get(str(tid), {})
-            for line in task.get("log", []):
-                parts = line.split(" ", 2)
-                if len(parts) >= 3 and parts[1] == "ERROR":
-                    print(f"       {' ' * max_id}  {' ' * max_st}  {' ' * max_ts}  {RE}↳ {parts[2]}{R}")
-PYEOF
+		"$(helper_path idiot-helper)" snapd-state --report changes "${work}/state.json" >&2
 }
 
 main() {
@@ -186,7 +114,7 @@ main() {
 	[ -f "${image}" ] || die "image not found: ${image}"
 
 	require sfdisk
-	require python3
+	helper idiot-helper >/dev/null || exit 1
 	require debugfs "install e2fsprogs"
 	require mcopy "install mtools"
 	require mdir "install mtools"

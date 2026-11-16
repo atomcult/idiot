@@ -10,6 +10,8 @@
 
 use std::process::ExitCode;
 
+mod snapd_state;
+
 const USAGE: &str = "usage: idiot-helper <command> [args...]
 
 commands:
@@ -35,9 +37,13 @@ fn main() -> ExitCode {
             println!("idiot-helper {}", env!("CARGO_PKG_VERSION"));
             0
         }
-        _ => {
+        "snapd-state" => snapd_state::run(rest),
+        "assertion" | "uefi-vars" | "qmp" | "port-free" | "swtpm-shutdown" => {
             eprintln!("idiot-helper: {cmd}: not implemented");
-            let _ = rest;
+            2
+        }
+        _ => {
+            eprintln!("idiot-helper: unknown command: {cmd}\n{USAGE}");
             2
         }
     };

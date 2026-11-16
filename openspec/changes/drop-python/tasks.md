@@ -15,10 +15,10 @@
 
 ## 3. snapd-state
 
-- [ ] 3.1 `idiot-helper snapd-state`: the records from the design (`preseed`, `snap`, `conn`, `change`, `error`), with unit tests on a small `state.json` that has a failed change with ERROR log lines and tabs inside values. Verify with `cargo test`
-- [ ] 3.2 `share/image.sh` (preseed), `cmd/inspect/image` (installed snaps, connections and changes formatted with `awk`) and `cmd/inspect/diff` (`installed.tsv`, `connection.tsv`) use it. Verify that `inspect image` output (stderr and the exit code) and `inspect diff` output are byte-identical to the Python versions on a fresh and a booted image, including one whose state has a failed change and non-ASCII summaries
-- [ ] 3.3 Remove python3 from `inspect image`'s and `inspect diff`'s `require`s and from the doctor tool table. Verify that `idiot inspect image` runs with python3 hidden (`unshare -rm` with an empty file bind-mounted over `/usr/bin/python3`)
-- [ ] 3.4 `make check` passes; commit (`refactor(inspect): read snapd state with idiot-helper`)
+- [x] 3.1 `idiot-helper snapd-state`: the records from the design (`preseed`, `snap`, `conn`) and `--report snaps|connections|changes`, with unit tests on a small `state.json` that has a failed change with ERROR log lines and tabs inside values. Verify with `cargo test`
+- [x] 3.2 `share/image.sh` (preseed), `cmd/inspect/image` (installed snaps, connections and changes from `--report`) and `cmd/inspect/diff` (`installed.tsv`, `connection.tsv`) use it. Verify that `inspect image` output (stderr and the exit code) and `inspect diff` output are byte-identical to the Python versions on a fresh and a booted image, including one whose state has a failed change and non-ASCII summaries
+- [x] 3.3 Remove python3 from `inspect image`'s and `inspect diff`'s `require`s and from the doctor tool table. Verify that `idiot inspect image` runs with python3 hidden (`unshare -rm` with an empty file bind-mounted over `/usr/bin/python3`)
+- [x] 3.4 `make check` passes; commit (`refactor(inspect): read snapd state with idiot-helper`)
 
 ## 4. Assertions
 
