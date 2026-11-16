@@ -89,7 +89,7 @@ the only running VM's (as in "Choosing a VM"). It SHALL NOT read the
 host's own variables. It SHALL print each live variable with its vendor
 GUID and size, and for PK, KEK, db and dbx each enrolled X.509 certificate
 by subject and the number of entries of each hash type. The listing SHALL
-go to stdout and SHALL need no tool beyond python3. A missing state
+go to stdout and SHALL need no tool from the host or a component. A missing state
 directory, an unknown VM, a state directory without `fw_vars.fd`, or a
 file that isn't a variable store SHALL fail with an error on stderr.
 
@@ -120,6 +120,10 @@ file that isn't a variable store SHALL fail with an error on stderr.
 #### Scenario: Without virt-fw-vars or efitools
 - **WHEN** neither virt-fw-vars nor efi-readvar is installed
 - **THEN** `idiot vm vars ./state` still lists the variables
+
+#### Scenario: Host without Python
+- **WHEN** the host has no python3 and the user runs `idiot vm vars ./state`
+- **THEN** the variables are listed the same way
 
 ### Requirement: Named VMs
 Every VM `idiot vm` boots SHALL have a name and a state directory holding
@@ -218,6 +222,10 @@ is not free SHALL fail before qemu starts.
 - **WHEN** something listens on 9000 and the user runs `idiot vm --ssh-port 9000 core.img`
 - **THEN** the command fails saying port 9000 is in use, and qemu is not started
 
+#### Scenario: Port taken, host without Python
+- **WHEN** the host has no python3, something listens on 9000, and the user runs `idiot vm --ssh-port 9000 core.img`
+- **THEN** the command fails saying port 9000 is in use, and qemu is not started
+
 ### Requirement: Listing VMs
 `idiot vm list` SHALL print one line per VM to stdout, under a header
 line: its name, image path, architecture, `running` or `stopped`, and ssh
@@ -253,6 +261,10 @@ succeed.
 #### Scenario: Guest ignores the button
 - **WHEN** the guest does not react to ACPI and the user runs `idiot vm stop --timeout 5 a`
 - **THEN** after 5 seconds qemu is made to quit and the command says the guest did not shut down in time
+
+#### Scenario: Graceful shutdown, host without Python
+- **WHEN** the host has no python3, the VM `a` runs Ubuntu Core with `--tpm`, and the user runs `idiot vm stop a`
+- **THEN** the guest shuts down cleanly through the power button, not by qemu quitting, and no swtpm for `a` remains
 
 ### Requirement: Resetting a VM
 `idiot vm reset <name>` SHALL discard a stopped VM's disk overlay, UEFI

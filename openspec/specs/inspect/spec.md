@@ -20,8 +20,8 @@ partition from its GPT and print, on stderr:
 - every snap in the seed with its revision and the model's default channel
   for it, and every optional snap the model lists but the seed lacks,
   marked `not seeded`.
-It SHALL need sfdisk, python3, debugfs and mtools, from the host or the
-`core` component. An image without an `ubuntu-seed` partition SHALL fail
+It SHALL need sfdisk, debugfs and mtools, from the host or the `core`
+component, and SHALL NOT need python3. An image without an `ubuntu-seed` partition SHALL fail
 saying it may not be an Ubuntu Core image; a missing file SHALL fail with
 `image not found`.
 
@@ -36,6 +36,10 @@ saying it may not be an Ubuntu Core image; a missing file SHALL fail with
 #### Scenario: Optional snap not seeded
 - **WHEN** the model lists an optional snap that the seed doesn't contain
 - **THEN** that snap is listed as `not seeded` with the model's channel
+
+#### Scenario: Host without Python
+- **WHEN** the host has no python3 (an Ubuntu Core 26 device with `idiot+core` installed) and the user runs `idiot inspect image ubuntu-core-24-amd64.img`
+- **THEN** the same summary is printed as on a host with python3
 
 ### Requirement: Booted image details
 When the image's ubuntu-data is readable (not encrypted) and holds snapd's
@@ -223,8 +227,8 @@ It SHALL color that output only when stdout is a terminal and `NO_COLOR`
 is unset. It SHALL fail on a missing file, on input with no assertion in
 it, and on an assertion it can't parse (naming its position in the
 stream). JSON input SHALL fail saying it is an unsigned model, not a
-signed assertion. It SHALL need python3, from the host or the `core`
-component.
+signed assertion. It SHALL NOT need python3 or any other tool from the host or a
+component; `snap`, when it is installed, only adds keys.
 
 #### Scenario: A signed model
 - **WHEN** the user runs `idiot inspect assertion ubuntu-core-24-amd64.model`
@@ -245,6 +249,10 @@ component.
 #### Scenario: Not an assertion
 - **WHEN** the user runs `idiot inspect assertion README.md`
 - **THEN** the command fails saying no assertion was found
+
+#### Scenario: Host without Python
+- **WHEN** the host has no python3 and the user runs `idiot inspect assertion ubuntu-core-24-amd64.model`
+- **THEN** the same summary is printed, and the signature is checked, as on a host with python3
 
 ### Requirement: Assertion signatures
 Unless given `--no-verify`, `idiot inspect assertion` SHALL report for
