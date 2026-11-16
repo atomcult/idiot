@@ -40,8 +40,9 @@ which runs outside confinement. Outside a snap every command runs directly.
 make hooks      # configure git to use .githooks/ (run once after cloning)
 make check      # shfmt + shellcheck, cargo fmt --check + clippy (before every commit)
 make fmt        # rewrite files to match shfmt / rustfmt style
-make install    # install to $PREFIX (default: ~/.local); builds idiot-store (needs cargo)
-make install-sh # the shell tree only (the snap builds idiot-store in its own part)
+make install    # install to $PREFIX (default: ~/.local); builds idiot-store and
+                #   idiot-helper (needs cargo)
+make install-sh # the shell tree only (the snap builds each helper in its own part)
 make uninstall
 make purge      # uninstall + delete user data dirs
 snap/local/check-components <snap>   # after snapcraft pack: promised tools in each index
@@ -85,7 +86,8 @@ cmd/             # one file per leaf command; dirs for subcommand groups
                  #   (cmd/doctor: read-only checks of all of the below)
 share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
-                 #   dispatch_subcmd, tool/tool_path/snap_app, git(), shell_quote,
+                 #   dispatch_subcmd, tool/tool_path/snap_app, helper_path/helper,
+                 #   git(), shell_quote,
                  #   require_wrapper, emit_export, emit_unset, stdout_colors,
                  #   snap_component_dirs, snap_component_table
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu(), STORE_ARCHES,
@@ -117,8 +119,6 @@ share/           # sourced helper modules (never executed directly)
                  #   lookups idiot vm boots with; never die)
   uefi-vars.py   # run, not sourced: lists an OVMF/AAVMF variable store
                  #   (idiot vm vars); python3 standard library only
-  assertion.py   # run, not sourced: summarises and verifies an assertion
-                 #   stream (idiot inspect assertion); python3 stdlib only
   assertions/    # bundled public account-keys: canonical/root, canonical/models
   examples/      # bundled static example alias files
   kernels/       # bundled static kernel data files
@@ -126,6 +126,12 @@ tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft
                  #   needed for `idiot auth`); installed to lib/idiot/libexec/.
                  #   A leaf tool: sh owns the UX, it only talks to the store.
                  #   Credentials never in argv or stdout. Exit 0/1 usage/2 auth/3 store.
+tools/idiot-helper/ # Rust helper: what host commands can't do in sh (no
+                 #   python3 on the host): snapd-state (inspect image/diff),
+                 #   assertion (inspect assertion); installed to
+                 #   lib/idiot/libexec/. Never handles credentials, no network
+                 #   code. src/py.rs reproduces the Python behaviour the ported
+                 #   output depends on. Exit 0/1 invalid/2 usage or unreadable.
 snap/local/      # build-time scripts for the snap: patchelf-host, pull-tracked,
                  #   component-build (finish a tool component's part),
                  #   wrap/<tool> (setup a bundled tool needs, see component-build),
@@ -204,6 +210,9 @@ require cmd ["install hint"]    # die unless cmd is on PATH or bundled (host fir
 tool cmd [args]                 # run cmd (host's, else bundled); any name, e.g.
                                 #   qemu-system-x86_64, which require can't wrap
 tool_path cmd                   # print the path tool would run, or fail
+helper_path name                # path of idiot's own Rust binary (idiot-store,
+                                #   idiot-helper): libexec, dev build, PATH; or fail
+helper name                     # helper_path, or die saying: make install
 missing_tool cmd ["hint"]       # die naming the component that has cmd
 include module.sh               # source share/<module.sh> via IDIOT_ROOT
 shell_quote "${val}"            # POSIX single-quote escape for eval-safe output

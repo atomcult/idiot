@@ -105,7 +105,7 @@ main() {
 	src="${1}"
 	[ "${src}" = - ] || [ -f "${src}" ] || die "file not found: ${src}"
 
-	require python3
+	helper="$(helper idiot-helper)" || exit 1
 
 	work=$(mktemp -d) || die "can't create a temporary directory"
 	trap 'rm -rf "${work}"' EXIT INT TERM HUP
@@ -141,7 +141,7 @@ main() {
 	OUT_BOLD="${OUT_BOLD}" OUT_DIM="${OUT_DIM}" OUT_RED="${OUT_RED}" \
 		OUT_GREEN="${OUT_GREEN}" OUT_YELLOW="${OUT_YELLOW}" OUT_CYAN="${OUT_CYAN}" \
 		OUT_RESET="${OUT_RESET}" \
-		python3 "${IDIOT_ROOT}/share/assertion.py" "$@" - <"${input}" || rc=$?
+		"${helper}" assertion "$@" - <"${input}" || rc=$?
 	[ "${rc}" -le 1 ] || exit 1
 
 	if [ -s "${work}/facts" ]; then

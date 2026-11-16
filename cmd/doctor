@@ -219,7 +219,6 @@ inspect diff|debugfs|e2fsprogs
 inspect diff|mcopy|mtools
 inspect diff|mdir|mtools
 inspect snap|unsquashfs|squashfs-tools
-inspect assertion|python3|python3
 inspect changes|snap|snapd
 inspect changes|fzf|fzf
 kernel|git|git

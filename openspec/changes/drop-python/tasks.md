@@ -22,10 +22,10 @@
 
 ## 4. Assertions
 
-- [ ] 4.1 `idiot-helper assertion`: port `share/assertion.py` (parser, stream decoding, SHA3-384 key IDs, PKCS#1 v1.5 over SHA-512 with the whole block compared, the key chain from stream, `snap known`, `--trusted` and `--remote`, summaries, `OUT_*` colours, `--facts`, exit codes). Unit tests cover a canonical account-key chain verifying, a flipped signature bit, a wrong key and a truncated body. Verify with `cargo test`
-- [ ] 4.2 Compare the two byte for byte (stdout, stderr, exit code, and the `--facts` file) on: a Core 24 model, `snap known account-key` for canonical, a serial, a system-user with a password hash, a snap-declaration, a snap-revision, a validation-set, a stream of several of these, corrupted copies (a bad signature, a truncated body), JSON input, `--no-verify`, `--remote`, without `snap`, with and without colours. Every case must be identical
-- [ ] 4.3 `cmd/inspect/assertion` runs `idiot-helper assertion`; delete `share/assertion.py`; drop its python3 `require` and doctor row. Verify that `tests/bare-host.d/assertion` passes from source, and that a model inspects with python3 hidden
-- [ ] 4.4 CLAUDE.md (layout: `assertion.py` gone, the `tools/idiot-helper/` entry). Run `make check`; commit (`refactor(inspect): verify assertions with idiot-helper`)
+- [x] 4.1 `idiot-helper assertion`: port `share/assertion.py` (parser, stream decoding, SHA3-384 key IDs, PKCS#1 v1.5 over SHA-512 with the whole block compared, the key chain from stream, `snap known`, `--trusted` and `--remote`, summaries, `OUT_*` colours, `--facts`, exit codes). Unit tests cover a canonical account-key chain verifying, a flipped signature bit, a wrong key and a truncated body. Verify with `cargo test`
+- [x] 4.2 Compare the two byte for byte (stdout, stderr, exit code, and the `--facts` file) on: a Core 24 model, `snap known account-key` for canonical, a serial, a system-user with a password hash, a snap-declaration, a snap-revision, a validation-set, a stream of several of these, corrupted copies (a bad signature, a truncated body), JSON input, `--no-verify`, `--remote`, without `snap`, with and without colours. Every case must be identical
+- [x] 4.3 `cmd/inspect/assertion` runs `idiot-helper assertion`; delete `share/assertion.py`; drop its python3 `require` and doctor row. Verify that `tests/bare-host.d/assertion` passes from source, and that a model inspects with python3 hidden
+- [x] 4.4 CLAUDE.md (layout: `assertion.py` gone, the `tools/idiot-helper/` entry). Run `make check`; commit (`refactor(inspect): verify assertions with idiot-helper`)
 
 ## 5. UEFI variables
 

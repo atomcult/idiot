@@ -10,6 +10,8 @@
 
 use std::process::ExitCode;
 
+mod assertion;
+mod py;
 mod snapd_state;
 
 const USAGE: &str = "usage: idiot-helper <command> [args...]
@@ -38,7 +40,8 @@ fn main() -> ExitCode {
             0
         }
         "snapd-state" => snapd_state::run(rest),
-        "assertion" | "uefi-vars" | "qmp" | "port-free" | "swtpm-shutdown" => {
+        "assertion" => assertion::run(rest),
+        "uefi-vars" | "qmp" | "port-free" | "swtpm-shutdown" => {
             eprintln!("idiot-helper: {cmd}: not implemented");
             2
         }
