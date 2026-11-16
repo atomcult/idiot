@@ -2,3 +2,4 @@ lib/version
 *.snap
 *.comp
 target/
+__pycache__/
