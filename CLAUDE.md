@@ -117,8 +117,6 @@ share/           # sourced helper modules (never executed directly)
                  #   the snap's vm component), vm_firmware_secboot/_package,
                  #   vm_qemu_package, vm_find_qemu, vm_find_firmware (the
                  #   lookups idiot vm boots with; never die)
-  uefi-vars.py   # run, not sourced: lists an OVMF/AAVMF variable store
-                 #   (idiot vm vars); python3 standard library only
   assertions/    # bundled public account-keys: canonical/root, canonical/models
   examples/      # bundled static example alias files
   kernels/       # bundled static kernel data files
@@ -128,10 +126,10 @@ tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft
                  #   Credentials never in argv or stdout. Exit 0/1 usage/2 auth/3 store.
 tools/idiot-helper/ # Rust helper: what host commands can't do in sh (no
                  #   python3 on the host): snapd-state (inspect image/diff),
-                 #   assertion (inspect assertion); installed to
-                 #   lib/idiot/libexec/. Never handles credentials, no network
-                 #   code. src/py.rs reproduces the Python behaviour the ported
-                 #   output depends on. Exit 0/1 invalid/2 usage or unreadable.
+                 #   assertion (inspect assertion), uefi-vars (vm vars);
+                 #   installed to lib/idiot/libexec/. Never handles
+                 #   credentials, no network code. src/py.rs reproduces the
+                 #   Python behaviour the ported output depends on.
 snap/local/      # build-time scripts for the snap: patchelf-host, pull-tracked,
                  #   component-build (finish a tool component's part),
                  #   wrap/<tool> (setup a bundled tool needs, see component-build),

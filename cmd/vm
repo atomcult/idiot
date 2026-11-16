@@ -212,8 +212,8 @@ do_vars() {
 
 	# efi-readvar can't read a file (only the running machine's variables),
 	# so idiot reads the store itself; the listing is data, on stdout
-	require python3
-	python3 "${IDIOT_ROOT}/share/uefi-vars.py" "${vars_file}"
+	helper="$(helper idiot-helper)" || exit 1
+	"${helper}" uefi-vars "${vars_file}"
 }
 
 do_tpm() {

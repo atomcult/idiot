@@ -29,9 +29,9 @@
 
 ## 5. UEFI variables
 
-- [ ] 5.1 `idiot-helper uefi-vars`: port `share/uefi-vars.py` with a unit test on a small synthetic variable store (one X.509 and one SHA-256 list). Verify with `cargo test`
-- [ ] 5.2 Compare the two byte for byte on a fresh OVMF secure-boot vars file, an OVMF plain one, an AAVMF one and one from a booted Core VM, plus a file that isn't a store (same error and exit code)
-- [ ] 5.3 `cmd/vm`'s `vars` runs it; delete `share/uefi-vars.py`; drop its python3 `require` and doctor row; update CLAUDE.md. Verify that `idiot vm vars <state-dir>` lists the variables with python3 hidden. Run `make check`; commit (`refactor(vm): read UEFI variables with idiot-helper`)
+- [x] 5.1 `idiot-helper uefi-vars`: port `share/uefi-vars.py` with a unit test on a small synthetic variable store (one X.509 and one SHA-256 list). Verify with `cargo test`
+- [x] 5.2 Compare the two byte for byte on a fresh OVMF secure-boot vars file, an OVMF plain one, an AAVMF one and one from a booted Core VM, plus a file that isn't a store (same error and exit code)
+- [x] 5.3 `cmd/vm`'s `vars` runs it; delete `share/uefi-vars.py`; drop its python3 `require` and doctor row; update CLAUDE.md. Verify that `idiot vm vars <state-dir>` lists the variables with python3 hidden. Run `make check`; commit (`refactor(vm): read UEFI variables with idiot-helper`)
 
 ## 6. Sockets: QMP, ports and swtpm
 
