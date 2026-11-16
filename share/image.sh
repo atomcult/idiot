@@ -7,7 +7,6 @@
 # <dir>, so two images can be loaded side by side. Nothing recorded carries
 # colors; printers add them.
 #
-#   ptable.json         sfdisk --json (the image's one sfdisk run)
 #   partitions.tsv      name, start, size (sectors), type per partition;
 #                       '#<n>' names an unnamed one
 #   sector-size         the partition table's sector size
@@ -24,26 +23,42 @@
 #   preseeded           yes or no
 #   state.json          snapd's state, when ubuntu-data is readable
 
-# Run sfdisk once on image $1 and record its partitions in $2.
+# Run sfdisk once on image $1 and record its partitions in $2: the sector
+# size (512 without a table) and one line per partition, in table order.
+# `sfdisk --dump` prints `<dev> : start= <n>, size= <n>, type=<t>, ...,
+# name="<name>"`; the name comes last and is taken whole, so a comma in it
+# is kept.
 image_partitions() {
-    sfdisk --json "${1}" >"${2}/ptable.json" 2>/dev/null || :
-    python3 - "${2}" <<'PYEOF'
-import json, os, sys
-d = sys.argv[1]
-try:
-    with open(os.path.join(d, "ptable.json")) as f:
-        pt = json.load(f)["partitiontable"]
-except (OSError, ValueError, KeyError):
-    pt = {}
-with open(os.path.join(d, "sector-size"), "w") as f:
-    print(pt.get("sectorsize", 512), file=f)
-with open(os.path.join(d, "partitions.tsv"), "w") as f:
-    for n, p in enumerate(pt.get("partitions", []), 1):
-        name = p.get("name") or f"#{n}"
-        name = name.replace("\t", " ").replace("\n", " ")
-        print(name, p.get("start", ""), p.get("size", ""), p.get("type", ""),
-              sep="\t", file=f)
-PYEOF
+    sfdisk --dump "${1}" 2>/dev/null | awk -v dir="${2}" '
+        BEGIN { ss = 512; n = 0; out = dir "/partitions.tsv" }
+        /^sector-size:/ { ss = $2 + 0; next }
+        index($0, " : ") && /start=/ {
+            n++
+            rest = substr($0, index($0, " : ") + 3)
+            name = ""
+            i = index(rest, "name=\"")
+            if (i) {
+                name = substr(rest, i + 6)
+                sub(/"$/, "", name)
+                rest = substr(rest, 1, i - 1)
+            }
+            gsub(/[\t\n]/, " ", name)
+            if (name == "") name = "#" n
+            start = size = type = ""
+            k = split(rest, f, ",")
+            for (j = 1; j <= k; j++) {
+                v = f[j]
+                gsub(/^ +| +$/, "", v)
+                if (v ~ /^start=/) { sub(/^start= */, "", v); start = v }
+                else if (v ~ /^size=/) { sub(/^size= */, "", v); size = v }
+                else if (v ~ /^type=/) { sub(/^type= */, "", v); type = v }
+            }
+            printf "%s\t%s\t%s\t%s\n", name, start, size, type > out
+        }
+        END {
+            if (!n) printf "" > out
+            print ss > (dir "/sector-size")
+        }'
 }
 
 # Print the byte offset of partition $2 in work directory $1, or fail.
@@ -128,12 +143,9 @@ image_read_data() {
     printf 'not-complete\n' >"${2}/first-boot"
     printf 'no\n' >"${2}/preseeded"
     _ird_off="$(image_offset "${2}" ubuntu-data)" || return 0
-    if python3 -c "
-import sys
-with open(sys.argv[1], 'rb') as f:
-    f.seek(int(sys.argv[2]))
-    sys.exit(0 if f.read(6) == b'LUKS\xba\xbe' else 1)
-" "${1}" "${_ird_off}" 2>/dev/null; then
+    # a LUKS volume starts with the magic "LUKS\xba\xbe"
+    if [ "$(dd if="${1}" bs=1 skip="${_ird_off}" count=6 2>/dev/null |
+        od -An -tx1 | tr -d ' \n')" = 4c554b53babe ]; then
         printf 'encrypted\n' >"${2}/first-boot"
         return 0
     fi

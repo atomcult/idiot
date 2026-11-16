@@ -10,8 +10,8 @@
 
 ## 2. Shell instead of Python in image.sh
 
-- [ ] 2.1 `share/image.sh`: `image_partitions` uses `sfdisk --dump` with `awk`, and the LUKS check uses `dd`/`od`. Verify that `sector-size`, `partitions.tsv` and `first-boot` are byte-identical to the Python version's for a fresh and a booted Core 24 image, plus a LUKS header written into a scratch image at ubuntu-data's offset (`encrypted`)
-- [ ] 2.2 `make check` passes; commit (`refactor(inspect): read partitions and LUKS headers without python`)
+- [x] 2.1 `share/image.sh`: `image_partitions` uses `sfdisk --dump` with `awk`, and the LUKS check uses `dd`/`od`. Verify that `sector-size`, `partitions.tsv` and `first-boot` are byte-identical to the Python version's for a fresh and a booted Core 24 image, plus a LUKS header written into a scratch image at ubuntu-data's offset (`encrypted`)
+- [x] 2.2 `make check` passes; commit (`refactor(inspect): read partitions and LUKS headers without python`)
 
 ## 3. snapd-state
 
