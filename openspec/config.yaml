@@ -18,18 +18,20 @@ context: |
   stderr. Shipped via `make install` (~/.local)
   and as a snap (snap/snapcraft.yaml, core24).
 
-  Stack: POSIX sh only (no bashisms), fzf for pickers, git, python3 for small
-  JSON/binary parsing, standard Ubuntu tools (sfdisk, debugfs, mtools, qemu,
-  swtpm). User state follows XDG (~/.local/share/idiot, ~/.cache/idiot).
+  Stack: POSIX sh only (no bashisms), fzf for pickers, git, standard Ubuntu
+  tools (sfdisk, debugfs, mtools, qemu, swtpm). No python3 on the host:
+  parsing, hashing and sockets sh can't do go to tools/idiot-helper (Rust).
+  User state follows XDG (~/.local/share/idiot, ~/.cache/idiot).
 
   Conventions: CLAUDE.md (layout, output discipline, helpers) and STYLE.md
   (naming, formatting, error phrasing) are authoritative; read them before
   designing or implementing. `make check` (shfmt + shellcheck, cargo fmt +
   clippy) must pass. Conventional Commits, enforced by .githooks/commit-msg.
 
-  The one non-shell part is tools/idiot-store, a small Rust Snap Store client
-  (macaroon login with the login.ubuntu.com discharge, whoami) that replaced
-  `snapcraft export-login`/`snapcraft whoami`. The snap's optional components
+  The non-shell parts are tools/idiot-helper (above) and tools/idiot-store,
+  a small Rust Snap Store client (macaroon login with the login.ubuntu.com
+  discharge, whoami) that replaced `snapcraft export-login`/`snapcraft
+  whoami`. The snap's optional components
   bundle host tools (snap/local/component-build).
 
 rules:

@@ -13,6 +13,7 @@ use std::process::ExitCode;
 mod assertion;
 mod py;
 mod snapd_state;
+mod sockets;
 mod uefi_vars;
 
 const USAGE: &str = "usage: idiot-helper <command> [args...]
@@ -43,10 +44,9 @@ fn main() -> ExitCode {
         "snapd-state" => snapd_state::run(rest),
         "assertion" => assertion::run(rest),
         "uefi-vars" => uefi_vars::run(rest),
-        "qmp" | "port-free" | "swtpm-shutdown" => {
-            eprintln!("idiot-helper: {cmd}: not implemented");
-            2
-        }
+        "qmp" => sockets::qmp(rest),
+        "port-free" => sockets::port_free(rest),
+        "swtpm-shutdown" => sockets::swtpm_shutdown(rest),
         _ => {
             eprintln!("idiot-helper: unknown command: {cmd}\n{USAGE}");
             2

@@ -126,22 +126,15 @@ vm_resolve() {
 }
 
 # Succeed if host port $1 is free for VM $2: no other running VM records
-# it, and (when python3 is there) binding it works, as qemu's hostfwd will.
+# it, and (when idiot-helper is there) binding it works, as qemu's hostfwd
+# will.
 vm_port_free() {
     for _vpf in $(vm_running_names); do
         [ "${_vpf}" != "${2}" ] || continue
         [ "$(vm_conf_get "${_vpf}" ssh_port)" != "${1}" ] || return 1
     done
-    command -v python3 >/dev/null 2>&1 || return 0
-    python3 -c '
-import socket, sys
-s = socket.socket()
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-try:
-    s.bind(("", int(sys.argv[1])))
-except OSError:
-    sys.exit(1)
-' "${1}"
+    _vpf_h="$(helper_path idiot-helper)" || return 0
+    "${_vpf_h}" port-free "${1}"
 }
 
 # Print the ssh port VM $1 boots with: $2 when given (dying when it isn't
@@ -180,15 +173,9 @@ vm_swtpm_stop() {
     if [ -n "${_vss}" ] && kill -0 "${_vss}" 2>/dev/null; then
         kill "${_vss}" 2>/dev/null || :
         sleep 0.2
-        if kill -0 "${_vss}" 2>/dev/null && command -v python3 >/dev/null 2>&1; then
-            python3 -c '
-import socket, struct, sys
-s = socket.socket(socket.AF_UNIX)
-s.settimeout(5)
-s.connect(sys.argv[1])
-s.sendall(struct.pack(">I", 3))  # CMD_SHUTDOWN
-s.recv(4)
-' "${1}/swtpm.sock" 2>/dev/null || :
+        if kill -0 "${_vss}" 2>/dev/null &&
+            _vss_h="$(helper_path idiot-helper)"; then
+            "${_vss_h}" swtpm-shutdown "${1}/swtpm.sock" 2>/dev/null || :
         fi
     fi
     rm -f "${_vss_pidf}"

@@ -126,7 +126,8 @@ tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft
                  #   Credentials never in argv or stdout. Exit 0/1 usage/2 auth/3 store.
 tools/idiot-helper/ # Rust helper: what host commands can't do in sh (no
                  #   python3 on the host): snapd-state (inspect image/diff),
-                 #   assertion (inspect assertion), uefi-vars (vm vars);
+                 #   assertion (inspect assertion), uefi-vars (vm vars),
+                 #   qmp, port-free, swtpm-shutdown (vm's sockets);
                  #   installed to lib/idiot/libexec/. Never handles
                  #   credentials, no network code. src/py.rs reproduces the
                  #   Python behaviour the ported output depends on.

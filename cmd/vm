@@ -669,10 +669,11 @@ _wait_exit() {
 	done
 }
 
-# Sends QMP command $2 to VM $1; fails without python3 or when qemu won't.
+# Sends QMP command $2 to VM $1; fails without idiot-helper or when qemu
+# won't.
 _qmp() {
-	command -v python3 >/dev/null 2>&1 || return 1
-	python3 "${IDIOT_ROOT}/share/vm-qmp.py" "$(vm_dir "${1}")/qmp.sock" "${2}" >/dev/null
+	_qmp_h="$(helper_path idiot-helper)" || return 1
+	"${_qmp_h}" qmp "$(vm_dir "${1}")/qmp.sock" "${2}" >/dev/null
 }
 
 do_stop() {
@@ -720,8 +721,8 @@ do_stop() {
 			_wait_exit "${pid}" "${timeout}" ||
 				say "${YELLOW}warning:${RESET} the guest did not shut down within ${timeout}s — quitting qemu"
 		else
-			command -v python3 >/dev/null 2>&1 ||
-				say "${DIM}a graceful shutdown needs python3: quitting qemu${RESET}"
+			helper_path idiot-helper >/dev/null ||
+				say "${DIM}a graceful shutdown needs idiot-helper (make install): quitting qemu${RESET}"
 		fi
 	fi
 	if kill -0 "${pid}" 2>/dev/null; then

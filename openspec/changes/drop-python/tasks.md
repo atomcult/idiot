@@ -35,12 +35,12 @@
 
 ## 6. Sockets: QMP, ports and swtpm
 
-- [ ] 6.1 `idiot-helper qmp`, `port-free` and `swtpm-shutdown`, with unit tests: `qmp` against a fake QMP server on a temporary unix socket (greeting, capabilities, a return and an error), `port-free` on a port bound by the test and on a free one. Verify with `cargo test`
-- [ ] 6.2 `cmd/vm` (`_qmp`, the "needs python3" message removed) and `share/vm.sh` (`vm_port_free`, the swtpm stop) use them, falling back as today when the helper is missing; delete `share/vm-qmp.py`. Verify with python3 hidden:
+- [x] 6.1 `idiot-helper qmp`, `port-free` and `swtpm-shutdown`, with unit tests: `qmp` against a fake QMP server on a temporary unix socket (greeting, capabilities, a return and an error), `port-free` on a port bound by the test and on a free one. Verify with `cargo test`
+- [x] 6.2 `cmd/vm` (`_qmp`, the "needs python3" message removed) and `share/vm.sh` (`vm_port_free`, the swtpm stop) use them, falling back as today when the helper is missing; delete `share/vm-qmp.py`. Verify with python3 hidden:
   - a booted Core VM stopped with `idiot vm stop` powers down through ACPI;
   - `--ssh-port` on a port that `nc -l` holds is refused before qemu starts;
   - after `vm stop` of a `--tpm` VM, no swtpm process remains.
-- [ ] 6.3 Run `grep -rn python3 cmd share idiot` and check the only remaining hits are comments about gdb's Python, if any. Update CLAUDE.md (layout, helper list) and `openspec/config.yaml`'s stack line. Run `make check`; commit (`refactor(vm): talk to qemu and swtpm with idiot-helper`)
+- [x] 6.3 Run `grep -rn python3 cmd share idiot` and check the only remaining hits are comments about gdb's Python, if any. Update CLAUDE.md (layout, helper list) and `openspec/config.yaml`'s stack line. Run `make check`; commit (`refactor(vm): talk to qemu and swtpm with idiot-helper`)
 
 ## 7. doctor
 
