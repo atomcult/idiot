@@ -131,6 +131,8 @@ tools/idiot-helper/ # Rust helper: what host commands can't do in sh (no
                  #   installed to lib/idiot/libexec/. Never handles
                  #   credentials, no network code. src/py.rs reproduces the
                  #   Python behaviour the ported output depends on.
+skills/using-idiot/ # agent skill for using idiot on Classic and Core
+                 #   (keep it in step with command and behaviour changes)
 snap/local/      # build-time scripts for the snap: patchelf-host, pull-tracked,
                  #   component-build (finish a tool component's part),
                  #   wrap/<tool> (setup a bundled tool needs, see component-build),
