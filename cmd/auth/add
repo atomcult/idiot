@@ -20,6 +20,7 @@ usage() {
 	help_option "--snaps <list>" "Only these snaps (default: any)"
 	help_option "--channels <list>" "Only these channels (default: any)"
 	help_option "--expires <when>" "ISO 8601 date/time, or <N>d from now (default: 365d)"
+	help_option "--any" "For any store (default: the active store)"
 	echo >&2
 	help_heading "Permissions:"
 	printf '%s\n' "${STORE_PERMISSIONS}" | while IFS='	' read -r _p _d; do
@@ -58,6 +59,7 @@ main() {
 	snaps=''
 	channels=''
 	expires='365d'
+	any=0
 	while [ "$#" -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
@@ -74,6 +76,7 @@ main() {
 				;;
 			esac
 			;;
+		--any) any=1 ;;
 		--snaps=*) snaps="${1#*=}" ;;
 		--channels=*) channels="${1#*=}" ;;
 		--expires=*) expires="${1#*=}" ;;
@@ -133,8 +136,14 @@ main() {
 	[ "${rc}" -eq 0 ] || exit "${rc}"
 
 	mv "${tmpfile}" "${dest}"
-	record_cred_store "${name}" "${UBUNTU_STORE_ID:-}"
+	if [ "${any}" -eq 1 ]; then
+		record_cred_store "${name}" "${CRED_ANY_STORE}"
+		for_store='any store'
+	else
+		record_cred_store "${name}" "${UBUNTU_STORE_ID:-}"
+		for_store="$(store_label "${UBUNTU_STORE_ID:-}")"
+	fi
 	record_expiry "${name}" "${expires}" || :
-	say "Added credentials '${BOLD}${name}${RESET}' for $(store_label "${UBUNTU_STORE_ID:-}") ${DIM}(expires ${expires%%T*})${RESET}"
+	say "Added credentials '${BOLD}${name}${RESET}' for ${for_store} ${DIM}(expires ${expires%%T*})${RESET}"
 }
 main "$@"

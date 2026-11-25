@@ -55,6 +55,10 @@ emit_cred_logout() {
     emit_unset IDIOT_CRED_EXPIRES
 }
 
+# The pairing record's value for a credential that belongs to every store
+# (a store ID can't be *). Unpaired credentials are treated the same.
+CRED_ANY_STORE='*'
+
 # Print the path of the record of which store credential $1 belongs to.
 # Hidden (credential names can't start with '.'), so `auth list` and the
 # pickers skip it; it holds a store ID, never credential contents.
@@ -62,14 +66,15 @@ cred_store_path() {
     printf '%s/.store.%s' "${IDIOT_AUTH_DIR}" "${1}"
 }
 
-# Record that credential $1 belongs to store ID $2 (empty: the global store).
+# Record that credential $1 belongs to store ID $2 (empty: the global store;
+# CRED_ANY_STORE: any store).
 record_cred_store() {
     ensure_auth_dir
     printf 'store: %s\n' "${2}" >"$(cred_store_path "${1}")"
 }
 
-# Print the store ID credential $1 belongs to (empty: global); fail when it
-# has no recorded store.
+# Print the store ID credential $1 belongs to (empty: global;
+# CRED_ANY_STORE: any store); fail when it has no recorded store.
 cred_store_id() {
     _csi="$(cred_store_path "${1}")"
     [ -f "${_csi}" ] || return 1
@@ -78,11 +83,13 @@ cred_store_id() {
 
 # Warn on stderr when credential $1 belongs to a store other than store ID
 # $2 (empty: global), the store active once the caller's change is made.
-# Silent without a credential name or a recorded store; never fails, never
-# dies, so it can't change a command's outcome. Callers include stores.sh.
+# Silent without a credential name or a recorded store, or for one marked
+# for any store; never fails, never dies, so it can't change a command's
+# outcome. Callers include stores.sh.
 warn_store_mismatch() {
     [ -n "${1}" ] || return 0
     _wsm_own="$(cred_store_id "${1}")" || return 0
+    [ "${_wsm_own}" != "${CRED_ANY_STORE}" ] || return 0
     [ "${_wsm_own}" != "${2}" ] || return 0
     if [ -z "${_wsm_own}" ]; then
         _wsm_fix='idiot store unset'
@@ -92,7 +99,7 @@ warn_store_mismatch() {
         _wsm_fix="idiot store add <name> ${_wsm_own}"
     fi
     say "${YELLOW}warning:${RESET} credentials '${BOLD}${1}${RESET}' belong to $(store_label "${_wsm_own}"), but $(store_label "${2}") is active"
-    say "         ${DIM}switch: ${_wsm_fix} · re-pair: idiot auth bind ${1}${RESET}"
+    say "         ${DIM}switch: ${_wsm_fix} · re-pair: idiot auth bind ${1} · any store: idiot auth bind --any ${1}${RESET}"
     return 0
 }
 

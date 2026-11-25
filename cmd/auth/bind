@@ -1,27 +1,46 @@
 #!/usr/bin/env sh
-# cmd/auth/bind - pair a saved credential with the active store
-# Usage: idiot auth bind [<name>]
+# cmd/auth/bind - pair a saved credential with the active store, or any
+# Usage: idiot auth bind [--any] [<name>]
 
 . "$(dirname "${0}")/../../share/common.sh"
 include creds.sh
 include stores.sh
 
 main() {
-	case "${1:-}" in
-	-h | --help | help)
-		help_heading "Usage:" "idiot auth bind [<name>]"
-		echo >&2
-		say "Records the active store as the one credential <name> (default: the"
-		say "active credential) belongs to, so idiot warns when they don't match."
-		exit 0
-		;;
-	esac
-	name="${1:-${IDIOT_ACTIVE_CRED:-}}"
+	any=0
+	name=''
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot auth bind [--any] [<name>]"
+			echo >&2
+			say "Records the active store as the one credential <name> (default: the"
+			say "active credential) belongs to, so idiot warns when they don't match."
+			echo >&2
+			help_heading "Options:"
+			help_option "--any" "For any store: never warn, whichever store is active"
+			exit 0
+			;;
+		--any) any=1 ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${name}" ] || die "usage: idiot auth bind [--any] [<name>]"
+			name="${1}"
+			;;
+		esac
+		shift
+	done
+	name="${name:-${IDIOT_ACTIVE_CRED:-}}"
 	[ -n "${name}" ] ||
-		die "usage: idiot auth bind [<name>] — or activate a credential first: idiot auth login"
+		die "usage: idiot auth bind [--any] [<name>] — or activate a credential first: idiot auth login"
 	validate_cred_name "${name}"
 	require_cred "${name}"
 
+	if [ "${any}" -eq 1 ]; then
+		record_cred_store "${name}" "${CRED_ANY_STORE}"
+		say "Credentials '${BOLD}${name}${RESET}' are for any store"
+		return 0
+	fi
 	record_cred_store "${name}" "${UBUNTU_STORE_ID:-}"
 	say "Paired credentials '${BOLD}${name}${RESET}' with $(store_label "${UBUNTU_STORE_ID:-}")"
 }

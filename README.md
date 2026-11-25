@@ -265,13 +265,19 @@ the active credential and store don't match, and say how to fix it:
 
 ```
 warning: credentials 'ci' belong to store 'staging', but store 'prod' is active
-         switch: idiot store use staging · re-pair: idiot auth bind ci
+         switch: idiot store use staging · re-pair: idiot auth bind ci · any store: idiot auth bind --any ci
 ```
 
 The warning never blocks anything. `idiot auth bind [<name>]` re-pairs a
 credential with the active store; imported credentials, and ones saved
 before idiot recorded pairings, have none and are never warned about until
 you bind them.
+
+A personal Ubuntu One login usually works in the global store and in every
+brand store its account belongs to. Mark such a credential for any store
+and it is never warned about: `idiot auth bind --any [<name>]`, or
+`idiot auth add --any <name>` when you add it. Plain `idiot auth bind`
+pairs it with one store again.
 
 idiot also knows when each credential expires, read offline from the
 credential itself when it's added or imported (or from the store, the

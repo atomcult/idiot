@@ -73,5 +73,22 @@ confined auth bind
 grep -qx 'store: xyz789' "${data}/auth/.store.ci" &&
 	ok "auth bind: re-paired with prod" || fail "auth bind: $(cat "${data}/auth/.store.ci")"
 
+# any store: offered by the warning, then never warned about; plain bind undoes it
+confined store use staging
+printf '%s' "${out}" | grep -q 'any store: idiot auth bind --any ci' &&
+	ok "warning: offers auth bind --any" || fail "warning: no any-store fix: ${out}"
+confined auth bind --any
+grep -qx 'store: \*' "${data}/auth/.store.ci" &&
+	printf '%s' "${out}" | grep -q "'ci' are for any store" &&
+	ok "auth bind --any: marked for any store" || fail "auth bind --any: ${out} $(cat "${data}/auth/.store.ci")"
+confined store use prod
+w="${out}"
+confined auth login ci
+printf '%s%s' "${w}" "${out}" | grep -q 'warning: credentials' &&
+	fail "auth bind --any: still warned: ${w}${out}" || ok "auth bind --any: no warning in any store"
+confined auth bind
+grep -qx 'store: xyz789' "${data}/auth/.store.ci" &&
+	ok "auth bind: undoes --any" || fail "auth bind after --any: $(cat "${data}/auth/.store.ci")"
+
 confined profile remove sc
 [ ! -f "${data}/profiles/sc" ] && ok "profile remove" || fail "profile remove: ${out}"
