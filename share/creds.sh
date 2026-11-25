@@ -81,6 +81,18 @@ cred_store_id() {
     sed -n 's/^store:[[:space:]]*//p' "${_csi}"
 }
 
+# Print a short name for the store credential $1 belongs to, for listings:
+# the saved store's name (else its ID), "global", or "any store" (marked so,
+# or never paired). Needs stores.sh.
+cred_store_short() {
+    _css="$(cred_store_id "${1}")" || _css="${CRED_ANY_STORE}"
+    case "${_css}" in
+    '') printf 'global' ;;
+    "${CRED_ANY_STORE}") printf 'any store' ;;
+    *) store_name_for_id "${_css}" || printf '%s' "${_css}" ;;
+    esac
+}
+
 # Warn on stderr when credential $1 belongs to a store other than store ID
 # $2 (empty: global), the store active once the caller's change is made.
 # Silent without a credential name or a recorded store, or for one marked

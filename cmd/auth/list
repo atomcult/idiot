@@ -1,9 +1,10 @@
 #!/usr/bin/env sh
-# cmd/auth/list - list credential files in IDIOT_AUTH_DIR
+# cmd/auth/list - list credential files in IDIOT_AUTH_DIR, with expiry and store
 # Usage: idiot auth list
 
 . "$(dirname "${0}")/../../share/common.sh"
 include creds.sh
+include stores.sh
 
 main() {
 	case "${1:-}" in
@@ -25,12 +26,13 @@ main() {
 	for f in "${IDIOT_AUTH_DIR}"/*; do
 		[ -f "${f}" ] || continue
 		n="${f##*/}"
+		# padded before colouring: "expiry unknown" is the longest phrase
 		if exp="$(read_expiry "${n}")"; then
-			ann="$(expiry_colour "${exp}" "${now}")$(expiry_phrase "${exp}" "${now}")${RESET}"
+			ann="$(expiry_colour "${exp}" "${now}")$(printf '%-14s' "$(expiry_phrase "${exp}" "${now}")")${RESET}"
 		else
 			ann="${DIM}expiry unknown${RESET}"
 		fi
-		say "$(printf "%-${width}s" "${n}")  ${ann}"
+		say "$(printf "%-${width}s" "${n}")  ${ann}  ${DIM}$(cred_store_short "${n}")${RESET}"
 	done
 }
 main "$@"

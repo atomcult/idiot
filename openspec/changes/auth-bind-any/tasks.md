@@ -11,8 +11,8 @@
 
 ## 2. Stores in auth list
 
-- [ ] 2.1 Add a short store label helper to `share/creds.sh` (the saved store's name, else the ID, `global`, `any store` for `*` or no record) and show it, dimmed, after the expiry in `cmd/auth/list` (which then includes `stores.sh`). Verify in a scratch data directory with one credential of each kind (paired with a saved store, an unsaved ID, global, `*`, no record): each line shows the expected label and the expiry column is unchanged; `idiot auth list 2>/dev/null` prints nothing on stdout.
-- [ ] 2.2 Add an `auth list` check to `tests/bare-host.d/profile` (the store names shown for `ci` and an any-store credential), update the README's `auth list` mention if any and the skill reference, then run `make check`. Commit: `feat(auth): show each credential's store in auth list`.
+- [x] 2.1 Add a short store label helper to `share/creds.sh` (the saved store's name, else the ID, `global`, `any store` for `*` or no record) and show it, dimmed, after the expiry in `cmd/auth/list` (which then includes `stores.sh`). Verify in a scratch data directory with one credential of each kind (paired with a saved store, an unsaved ID, global, `*`, no record): each line shows the expected label and the expiry column is unchanged; `idiot auth list 2>/dev/null` prints nothing on stdout.
+- [x] 2.2 Add an `auth list` check to `tests/bare-host.d/profile` (the store names shown for `ci` and an any-store credential), update the README's `auth list` mention if any and the skill reference, then run `make check`. Commit: `feat(auth): show each credential's store in auth list`.
 
 ## 3. Verification
 

@@ -278,6 +278,7 @@ brand store its account belongs to. Mark such a credential for any store
 and it is never warned about: `idiot auth bind --any [<name>]`, or
 `idiot auth add --any <name>` when you add it. Plain `idiot auth bind`
 pairs it with one store again.
+`idiot auth list` shows each credential's store after its expiry.
 
 idiot also knows when each credential expires, read offline from the
 credential itself when it's added or imported (or from the store, the

@@ -90,5 +90,12 @@ confined auth bind
 grep -qx 'store: xyz789' "${data}/auth/.store.ci" &&
 	ok "auth bind: undoes --any" || fail "auth bind after --any: $(cat "${data}/auth/.store.ci")"
 
+# auth list names each credential's store (an imported one has none: any store)
+idiot auth import other /tmp/ci.cred 2>/dev/null
+confined auth list
+printf '%s\n' "${out}" | grep -q '^ci .* prod$' &&
+	printf '%s\n' "${out}" | grep -q '^other .* any store$' &&
+	ok "auth list: shows each credential's store" || fail "auth list: ${out}"
+
 confined profile remove sc
 [ ! -f "${data}/profiles/sc" ] && ok "profile remove" || fail "profile remove: ${out}"

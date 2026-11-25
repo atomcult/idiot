@@ -22,7 +22,7 @@ in the same shell (see SKILL.md). They run confined under the snap.
 |---|---|
 | `idiot status` | Active store, credential (and expiry), arch, lp user, profile |
 | `idiot prompt [--format store,arch,cred,lp,profile] [--separator s]` | The same as one segment on stdout |
-| `idiot auth list` / `status` | Saved credentials with expiry; the active one's login status (`status` asks the store) |
+| `idiot auth list` / `status` | Saved credentials with expiry and store; the active one's login status (`status` asks the store) |
 | `idiot auth add <name> [--permissions …] [--snaps …] [--channels …] [--expires …]` | Logs in (interactive: password and OTP) and saves a credential paired with the active store (`--any`: for any store). Doesn't activate it. **Leave to the user.** |
 | `idiot auth login <name>` / `logout` | Activate / clear a credential (sets `SNAPCRAFT_STORE_CREDENTIALS`, `UBUNTU_STORE_AUTH`, `IDIOT_ACTIVE_CRED`) |
 | `idiot auth import <name> <file>` | Save a credential exported by snapcraft |
