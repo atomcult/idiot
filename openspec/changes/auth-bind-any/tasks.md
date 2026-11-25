@@ -17,4 +17,4 @@
 ## 3. Verification
 
 - [x] 3.1 Run `openspec validate auth-bind-any --strict`.
-- [ ] 3.2 Pack the snap (`snapcraft clean idiot && snapcraft pack`) and run `tests/bare-host idiot_*_amd64.snap` on `local:`; the profile checks pass. Ask the user to run one real `idiot auth add --any <name>` login, since a login needs their Ubuntu One account, and confirm `idiot auth list` shows `any store` for it.
+- [x] 3.2 Pack the snap (`snapcraft clean idiot && snapcraft pack`) and run `tests/bare-host idiot_*_amd64.snap` on `local:`; the profile checks pass. Ask the user to run one real `idiot auth add --any <name>` login, since a login needs their Ubuntu One account, and confirm `idiot auth list` shows `any store` for it.
