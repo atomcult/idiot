@@ -19,6 +19,6 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run `openspec validate fix-macaroon-padding --strict`.
-- [ ] 4.2 Pack the snap (`snapcraft clean idiot`, then pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
+- [x] 4.1 Run `openspec validate fix-macaroon-padding --strict`.
+- [x] 4.2 Pack the snap (`snapcraft clean idiot`, then pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 4.3 With the user: `idiot auth login` on their padded `lauren-brock` credential reports the repair, then with `ce-team-test` active `snap download ce-dummy` succeeds; and a fresh `idiot auth add` credential has no padding (checked without printing it).
