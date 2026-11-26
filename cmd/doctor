@@ -342,6 +342,17 @@ check_credentials() {
 		case "${_cc_mode}" in
 		*00) [ "${_cc_loose}" -eq 1 ] || _ok 'credentials' "$(_plural "${_cc_count}" credential), private" ;;
 		esac
+		# base64 padding older idiot-store wrote: snapd can't read it and
+		# downloads anonymously. Checked by idiot-store (offline, prints only
+		# a status word); skipped without it, which the Install section reports.
+		if _cc_helper="$(store_helper_path)"; then
+			for _cc_file in "${IDIOT_AUTH_DIR}"/*; do
+				[ -f "${_cc_file}" ] || continue
+				[ "$("${_cc_helper}" repair --check "${_cc_file}" 2>/dev/null)" = padded ] || continue
+				_warn "credential '${_cc_file##*/}' has padding snapd can't read (private snap downloads 404)" \
+					"repair it with: idiot auth login ${_cc_file##*/}"
+			done
+		fi
 	else
 		_ok 'credentials' 'none saved'
 	fi

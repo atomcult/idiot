@@ -332,7 +332,8 @@ VMs
   ...
 
 Credentials and stores
-  ✓ credentials                 2 credentials, private
+  ✓ credentials                 3 credentials, private
+  ! credential 'old' has padding snapd can't read (private snap downloads 404) — repair it with: idiot auth login old
   ✓ active credential           work
   ✓ work                        expires in 41d
   ! credential 'ci' expires in 3d — renew it with: idiot auth add
@@ -342,7 +343,7 @@ Data directories
   ✓ data                        ~/snap/idiot/common
   ✓ eval files                  none stale
 
-3 warnings
+4 warnings
 ```
 
 `✓` is fine, `!` is worth knowing (something some commands need is

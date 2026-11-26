@@ -14,8 +14,8 @@
 
 ## 3. Doctor
 
-- [ ] 3.1 In `cmd/doctor`, run `repair --check` for each saved credential when idiot-store is available, and report `!` naming the credential, that snapd can't use it, and `idiot auth login <name>`. Verify in a scratch data directory: a padded fake gives the `!` line and stays unchanged; after `auth login` the line is gone; with the shell still holding the old value, the existing "differs from the saved one" line appears.
-- [ ] 3.2 Add the padded-credential line to `tests/bare-host.d/doctor` (before a login repairs it) and update the README's doctor sample if it lists credential lines. Run `make check`. Commit: `feat(doctor): flag credentials snapd can't use`.
+- [x] 3.1 In `cmd/doctor`, run `repair --check` for each saved credential when idiot-store is available, and report `!` naming the credential, that snapd can't use it, and `idiot auth login <name>`. Verify in a scratch data directory: a padded fake gives the `!` line and stays unchanged; after `auth login` the line is gone; with the shell still holding the old value, the existing "differs from the saved one" line appears.
+- [x] 3.2 Add the padded-credential line to `tests/bare-host.d/doctor` (before a login repairs it) and update the README's doctor sample if it lists credential lines. Run `make check`. Commit: `feat(doctor): flag credentials snapd can't use`.
 
 ## 4. Verification
 
