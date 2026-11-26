@@ -44,6 +44,7 @@ main() {
 	}
 
 	require_cred "${name}"
+	repair_cred "${name}"
 	cred_file="${IDIOT_AUTH_DIR}/${name}"
 
 	if [ -n "${outfile}" ]; then

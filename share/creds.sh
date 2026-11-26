@@ -32,9 +32,26 @@ require_no_cred() {
     [ -f "${IDIOT_AUTH_DIR}/${1}" ] && die "credentials '${1}' already exist — remove it first"
 }
 
-# Queue the exports that activate credential $1; die if it doesn't exist.
+# Strip the base64 padding snapd can't read from saved credential $1's
+# macaroons (lossless; older idiot-store wrote it), saying so when it did.
+# Warns and carries on without idiot-store; never fails, never prints the
+# credential (idiot-store prints only ok/repaired).
+repair_cred() {
+    if ! _rpc_h="$(store_helper_path)"; then
+        say "${YELLOW}warning:${RESET} could not check credentials '${1}' for snapd (idiot-store not found)"
+        return 0
+    fi
+    case "$("${_rpc_h}" repair "${IDIOT_AUTH_DIR}/${1}" 2>/dev/null)" in
+    repaired) say "Repaired credentials '${BOLD}${1}${RESET}' ${DIM}(snapd couldn't use them)${RESET}" ;;
+    esac
+    return 0
+}
+
+# Queue the exports that activate credential $1 (repaired first); die if it
+# doesn't exist.
 emit_cred_login() {
     require_cred "${1}"
+    repair_cred "${1}"
     _ecl="$(cat "${IDIOT_AUTH_DIR}/${1}")"
     emit_export UBUNTU_STORE_AUTH "${_ecl}"
     emit_export SNAPCRAFT_STORE_CREDENTIALS "${_ecl}"

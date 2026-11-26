@@ -8,9 +8,9 @@
 
 ## 2. Repair on use
 
-- [ ] 2.1 In `share/creds.sh`, have `emit_cred_login` run `repair` on the credential's file before reading it, print `repaired credentials '<name>' (snapd couldn't use them)` on `repaired`, and warn and carry on when idiot-store is missing. Verify from the source tree in a scratch data directory with a hand-made padded fake credential (base64 JSON with `r` ending in `=`): `idiot auth login` repairs the file and exports the repaired value; a second login prints nothing; `profile use` of a profile naming it repairs it too.
-- [ ] 2.2 In `cmd/auth/export`, repair first, then export. Verify: exporting the padded fake to a file leaves both files unpadded.
-- [ ] 2.3 Extend `tests/bare-host.d/` (the confined profile/auth checks): a padded fake credential is repaired by a confined `auth login`, with the eval file holding the unpadded value, and the file still has mode 0600. Update the README's Credentials and stores section (a short note) and the using-idiot skill reference. Run `make check`. Commit: `fix(auth): repair padded credentials when they're used`.
+- [x] 2.1 In `share/creds.sh`, have `emit_cred_login` run `repair` on the credential's file before reading it, print `repaired credentials '<name>' (snapd couldn't use them)` on `repaired`, and warn and carry on when idiot-store is missing. Verify from the source tree in a scratch data directory with a hand-made padded fake credential (base64 JSON with `r` ending in `=`): `idiot auth login` repairs the file and exports the repaired value; a second login prints nothing; `profile use` of a profile naming it repairs it too.
+- [x] 2.2 In `cmd/auth/export`, repair first, then export. Verify: exporting the padded fake to a file leaves both files unpadded.
+- [x] 2.3 Extend `tests/bare-host.d/` (the confined profile/auth checks): a padded fake credential is repaired by a confined `auth login`, with the eval file holding the unpadded value, and the file still has mode 0600. Update the README's Credentials and stores section (a short note) and the using-idiot skill reference. Run `make check`. Commit: `fix(auth): repair padded credentials when they're used`.
 
 ## 3. Doctor
 

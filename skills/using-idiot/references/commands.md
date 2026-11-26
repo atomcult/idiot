@@ -39,6 +39,11 @@ Commands whose name argument is optional (`auth login`, `auth remove`,
 `auth export`, `profile use`, `profile remove`) open an fzf picker without
 one: always pass the name.
 
+`auth login`, `profile use` and `auth export` repair a credential with
+base64 padding (saved by older idiot), which snapd can't read: it then
+downloads anonymously and private or brand-store snaps 404. If snap
+downloads 404 with an idiot credential, run `idiot doctor`.
+
 The active credential and store are warned about when they don't belong
 together; the warning says how to fix it and never blocks.
 

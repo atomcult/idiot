@@ -97,5 +97,18 @@ printf '%s\n' "${out}" | grep -q '^ci .* prod$' &&
 	printf '%s\n' "${out}" | grep -q '^other .* any store$' &&
 	ok "auth list: shows each credential's store" || fail "auth list: ${out}"
 
+# a padded credential (as older idiot-store wrote) is repaired by a confined login
+(umask 077 && printf '{"t":"u1-macaroon","v":{"r":"abc=","d":"def"}}' | base64 -w0 >"${data}/auth/padded")
+confined auth login padded
+fixed="$(printf '{"t":"u1-macaroon","v":{"r":"abc","d":"def"}}' | base64 -w0)"
+[ "$(cat "${data}/auth/padded")" = "${fixed}" ] && [ "${UBUNTU_STORE_AUTH:-}" = "${fixed}" ] &&
+	[ "$(stat -c %a "${data}/auth/padded")" = 600 ] &&
+	printf '%s' "${out}" | grep -q "Repaired credentials 'padded'" &&
+	ok "auth login: repaired a padded credential (file, export, 0600)" ||
+	fail "auth login padded: $(stat -c %a "${data}/auth/padded") ${out}"
+confined auth login padded
+printf '%s' "${out}" | grep -q Repaired && fail "auth login: repaired twice: ${out}" ||
+	ok "auth login: a repaired credential is left alone"
+
 confined profile remove sc
 [ ! -f "${data}/profiles/sc" ] && ok "profile remove" || fail "profile remove: ${out}"

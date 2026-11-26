@@ -280,6 +280,13 @@ and it is never warned about: `idiot auth bind --any [<name>]`, or
 pairs it with one store again.
 `idiot auth list` shows each credential's store after its expiry.
 
+Credentials saved by idiot v0.2.0 and earlier can carry base64 padding that snapd
+(`snap download`, `ubuntu-image`, `snap prepare-image`) can't read: it
+then downloads anonymously, so private and brand-store snaps fail with a
+404. idiot repairs a credential the next time you activate or export it
+(`Repaired credentials 'work'`), and `idiot doctor` lists any still
+affected.
+
 idiot also knows when each credential expires, read offline from the
 credential itself when it's added or imported (or from the store, the
 first time `idiot auth status` runs for an older one). `idiot status`,
