@@ -1,6 +1,8 @@
 //! The credential format `snapcraft export-login` writes:
 //! `base64({"t":"u1-macaroon","v":{"r":<root>,"d":<discharge>}})`, both
-//! macaroons in V1 serialisation, the discharge not yet bound.
+//! macaroons in V1 serialisation, the discharge not yet bound, and neither
+//! base64-padded: snapd decodes them as unpadded URL-safe base64 and, when
+//! it can't, silently sends store requests without authorisation.
 
 use crate::error::StoreError;
 use base64::prelude::*;
@@ -21,21 +23,33 @@ struct Pair {
     d: String,
 }
 
-/// Encodes a root and discharge macaroon as a credential.
-pub fn encode(root: &Macaroon, discharge: &Macaroon) -> Result<String, StoreError> {
-    let ser = |m: &Macaroon| {
-        m.serialize(Format::V1)
-            .map_err(|e| StoreError::Store(format!("macaroon: {e:?}")))
-    };
+/// Encodes a root and discharge macaroon, serialised as the store and SSO
+/// sent them, as a credential. Base64 padding is stripped, in case.
+pub fn encode(root: &str, discharge: &str) -> Result<String, StoreError> {
     let json = serde_json::to_string(&Credential {
         t: TOKEN_TYPE.to_string(),
         v: Pair {
-            r: ser(root)?,
-            d: ser(discharge)?,
+            r: unpad(root).to_string(),
+            d: unpad(discharge).to_string(),
         },
     })
     .map_err(|e| StoreError::Store(e.to_string()))?;
     Ok(BASE64_STANDARD.encode(json))
+}
+
+fn unpad(serialised: &str) -> &str {
+    serialised.trim_end_matches('=')
+}
+
+/// The credential without base64 padding in its macaroons, or None when it
+/// has none. Lossless: padding carries no data. Fails on anything that
+/// isn't a `u1-macaroon` credential.
+pub fn repair(credential: &str) -> Result<Option<String>, StoreError> {
+    let (root, discharge) = decode(credential)?;
+    if unpad(&root) == root && unpad(&discharge) == discharge {
+        return Ok(None);
+    }
+    encode(&root, &discharge).map(Some)
 }
 
 /// Decodes a credential into its serialised root and discharge macaroons.
@@ -122,11 +136,24 @@ pub(crate) mod tests {
         Macaroon::create(Some(location.into()), &key, id.into()).unwrap()
     }
 
+    pub(crate) fn ser(m: &Macaroon) -> String {
+        m.serialize(Format::V1).unwrap()
+    }
+
+    /// A macaroon whose V1 serialisation the crate pads, as it did when
+    /// idiot-store wrote credentials with it.
+    fn padded() -> Macaroon {
+        (0..)
+            .map(|n| macaroon("dashboard.snapcraft.io", &format!("root-{n}")))
+            .find(|m| ser(m).ends_with('='))
+            .unwrap()
+    }
+
     #[test]
     fn round_trip() {
         let root = macaroon("dashboard.snapcraft.io", "root-id");
         let discharge = macaroon("login.ubuntu.com", "discharge-id");
-        let cred = encode(&root, &discharge).unwrap();
+        let cred = encode(&ser(&root), &ser(&discharge)).unwrap();
 
         let (r, d) = decode(&cred).unwrap();
         assert_eq!(Macaroon::deserialize(&r).unwrap(), root);
@@ -136,8 +163,63 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn never_padded() {
+        let root = padded();
+        let discharge = macaroon("login.ubuntu.com", "discharge-id");
+        let cred = encode(&ser(&root), &ser(&discharge)).unwrap();
+        let (r, d) = decode(&cred).unwrap();
+        assert!(!r.ends_with('=') && !d.ends_with('='));
+        // still the same macaroons
+        assert_eq!(Macaroon::deserialize(&r).unwrap(), root);
+        assert_eq!(Macaroon::deserialize(&d).unwrap(), discharge);
+    }
+
+    #[test]
+    fn kept_verbatim() {
+        let (r, d) = ("MDAxY2xvY2F0aW9u", "MDAxNWxvY2F0aW9u");
+        assert_eq!(
+            decode(&encode(r, d).unwrap()).unwrap(),
+            (r.into(), d.into())
+        );
+    }
+
+    /// A credential as idiot-store wrote it before: macaroons as padded.
+    fn padded_credential(root: &Macaroon) -> String {
+        let json = serde_json::to_string(&Credential {
+            t: TOKEN_TYPE.into(),
+            v: Pair {
+                r: ser(root),
+                d: ser(&macaroon("login.ubuntu.com", "discharge-id")),
+            },
+        })
+        .unwrap();
+        BASE64_STANDARD.encode(json)
+    }
+
+    #[test]
+    fn repair_strips_padding_only() {
+        let root = padded();
+        let old = padded_credential(&root);
+        let fixed = repair(&old).unwrap().expect("padded credential repaired");
+        let (r, d) = decode(&fixed).unwrap();
+        let (old_r, old_d) = decode(&old).unwrap();
+        assert_eq!(r, old_r.trim_end_matches('='));
+        assert_eq!(d, old_d.trim_end_matches('='));
+        assert_eq!(Macaroon::deserialize(&r).unwrap(), root);
+        // a repaired credential needs no more repair
+        assert!(repair(&fixed).unwrap().is_none());
+    }
+
+    #[test]
+    fn repair_rejects_other_formats() {
+        let other = BASE64_STANDARD.encode(r#"{"t":"other","v":{"r":"x=","d":"y"}}"#);
+        assert!(matches!(repair(&other), Err(StoreError::InvalidCredential)));
+        assert!(repair("not base64!").is_err());
+    }
+
+    #[test]
     fn snapcraft_layout() {
-        let cred = encode(&macaroon("a", "r"), &macaroon("b", "d")).unwrap();
+        let cred = encode(&ser(&macaroon("a", "r")), &ser(&macaroon("b", "d"))).unwrap();
         let json: serde_json::Value =
             serde_json::from_slice(&BASE64_STANDARD.decode(cred).unwrap()).unwrap();
         assert_eq!(json["t"], "u1-macaroon");
@@ -158,7 +240,7 @@ pub(crate) mod tests {
     fn header_binds_discharge() {
         let root = macaroon("dashboard.snapcraft.io", "root-id");
         let discharge = macaroon("login.ubuntu.com", "discharge-id");
-        let header = auth_header(&encode(&root, &discharge).unwrap()).unwrap();
+        let header = auth_header(&encode(&ser(&root), &ser(&discharge)).unwrap()).unwrap();
         let unbound = discharge.serialize(Format::V1).unwrap();
         assert!(header.starts_with("Macaroon root="));
         assert!(
@@ -190,7 +272,7 @@ pub(crate) mod tests {
             "discharge-id",
             &["login.ubuntu.com|expires|2027-05-01T00:00:00Z"],
         );
-        let cred = encode(&root, &discharge).unwrap();
+        let cred = encode(&ser(&root), &ser(&discharge)).unwrap();
         assert_eq!(
             expiries(&cred).unwrap(),
             vec![
@@ -203,7 +285,7 @@ pub(crate) mod tests {
     #[test]
     fn expiry_keeps_an_offset() {
         let root = with_caveats("a", "r", &["a|expires|2027-01-01T00:00:00+02:00"]);
-        let cred = encode(&root, &macaroon("b", "d")).unwrap();
+        let cred = encode(&ser(&root), &ser(&macaroon("b", "d"))).unwrap();
         assert_eq!(
             expiries(&cred).unwrap(),
             vec![("root", "2027-01-01T00:00:00+02:00".to_string())]
@@ -228,7 +310,7 @@ pub(crate) mod tests {
             "discharge-id",
             &["login.ubuntu.com|account|eyJ1c2VybmFtZSI6ICJzZWNyZXQifQ=="],
         );
-        let cred = encode(&root, &discharge).unwrap();
+        let cred = encode(&ser(&root), &ser(&discharge)).unwrap();
         assert!(expiries(&cred).unwrap().is_empty());
     }
 
@@ -262,7 +344,7 @@ pub(crate) mod tests {
             "discharge-id",
             &["login.ubuntu.com|account|eyJ1c2VybmFtZSI6ICJzZWNyZXQifQ=="],
         );
-        let cred = encode(&root, &discharge).unwrap();
+        let cred = encode(&ser(&root), &ser(&discharge)).unwrap();
         let printed: String = expiries(&cred)
             .unwrap()
             .iter()

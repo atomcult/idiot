@@ -1,5 +1,6 @@
 pub mod expiry;
 pub mod login;
+pub mod repair;
 pub mod whoami;
 
 use idiot_store::StoreError;

@@ -52,9 +52,11 @@ struct DischargeRequest<'a> {
 }
 
 /// A login in progress: the root macaroon, waiting for its discharge.
+/// Macaroons are kept as the store and SSO serialised them: re-serialising
+/// with the macaroon crate pads them, which snapd can't read.
 pub struct Login {
     client: Client,
-    root: Macaroon,
+    root: String,
     caveat_id: String,
 }
 
@@ -72,12 +74,12 @@ impl Login {
         if !status.is_success() {
             return Err(StoreError::Store(error_message(&json)));
         }
-        let root = json
+        let (root, parsed) = json
             .get("macaroon")
             .and_then(Value::as_str)
-            .and_then(|m| Macaroon::deserialize(m).ok())
+            .and_then(|m| Some((m.to_string(), Macaroon::deserialize(m).ok()?)))
             .ok_or_else(|| StoreError::Store("no macaroon in the store's response".into()))?;
-        let caveat_id = sso_caveat_id(&root)?;
+        let caveat_id = sso_caveat_id(&parsed)?;
         Ok(Login {
             client,
             root,
@@ -112,9 +114,9 @@ impl Login {
         let discharge = json
             .get("discharge_macaroon")
             .and_then(Value::as_str)
-            .and_then(|m| Macaroon::deserialize(m).ok())
+            .filter(|m| Macaroon::deserialize(m).is_ok())
             .ok_or_else(|| StoreError::Store("no discharge macaroon in SSO's response".into()))?;
-        credential::encode(&self.root, &discharge)
+        credential::encode(&self.root, discharge)
     }
 }
 

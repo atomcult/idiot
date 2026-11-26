@@ -4,7 +4,8 @@
 //! Credentials never go through argv (visible in ps) or stdout: `login`
 //! writes a private file, `whoami` reads the environment or a file.
 //! `expiry` reads a credential's expiry caveats offline and prints only
-//! those timestamps.
+//! those timestamps; `repair` strips base64 padding snapd can't read from a
+//! credential file, in place, and prints only `ok`, `repaired` or `padded`.
 //!
 //! Exit status: 0 ok, 1 usage or local error, 2 authentication failed or
 //! credential rejected, 3 network or store error.
@@ -36,6 +37,9 @@ enum Commands {
     Whoami(WhoamiArgs),
     /// Print a credential's expiry caveats (offline): `root|discharge <time>`
     Expiry(ExpiryArgs),
+    /// Strip base64 padding (which snapd can't read) from a credential file, in
+    /// place (offline): prints ok, repaired, or with --check padded
+    Repair(RepairArgs),
 }
 
 #[derive(Args)]
@@ -74,6 +78,15 @@ pub struct ExpiryArgs {
     file: Option<std::path::PathBuf>,
 }
 
+#[derive(Args)]
+pub struct RepairArgs {
+    /// Only report: print `padded` instead of repairing
+    #[arg(long)]
+    check: bool,
+    /// The credential file
+    file: std::path::PathBuf,
+}
+
 fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -90,6 +103,7 @@ fn main() -> ExitCode {
         Commands::Login(args) => cmd::login::run(args),
         Commands::Whoami(args) => cmd::whoami::run(args),
         Commands::Expiry(args) => cmd::expiry::run(args),
+        Commands::Repair(args) => cmd::repair::run(args),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

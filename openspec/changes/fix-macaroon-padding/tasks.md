@@ -2,9 +2,9 @@
 
 ## 1. idiot-store: no padding, and repair
 
-- [ ] 1.1 In `store/login.rs`, keep the ACL response's `macaroon` string and SSO's `discharge_macaroon` string, and change `credential::encode` to take the two strings, stripping any trailing `=` from each. Verify with unit tests: a credential built from padded inputs has no `=` in `r` or `d` and decodes to the same macaroons; one built from unpadded inputs keeps them byte-for-byte.
-- [ ] 1.2 Add `credential::repair` (strip trailing `=` from `r` and `d`; report whether anything changed; reject anything that isn't a `u1-macaroon` credential) and `idiot-store repair [--check] <file>` (`cmd/repair.rs`, `main.rs`). It rewrites atomically through a 0600 temporary file in the same directory, prints only `ok`, `repaired` or `padded`, and with `--check` writes nothing. Verify with unit tests for the repair and a test of the command in a directory under `std::env::temp_dir()` (no new dependency): mode 0600 afterwards, content unchanged for an unpadded file, an invalid file left untouched with a non-zero exit.
-- [ ] 1.3 Run `cargo test` and `make check`. Commit: `fix(idiot-store): keep the store's macaroons unpadded, as snapd needs`.
+- [x] 1.1 In `store/login.rs`, keep the ACL response's `macaroon` string and SSO's `discharge_macaroon` string, and change `credential::encode` to take the two strings, stripping any trailing `=` from each. Verify with unit tests: a credential built from padded inputs has no `=` in `r` or `d` and decodes to the same macaroons; one built from unpadded inputs keeps them byte-for-byte.
+- [x] 1.2 Add `credential::repair` (strip trailing `=` from `r` and `d`; report whether anything changed; reject anything that isn't a `u1-macaroon` credential) and `idiot-store repair [--check] <file>` (`cmd/repair.rs`, `main.rs`). It rewrites atomically through a 0600 temporary file in the same directory, prints only `ok`, `repaired` or `padded`, and with `--check` writes nothing. Verify with unit tests for the repair and a test of the command in a directory under `std::env::temp_dir()` (no new dependency): mode 0600 afterwards, content unchanged for an unpadded file, an invalid file left untouched with a non-zero exit.
+- [x] 1.3 Run `cargo test` and `make check`. Commit: `fix(idiot-store): keep the store's macaroons unpadded, as snapd needs`.
 
 ## 2. Repair on use
 
