@@ -53,7 +53,8 @@ enum Commands {
     /// A brand store's snaps (store admins with store_admin):
     /// `snap <name> <owner> <private|public>`, or `refused ...`
     StoreSnaps(StoreSnapsArgs),
-    /// A snap's channel map: `channel <track/risk> <arch> <revision> <version> <released-at>`
+    /// A snap: `snap <name> <snap-id>`, then its channel map:
+    /// `channel <track/risk> <arch> <revision> <version> <released-at> <type>`
     Info(InfoArgs),
     /// Whether a snap revision can be downloaded, anonymously and with the
     /// credential (statuses only; nothing is downloaded)

@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 const DASHBOARD: &str = "https://dashboard.snapcraft.io";
 pub(crate) const API: &str = "https://api.snapcraft.io";
 const REFRESH_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/refresh";
-const INFO_FIELDS: &str = "download,revision,version,created-at,architectures";
+const INFO_FIELDS: &str = "download,revision,version,created-at,architectures,type";
 
 /// A credential for a run of queries; refreshed in place when needed.
 pub struct Auth {
@@ -308,6 +308,17 @@ pub struct Channel {
     pub version: String,
     pub released_at: String,
     pub url: String,
+    /// The snap type the revision has (`app`, `kernel`, `gadget`, `base`,
+    /// `snapd`, `os`), from `fields=type`.
+    pub kind: String,
+}
+
+/// A snap as the info call shows it: its name, ID and channel map.
+#[derive(Debug, PartialEq, Clone)]
+pub struct SnapInfo {
+    pub name: String,
+    pub id: String,
+    pub channels: Vec<Channel>,
 }
 
 pub(crate) fn info_request(c: &Client, snap: &str, store: Option<&str>) -> RequestBuilder {
@@ -322,19 +333,28 @@ pub(crate) fn info_request(c: &Client, snap: &str, store: Option<&str>) -> Reque
     rq
 }
 
-/// The snap's channel map as `auth` (or anyone, without) sees it; None when
-/// the store doesn't show the snap.
+/// The snap (name, ID, channel map) as `auth` (or anyone, without) sees
+/// it; None when the store doesn't show the snap.
 pub fn info(
     auth: Option<&mut Auth>,
     snap: &str,
     store: Option<&str>,
-) -> Result<Option<Vec<Channel>>, StoreError> {
+) -> Result<Option<SnapInfo>, StoreError> {
     let c = client()?;
     let reply = send(&c, auth, || info_request(&c, snap, store))?;
     match reply.status {
         StatusCode::NOT_FOUND => Ok(None),
-        s if s.is_success() => Ok(Some(parse_info(&reply.json()))),
+        s if s.is_success() => Ok(Some(snap_info(&reply.json()))),
         _ => Err(rejected_or(&reply)),
+    }
+}
+
+/// The name, ID and channel map of an info reply.
+pub fn snap_info(json: &Value) -> SnapInfo {
+    SnapInfo {
+        name: text(json, "name"),
+        id: text(json, "snap-id"),
+        channels: parse_info(json),
     }
 }
 
@@ -356,6 +376,7 @@ pub fn parse_info(json: &Value) -> Vec<Channel> {
                         version: text(e, "version"),
                         released_at: text(ch, "released-at"),
                         url: text(&e["download"], "url"),
+                        kind: text(e, "type"),
                     }
                 })
                 .collect()
@@ -541,6 +562,27 @@ mod tests {
         assert_eq!(map[0].revision, 4);
         assert_eq!(map[1].name, "latest/stable");
         assert!(map[1].url.ends_with("_3.snap"));
+    }
+
+    #[test]
+    fn info_id_and_types() {
+        // a real anonymous reply for a public snap (README.md)
+        let info = snap_info(&fixture("info-pc-kernel.json"));
+        assert_eq!(info.name, "pc-kernel");
+        assert_eq!(info.id, "pYVQrBcKmBa0mZ4CCN7ExT6jH8rY1hza");
+        assert_eq!(info.channels.len(), 8);
+        assert!(info.channels.iter().all(|c| c.kind == "kernel"));
+        let stable: Vec<_> = info
+            .channels
+            .iter()
+            .filter(|c| c.name == "24/stable")
+            .map(|c| (c.arch.as_str(), c.revision))
+            .collect();
+        assert_eq!(stable, [("amd64", 3908), ("arm64", 3909)]);
+        // a reply without types (an older fixture) leaves the field empty
+        assert!(parse_info(&fixture("info.json"))
+            .iter()
+            .all(|c| c.kind.is_empty()));
     }
 
     #[test]

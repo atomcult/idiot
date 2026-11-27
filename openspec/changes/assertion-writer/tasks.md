@@ -2,8 +2,8 @@
 
 ## 1. idiot-store: snap ID and type from info
 
-- [ ] 1.1 Add `type` to `INFO_FIELDS`, and make `idiot-store info` print a first `snap\t<name>\t<snap-id>` line and a seventh `type` field on each `channel` line. Record an anonymous fixture of `/v2/snaps/info/pc-kernel?fields=…,type` under `tools/idiot-store/src/testdata/store/` (a public snap: no account data in it). Verify: unit tests parse the ID and the types from it; `idiot store channels pc-kernel --tsv` and `idiot store check pc-kernel` print the same as before the change.
-- [ ] 1.2 Run `cargo test` and `make check`. Commit: `feat(idiot-store): snap ID and type in info`.
+- [x] 1.1 Add `type` to `INFO_FIELDS`, and make `idiot-store info` print a first `snap\t<name>\t<snap-id>` line and a seventh `type` field on each `channel` line. Record an anonymous fixture of `/v2/snaps/info/pc-kernel?fields=…,type` under `tools/idiot-store/src/testdata/store/` (a public snap: no account data in it). Verify: unit tests parse the ID and the types from it; `idiot store channels pc-kernel --tsv` and `idiot store check pc-kernel` print the same as before the change.
+- [x] 1.2 Run `cargo test` and `make check`. Commit: `feat(idiot-store): snap ID and type in info`.
 
 ## 2. idiot-helper: drafts
 

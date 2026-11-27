@@ -74,11 +74,12 @@ pub fn run_store_snaps(args: StoreSnapsArgs) -> Result<(), Failure> {
 pub fn run_info(args: InfoArgs) -> Result<(), Failure> {
     let mut auth = credential(&args.cred)?.map(|c| Auth::new(&c));
     match query::info(auth.as_mut(), &args.snap, args.store.as_deref())? {
-        Some(map) => {
-            for c in map {
+        Some(info) => {
+            println!("snap\t{}\t{}", info.name, info.id);
+            for c in info.channels {
                 println!(
-                    "channel\t{}\t{}\t{}\t{}\t{}",
-                    c.name, c.arch, c.revision, c.version, c.released_at
+                    "channel\t{}\t{}\t{}\t{}\t{}\t{}",
+                    c.name, c.arch, c.revision, c.version, c.released_at, c.kind
                 );
             }
             Ok(())
