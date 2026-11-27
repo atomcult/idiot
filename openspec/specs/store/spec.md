@@ -13,7 +13,16 @@ Stores SHALL be saved one per file in `IDIOT_STORES_DIR` (default
 `idiot store add <name> <store-id>` SHALL accept only names made of letters,
 digits, `-` and `_`, and refuse an existing name. `idiot store remove <name>`
 SHALL delete a saved store. `idiot store list` SHALL print names and IDs on
-stderr, or a hint when none are saved.
+stderr, or a hint when none are saved; it uses only idiot's state.
+
+`idiot store list --account [--tsv] [--cred <name>]` SHALL instead print on
+stdout each store the account belongs to: its saved name when one has its
+ID, its ID, its display name, and the account's roles (`admin`, `review`,
+`view`, `access`), marking the active store. `--tsv` SHALL print the same
+as tab-separated fields (active, saved name, ID, roles, display name).
+When the account belongs to no store other than the global one, it SHALL
+say so on stderr. `--tsv` and `--cred` SHALL be refused without
+`--account`.
 
 #### Scenario: Add
 - **WHEN** the user runs `idiot store add staging abc123`
@@ -30,6 +39,14 @@ stderr, or a hint when none are saved.
 #### Scenario: Empty list
 - **WHEN** no stores are saved and the user runs `idiot store list`
 - **THEN** a hint to use `idiot store add` is printed
+
+#### Scenario: The account's stores
+- **WHEN** the account is an admin of `ce-team-test` and a viewer of `dsmr6`, `dsmr6` is active, and the user runs `idiot store list --account`
+- **THEN** stdout lists both with their roles, `dsmr6` marked active
+
+#### Scenario: Old name
+- **WHEN** the user runs `idiot store roles --tsv`
+- **THEN** stderr notes that it is now `idiot store list --account`, and stdout holds the same rows `idiot store list --account --tsv` prints
 
 ### Requirement: Activating a store
 `idiot store use [<name>]` SHALL emit an export of `UBUNTU_STORE_ID` set to
@@ -70,7 +87,7 @@ switch itself SHALL happen regardless, and the exit status SHALL be zero.
 - **THEN** `UBUNTU_STORE_ID` is unset and stderr warns that `ci` belongs to `staging` while the global store is active
 
 ### Requirement: Credential for store queries
-`idiot store check`, `idiot store channels`, `idiot store roles`,
+`idiot store check`, `idiot store channels`, `idiot store list --account`,
 `idiot store snaps` and `idiot store browse` SHALL use the active
 credential, or the saved credential named by `--cred <name>` for that call
 only, without changing any environment variable. They SHALL fail with
@@ -90,7 +107,7 @@ line any part of a credential, and all SHALL be host commands.
 - **THEN** stderr says the full list needs `store_admin` and suggests `idiot store snaps --cred ce-admin`
 
 #### Scenario: Unknown credential
-- **WHEN** the user runs `idiot store roles --cred nope` and no credential `nope` is saved
+- **WHEN** the user runs `idiot store list --account --cred nope` and no credential `nope` is saved
 - **THEN** the command fails with `credentials 'nope' not found` and contacts nothing
 
 #### Scenario: Browsing with another credential
@@ -127,7 +144,7 @@ access only, and say so.
 
 #### Scenario: Credential snapd can't read
 - **WHEN** the active credential has base64 padding
-- **THEN** the report has a `✗` line saying snapd would download anonymously, and suggests `idiot auth login <name>`
+- **THEN** the report has a `✗` line saying snapd would download anonymously, and suggests `idiot auth use <name>`
 
 #### Scenario: Only anonymous access
 - **WHEN** no credential is active and the snap is public
@@ -155,18 +172,6 @@ suggesting `idiot store check <snap>`.
 #### Scenario: Snap not visible
 - **WHEN** the store doesn't show `nope` to the credential
 - **THEN** the command fails with a message suggesting `idiot store check nope`
-
-### Requirement: Store roles
-`idiot store roles` SHALL print on stdout each store the account belongs
-to: its saved name when one has its ID, its ID, its display name, and the
-account's roles (`admin`, `review`, `view`, `access`), marking the active
-store. `--tsv` SHALL print the same as tab-separated fields. When the
-account belongs to no store other than the global one, it SHALL say so on
-stderr.
-
-#### Scenario: Roles listed
-- **WHEN** the account is an admin of `ce-team-test` and a viewer of `dsmr6`, and `dsmr6` is active
-- **THEN** stdout lists both with their roles, `dsmr6` marked active
 
 ### Requirement: Listing a store's snaps
 `idiot store snaps` SHALL print on stdout the snaps in the active store,
@@ -236,7 +241,7 @@ pair credentials with stores.
 - **THEN** the command fails saying to log in first, and saves nothing
 
 ### Requirement: Fetching an assertion from the store
-`idiot store assertion <type> [<key>...]` SHALL fetch one assertion from
+`idiot assertion fetch <type> [<key>...]` SHALL fetch one assertion from
 the store's assertions service and accept these forms:
 - `account <account-id>`;
 - `account-key <sha3-384>`;
@@ -248,7 +253,18 @@ the store's assertions service and accept these forms:
 - `snap-revision <snap-name> <revision>`, the revision's SHA3-384 looked up
   in the active store, for the target architecture (`--arch <arch>`, else
   `UBUNTU_STORE_ARCH`, else the host's) where the lookup needs one;
-- `snap-revision <sha3-384>`, given in hex or base64url;
+- `snap-revision <snap-name> [<channel>]`, the revision released in that
+  channel for the target architecture, `stable` when no channel is given. A
+  word of digits only is a revision; anything else is a channel (`<risk>`,
+  `<track>/<risk>` or `<track>/<risk>/<branch>`; a risk alone means the
+  snap's default track, and a track alone must be written
+  `<track>/stable`). A risk with nothing released SHALL follow the next
+  more stable risk in its track, as snapd does, and the summary SHALL say
+  which channel and revision were used. When nothing is released there for
+  that architecture it SHALL fail naming the snap, channel and
+  architecture and suggesting `idiot store channels <snap>`;
+- `snap-revision <sha3-384>`, given in hex or base64url (a word too long to
+  be a snap name);
 - `validation-set <account-id>/<name>[=<sequence>]`, the latest sequence
   when none is given;
 - for any type the store serves, `<type> <header>=<value>...`: the type's
@@ -269,81 +285,97 @@ credential, SHALL NOT change snapd's assertion database, and SHALL be a
 host command.
 
 #### Scenario: A snap's declaration by name
-- **WHEN** the global store is active and the user runs `idiot store assertion snap-declaration hello-world`
+- **WHEN** the global store is active and the user runs `idiot assertion fetch snap-declaration hello-world`
 - **THEN** the `snap-declaration` with series `16` and snap-id `buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ` is fetched and summarised, showing snap name `hello-world` and publisher `canonical`
 
 #### Scenario: A revision by number
-- **WHEN** the user runs `idiot store assertion snap-revision hello-world 29`
+- **WHEN** the user runs `idiot assertion fetch snap-revision hello-world 29`
 - **THEN** the `snap-revision` for revision 29's SHA3-384 is fetched and the summary shows revision 29, its size and its SHA3-384
 
+#### Scenario: A revision by channel
+- **WHEN** revision 29 of `hello-world` is in `latest/stable` for amd64 and the user runs `idiot assertion fetch snap-revision hello-world stable --arch amd64`
+- **THEN** the `snap-revision` for revision 29 is fetched, and the summary says it came from `latest/stable`
+
+#### Scenario: Default channel
+- **WHEN** the user runs `idiot assertion fetch snap-revision hello-world`
+- **THEN** the revision in `stable` for the target architecture is fetched, as with `stable` given
+
+#### Scenario: Closed risk follows down
+- **WHEN** `edge` has nothing released for amd64, `beta` has revision 30, and the user runs `idiot assertion fetch snap-revision hello-world edge --arch amd64`
+- **THEN** revision 30's `snap-revision` is fetched, and the summary says `edge` follows `beta`
+
+#### Scenario: Nothing released for the architecture
+- **WHEN** a snap has no release in any risk of `latest` for riscv64 and the user runs `idiot assertion fetch snap-revision <snap> --arch riscv64`
+- **THEN** the command fails naming the snap, `latest/stable` and riscv64, suggesting `idiot store channels <snap>`, and fetches no assertion
+
 #### Scenario: A revision by hash
-- **WHEN** the user runs `idiot store assertion snap-revision` with the hex SHA3-384 of a snap the store has
+- **WHEN** the user runs `idiot assertion fetch snap-revision` with the hex SHA3-384 of a snap the store has
 - **THEN** the same `snap-revision` is fetched as with its base64url form
 
 #### Scenario: Latest validation set
-- **WHEN** the user runs `idiot store assertion validation-set acme/base-set` and the store holds sequences 1 to 3
+- **WHEN** the user runs `idiot assertion fetch validation-set acme/base-set` and the store holds sequences 1 to 3
 - **THEN** sequence 3 is fetched
 
 #### Scenario: Any type by its primary key
-- **WHEN** the user runs `idiot store assertion serial brand-id=acme model=gw serial=1234`
+- **WHEN** the user runs `idiot assertion fetch serial brand-id=acme model=gw serial=1234`
 - **THEN** that `serial` assertion is requested by its primary key
 
 #### Scenario: Missing key
-- **WHEN** the user runs `idiot store assertion model canonical`
+- **WHEN** the user runs `idiot assertion fetch model canonical`
 - **THEN** the command fails saying a model is fetched by `<brand-id>/<model>`, and contacts nothing
 
 #### Scenario: Unknown type
-- **WHEN** the user runs `idiot store assertion nope x`
+- **WHEN** the user runs `idiot assertion fetch nope x`
 - **THEN** the command fails listing the assertion types it knows, and contacts nothing
 
 #### Scenario: Not in the store
-- **WHEN** the user runs `idiot store assertion account no-such-account`
+- **WHEN** the user runs `idiot assertion fetch account no-such-account`
 - **THEN** the command fails saying the store has no `account` `no-such-account`, or doesn't show it to this credential
 
 #### Scenario: No store active
-- **WHEN** no store is active and the user runs `idiot store assertion store`
+- **WHEN** no store is active and the user runs `idiot assertion fetch store`
 - **THEN** the command fails saying no store is active and to name a store ID, and contacts nothing
 
 #### Scenario: Anonymous fetch
-- **WHEN** no credential is active and the user runs `idiot store assertion account canonical`
+- **WHEN** no credential is active and the user runs `idiot assertion fetch account canonical`
 - **THEN** Canonical's `account` assertion is fetched without credentials and summarised
 
 #### Scenario: Unknown credential
-- **WHEN** the user runs `idiot store assertion account canonical --cred nope` and no credential `nope` is saved
+- **WHEN** the user runs `idiot assertion fetch account canonical --cred nope` and no credential `nope` is saved
 - **THEN** the command fails with `credentials 'nope' not found` and contacts nothing
 
 ### Requirement: Fetched assertion output
-By default `idiot store assertion` SHALL print on stdout the summary and
-signature status `idiot inspect assertion` prints for the fetched stream,
+By default `idiot assertion fetch` SHALL print on stdout the summary and
+signature status `idiot assertion show` prints for the fetched stream,
 with the same model cross-checks on stderr and the same exit status, and
 `--no-verify` SHALL skip the signature check as it does there. With
 `--raw` it SHALL print the assertion stream, and nothing else, on stdout:
 each assertion byte for byte as the store served it, separated by a blank
 line as `snap known` prints them, so it can be piped to `snap ack /dev/stdin`
-or `idiot inspect assertion -`. With `-o <file>` it SHALL write that stream
+or `idiot assertion show -`. With `-o <file>` it SHALL write that stream
 to the file, replacing it only once the whole stream has been fetched,
 print nothing on stdout, and say on stderr how many assertions it wrote
 and where. `--raw` and `-o` SHALL NOT both be given. Messages and progress
 SHALL go to stderr.
 
 #### Scenario: Human-readable
-- **WHEN** the user runs `idiot store assertion account canonical`
-- **THEN** stdout shows `type: account`, account `canonical`, its signing key, and its signature status, as `idiot inspect assertion` would for the same assertion
+- **WHEN** the user runs `idiot assertion fetch account canonical`
+- **THEN** stdout shows `type: account`, account `canonical`, its signing key, and its signature status, as `idiot assertion show` would for the same assertion
 
 #### Scenario: Raw to stdout
-- **WHEN** the user runs `idiot store assertion --raw account-key BWDEoaqyr25nF5SNCvEv2v7QnM9QsfCc0PBMYD_i2NGSQ32EF2d4D0hqUel3m8ul | head -1`
+- **WHEN** the user runs `idiot assertion fetch --raw account-key BWDEoaqyr25nF5SNCvEv2v7QnM9QsfCc0PBMYD_i2NGSQ32EF2d4D0hqUel3m8ul | head -1`
 - **THEN** the line printed is `type: account-key`
 
 #### Scenario: To a file
-- **WHEN** the user runs `idiot store assertion --chain -o hello.assert snap-revision hello-world 29`
+- **WHEN** the user runs `idiot assertion fetch --chain -o hello.assert snap-revision hello-world 29`
 - **THEN** `hello.assert` holds the stream, stdout is empty, and stderr says how many assertions were written to `hello.assert`
 
 #### Scenario: Failed fetch leaves the file alone
-- **WHEN** `hello.assert` exists and `idiot store assertion -o hello.assert account no-such-account` fails
+- **WHEN** `hello.assert` exists and `idiot assertion fetch -o hello.assert account no-such-account` fails
 - **THEN** `hello.assert` is unchanged
 
 ### Requirement: Prerequisite chain
-With `--chain`, `idiot store assertion` SHALL fetch, besides the assertion
+With `--chain`, `idiot assertion fetch` SHALL fetch, besides the assertion
 asked for, every assertion snapd needs before it accepts it: its signing
 `account-key` and that key's own chain of signing keys, and the
 assertions it refers to (an `account-key`'s `account`; a
@@ -358,15 +390,15 @@ the whole stream. A prerequisite the store doesn't have SHALL make the
 command fail, naming it, and write no file.
 
 #### Scenario: Assertions to side-load a snap
-- **WHEN** the user runs `idiot store assertion --chain --raw snap-revision hello-world 29 > hello.assert`
+- **WHEN** the user runs `idiot assertion fetch --chain --raw snap-revision hello-world 29 > hello.assert`
 - **THEN** `hello.assert` holds Canonical's `store` account-key, then the `snap-declaration` for `hello-world`, then the `snap-revision` for revision 29, each once, and neither Canonical's `account` nor its root key
 
 #### Scenario: Verifies offline
-- **WHEN** the user runs `idiot store assertion --chain model acme/gw` for a brand whose key this machine's snapd has never seen
+- **WHEN** the user runs `idiot assertion fetch --chain model acme/gw` for a brand whose key this machine's snapd has never seen
 - **THEN** the summary shows the brand's `account-key` and `account` before the model, and the model is `verified` without any further network request
 
 #### Scenario: Accepted by snapd
-- **WHEN** the user runs `idiot store assertion --chain --raw snap-revision hello-world 29 | sudo snap ack /dev/stdin`
+- **WHEN** the user runs `idiot assertion fetch --chain --raw snap-revision hello-world 29 | sudo snap ack /dev/stdin`
 - **THEN** snapd accepts every assertion in the stream
 
 ### Requirement: Listing a store's members

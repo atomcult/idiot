@@ -110,7 +110,7 @@ fzf picker.
 - **THEN** `out.cred` holds the credential and a confirmation is printed on stderr
 
 ### Requirement: Activating a credential
-`idiot auth login [<name>]` SHALL emit exports setting `UBUNTU_STORE_AUTH`
+`idiot auth use [<name>]` SHALL emit exports setting `UBUNTU_STORE_AUTH`
 and `SNAPCRAFT_STORE_CREDENTIALS` to the credential's contents and
 `IDIOT_ACTIVE_CRED` to its name, and SHALL emit an export of
 `IDIOT_CRED_EXPIRES` (the expiry as Unix time) when the credential's
@@ -120,35 +120,35 @@ expired or expires within the warning window it SHALL say so on stderr
 preview shows each credential's account status; under the snap, where the
 picker runs confined, the preview SHALL show only cached status (as
 `auth status --cached`) and never contact the store. Cancelling the picker
-SHALL change nothing. `idiot auth logout` SHALL emit unsets for all four
+SHALL change nothing. `idiot auth unset` SHALL emit unsets for all four
 variables.
 
 #### Scenario: Login by name
-- **WHEN** the user runs `idiot auth login work` through the shell wrapper
+- **WHEN** the user runs `idiot auth use work` through the shell wrapper
 - **THEN** `UBUNTU_STORE_AUTH`, `SNAPCRAFT_STORE_CREDENTIALS` and `IDIOT_ACTIVE_CRED` are set in the current shell, and `IDIOT_CRED_EXPIRES` holds its expiry
 
 #### Scenario: Login with unknown expiry
-- **WHEN** idiot is installed as a snap and the user logs in to a credential with no expiry record
+- **WHEN** idiot is installed as a snap and the user activates a credential with no expiry record
 - **THEN** the credential is activated and `IDIOT_CRED_EXPIRES` is unset
 
 #### Scenario: Login to an expiring credential
-- **WHEN** the credential `work` expires in 2 days and the user runs `idiot auth login work`
+- **WHEN** the credential `work` expires in 2 days and the user runs `idiot auth use work`
 - **THEN** it is activated and stderr says it expires in 2d
 
 #### Scenario: Unknown credential
-- **WHEN** the user runs `idiot auth login nope`
+- **WHEN** the user runs `idiot auth use nope`
 - **THEN** the command fails with `credentials 'nope' not found` and no variables change
 
 #### Scenario: Picker cancelled
-- **WHEN** the user runs `idiot auth login` and cancels the picker
+- **WHEN** the user runs `idiot auth use` and cancels the picker
 - **THEN** the command exits zero and no variables change
 
 #### Scenario: Logout
-- **WHEN** the user runs `idiot auth logout`
+- **WHEN** the user runs `idiot auth unset`
 - **THEN** `UBUNTU_STORE_AUTH`, `SNAPCRAFT_STORE_CREDENTIALS`, `IDIOT_ACTIVE_CRED` and `IDIOT_CRED_EXPIRES` are unset
 
 #### Scenario: Picker preview under the snap
-- **WHEN** idiot is installed as a snap and the user runs `idiot auth login` with a credential whose status was never fetched
+- **WHEN** idiot is installed as a snap and the user runs `idiot auth use` with a credential whose status was never fetched
 - **THEN** its preview says the status hasn't been fetched yet, and nothing contacts the store
 
 ### Requirement: Account status
@@ -199,7 +199,7 @@ returned them, and no credential idiot writes SHALL contain base64 padding
 (`=`) in either macaroon.
 
 #### Scenario: idiot credential used by snapcraft
-- **WHEN** a credential made by `idiot auth add` is activated with `idiot auth login`
+- **WHEN** a credential made by `idiot auth add` is activated with `idiot auth use`
 - **THEN** `snapcraft whoami` reports the same account
 
 #### Scenario: idiot credential used by snapd
@@ -300,7 +300,7 @@ any credential picker.
 ### Requirement: Store mismatch warning
 When the active credential (`IDIOT_ACTIVE_CRED`) is paired with a store
 other than the active one (`UBUNTU_STORE_ID`, or global when unset),
-`idiot status`, `idiot auth login`, `idiot store use`, `idiot store unset`,
+`idiot status`, `idiot auth use`, `idiot store use`, `idiot store unset`,
 `idiot profile use` and `idiot profile save` SHALL print a warning on
 stderr naming the credential, the store it is paired with and the active
 store (by saved store name where one matches, else by ID), and how to
@@ -312,15 +312,15 @@ never contact the network. No warning SHALL be printed when the credential
 is marked for any store, has no pairing, or no named credential is active.
 
 #### Scenario: Login into the wrong store
-- **WHEN** credential `ci` is paired with store `staging` (`abc123`), `UBUNTU_STORE_ID` is unset, and the user runs `idiot auth login ci`
+- **WHEN** credential `ci` is paired with store `staging` (`abc123`), `UBUNTU_STORE_ID` is unset, and the user runs `idiot auth use ci`
 - **THEN** `ci` is activated, the command exits zero, and stderr warns that `ci` belongs to `staging` while the global store is active, suggesting `idiot store use staging`, `idiot auth bind ci` and `idiot auth bind --any ci`
 
 #### Scenario: Matching store
-- **WHEN** credential `ci` is paired with `abc123` and the user runs `idiot auth login ci` with `UBUNTU_STORE_ID` `abc123`
+- **WHEN** credential `ci` is paired with `abc123` and the user runs `idiot auth use ci` with `UBUNTU_STORE_ID` `abc123`
 - **THEN** no warning is printed
 
 #### Scenario: Any-store credential in a brand store
-- **WHEN** credential `personal` is marked for any store and the user runs `idiot store use dsmr6`, `idiot auth login personal` and `idiot status`
+- **WHEN** credential `personal` is marked for any store and the user runs `idiot store use dsmr6`, `idiot auth use personal` and `idiot status`
 - **THEN** none of them prints a store mismatch warning
 
 #### Scenario: Unpaired credential
@@ -334,7 +334,7 @@ macaroon caveats (root and discharge), or, when the caveats carry none,
 the expiry the store reports for it. `idiot auth add` and
 `idiot auth import` SHALL record it when they save a credential;
 `idiot auth status` SHALL record it for the active named credential when
-no record exists; `idiot auth login` SHALL record it when no record exists
+no record exists; `idiot auth use` SHALL record it when no record exists
 and idiot is not installed as a snap. The record SHALL live in
 `IDIOT_AUTH_DIR`, SHALL be readable and writable only by its owner, SHALL
 hold no part of the credential, and SHALL NOT appear as a credential in
@@ -403,11 +403,11 @@ contact the network.
 - **THEN** no warning is shown
 
 ### Requirement: Repairing padded credentials
-When `idiot auth login`, `idiot profile use` or `idiot auth export` uses a
+When `idiot auth use`, `idiot profile use` or `idiot auth export` uses a
 saved credential whose root or discharge macaroon has base64 padding, it
 SHALL first rewrite the saved file without the padding, keeping the file
 private, and print on stderr that the credential was repaired. It SHALL
-then use the repaired credential: what `auth login` and `profile use`
+then use the repaired credential: what `auth use` and `profile use`
 export, and what `auth export` outputs. The repair SHALL change nothing
 else in the credential, SHALL never contact the network, and SHALL never
 print the credential or pass it as a command argument. A credential
@@ -416,11 +416,11 @@ idiot-store helper is missing, the command SHALL use the credential as
 saved and warn that it could not be checked.
 
 #### Scenario: Repaired on login
-- **WHEN** the saved credential `work` has a padded root macaroon and the user runs `idiot auth login work`
+- **WHEN** the saved credential `work` has a padded root macaroon and the user runs `idiot auth use work`
 - **THEN** the saved file no longer has the padding, stderr says `work` was repaired, and `UBUNTU_STORE_AUTH` and `SNAPCRAFT_STORE_CREDENTIALS` hold the repaired credential
 
 #### Scenario: Unpadded credential untouched
-- **WHEN** the saved credential `ci` has no padding and the user runs `idiot auth login ci`
+- **WHEN** the saved credential `ci` has no padding and the user runs `idiot auth use ci`
 - **THEN** the file is unchanged and no repair message is printed
 
 #### Scenario: Repaired on export

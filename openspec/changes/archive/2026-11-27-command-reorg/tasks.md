@@ -71,3 +71,11 @@
   Also add a help check that every command under `cmd/` appears once in `idiot help`, and that no old name appears in any group's help.
 - [x] 5.2 Run `openspec validate command-reorg --strict`.
 - [ ] 5.3 Run `snapcraft clean idiot` and `snapcraft pack`, then `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 5.3 open: the snap build and the
+bare-host run on local: (snaps couldn't start from the session that
+implemented the change, so tests/bare-host.d/aliases and the renamed
+checks haven't run under the snap yet). Specs synced, including the new
+command-layout capability; tagged v0.3.0 at 2357f8e before archiving.

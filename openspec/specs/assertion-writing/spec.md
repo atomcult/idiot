@@ -240,7 +240,7 @@ revision) and that it was signed. Its signature SHALL NOT be checked.
 - **THEN** the command fails saying the file exists, and neither file changes
 
 #### Scenario: A chain on stdin
-- **WHEN** the user runs `idiot store assertion --chain --raw model my-brand/kiosk | idiot assertion edit - --no-edit -o -`
+- **WHEN** the user runs `idiot assertion fetch --chain --raw model my-brand/kiosk | idiot assertion edit - --no-edit -o -`
 - **THEN** stdout holds the model's draft, and the account and account-key assertions in the stream are ignored
 
 #### Scenario: Not one assertion of a writable type
@@ -311,7 +311,7 @@ store can't be reached. It SHALL write the signed assertion:
 
 refusing to overwrite an existing file. A system-user's file SHALL be mode
 0600. It SHALL then report the signed assertion's signature status on
-stderr, as `idiot inspect assertion --remote` determines it. It SHALL exit
+stderr, as `idiot assertion show --remote` determines it. It SHALL exit
 non-zero, writing nothing, when `check` finds an error or `snap sign`
 fails. It SHALL never read, copy, export or print a private key or
 passphrase, and SHALL leave the passphrase prompt to `snap sign`. It SHALL
@@ -334,17 +334,17 @@ be a host command.
 - **THEN** the command fails explaining `snap create-key` and `snapcraft register-key`
 
 #### Scenario: To stdout
-- **WHEN** the user runs `idiot assertion sign kiosk.json -k brand-key -o - | idiot inspect assertion -`
+- **WHEN** the user runs `idiot assertion sign kiosk.json -k brand-key -o - | idiot assertion show -`
 - **THEN** stdout carries only the signed assertion, and the inspection summarises it
 
 ### Requirement: Editing an assertion from the store
 `idiot assertion edit model <brand-id>/<model>` and `idiot assertion edit
 validation-set <account-id>/<name>[=<sequence>]` SHALL fetch the
-assertion from the active store as `idiot store assertion` does (the
+assertion from the active store as `idiot assertion fetch` does (the
 active or `--cred` credential, the latest sequence of a validation set
 when none is given) and then behave as editing a signed input, including
 the default output name. When the store doesn't serve it, the command
-SHALL fail with the same message `idiot store assertion` gives, before
+SHALL fail with the same message `idiot assertion fetch` gives, before
 asking anything. Those options and the `-o`, `--set`, `--add`, `--snap`,
 `--refresh` and `--no-edit` options SHALL work as for a file.
 

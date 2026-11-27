@@ -208,7 +208,7 @@ in both modes.
 - **THEN** stdout has a `seed` row for that snap's revision and one for its channel, each with an empty first value
 
 ### Requirement: Assertion summary
-`idiot inspect assertion [--remote] [--no-verify] <file|->` SHALL read an
+`idiot assertion show [--remote] [--no-verify] <file|->` SHALL read an
 assertion stream from the file, or from stdin when given `-`, and print on
 stdout, for each assertion in the order they appear:
 - its type, its primary key headers, `authority-id`, the brand or account
@@ -237,11 +237,11 @@ signed assertion. It SHALL NOT need python3 or any other tool from the host or a
 component; `snap`, when it is installed, only adds keys.
 
 #### Scenario: A signed model
-- **WHEN** the user runs `idiot inspect assertion ubuntu-core-24-amd64.model`
+- **WHEN** the user runs `idiot assertion show ubuntu-core-24-amd64.model`
 - **THEN** stdout shows `type: model`, brand `canonical`, model `ubuntu-core-24-amd64`, grade `signed`, its signing key, and a table of its snaps (pc, pc-kernel, core24, snapd, console-conf…) with type, default channel, presence and id
 
 #### Scenario: From stdin
-- **WHEN** the user runs `snap known account-key account-id=canonical | idiot inspect assertion -`
+- **WHEN** the user runs `snap known account-key account-id=canonical | idiot assertion show -`
 - **THEN** every account-key in the stream is summarised in turn, each with its name, key size and SHA3-384
 
 #### Scenario: System user password
@@ -249,19 +249,19 @@ component; `snap`, when it is installed, only adds keys.
 - **THEN** the output says a password is set and contains no part of the hash
 
 #### Scenario: Unsigned model
-- **WHEN** the user runs `idiot inspect assertion ubuntu-core-24-amd64.json`
+- **WHEN** the user runs `idiot assertion show ubuntu-core-24-amd64.json`
 - **THEN** the command fails saying the file is an unsigned model, not a signed assertion
 
 #### Scenario: Not an assertion
-- **WHEN** the user runs `idiot inspect assertion README.md`
+- **WHEN** the user runs `idiot assertion show README.md`
 - **THEN** the command fails saying no assertion was found
 
 #### Scenario: Host without Python
-- **WHEN** the host has no python3 and the user runs `idiot inspect assertion ubuntu-core-24-amd64.model`
+- **WHEN** the host has no python3 and the user runs `idiot assertion show ubuntu-core-24-amd64.model`
 - **THEN** the same summary is printed, and the signature is checked, as on a host with python3
 
 ### Requirement: Assertion signatures
-Unless given `--no-verify`, `idiot inspect assertion` SHALL report for
+Unless given `--no-verify`, `idiot assertion show` SHALL report for
 each assertion one of:
 - `verified`, naming the trusted key the chain ends at, when its
   signature and each signature up the chain of account-keys verify and
@@ -285,7 +285,7 @@ on stderr. The command SHALL exit 1, after printing every assertion,
 when any assertion is `invalid`, and 0 otherwise.
 
 #### Scenario: Canonical model, offline
-- **WHEN** the user runs `idiot inspect assertion ubuntu-core-24-amd64.model` without `--remote`, on a classic host whose snapd has never seen Canonical's `models` key
+- **WHEN** the user runs `idiot assertion show ubuntu-core-24-amd64.model` without `--remote`, on a classic host whose snapd has never seen Canonical's `models` key
 - **THEN** the model is `verified` through the bundled `canonical/models` key, ending at `canonical/root`, and no network request is made
 
 #### Scenario: Brand key not known locally
@@ -301,11 +301,11 @@ when any assertion is `invalid`, and 0 otherwise.
 - **THEN** the model is `invalid` (the signature doesn't match), every other assertion in the stream is still reported, and the command exits 1
 
 #### Scenario: Skipping verification
-- **WHEN** the user runs `idiot inspect assertion --no-verify pc.model`
+- **WHEN** the user runs `idiot assertion show --no-verify pc.model`
 - **THEN** the summary is printed with no signature status, `snap` isn't run, and the command exits zero
 
 ### Requirement: Assertion cross-checks
-For a `model` assertion, `idiot inspect assertion` SHALL warn on stderr
+For a `model` assertion, `idiot assertion show` SHALL warn on stderr
 when:
 - its `store` header differs from the active store (`UBUNTU_STORE_ID`),
   or it names a store and no store is active, or a store is active and it
@@ -327,7 +327,7 @@ file. These checks SHALL NOT change the exit status.
 - **THEN** stderr warns that the saved model differs, naming its file and revision 3
 
 #### Scenario: Matches a saved model
-- **WHEN** the user inspects a file copied with `idiot model pick --signed`
+- **WHEN** the user inspects a file copied with `idiot assertion pick --signed`
 - **THEN** stderr says it matches the saved model, naming the file
 
 ### Requirement: Reading snapd's state

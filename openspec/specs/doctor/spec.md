@@ -72,7 +72,7 @@ when every check is `✓`. Its exit status SHALL be the same as without
 - `✗` when the `idiot-store` helper is missing or does not run (`auth add`
   and `auth status` need it);
 - `✗` when the `idiot-helper` binary is missing or does not run (`inspect
-  image`, `inspect diff`, `inspect assertion`, `vm vars` and `vm` need
+  image`, `inspect diff`, `assertion show`, `vm vars` and `vm` need
   it).
 When the integration is missing or outdated the command SHALL still run,
 directly (confined under the snap), report those checks, and mark the
@@ -142,7 +142,7 @@ fixes it; `✗` when `IDIOT_ACTIVE_CRED` names a credential that is no
 longer saved; `!` when the active credential's contents differ from the
 saved file of that name; `!` for each saved credential with a padded
 macaroon, saying snapd's image tooling can't use it and that
-`idiot auth login <name>` repairs it; `!` for a saved store file that is
+`idiot auth use <name>` repairs it; `!` for a saved store file that is
 empty or holds more than one line; and `!` when `UBUNTU_STORE_ID` matches
 no saved store. The padding check SHALL change nothing and SHALL be skipped
 when the idiot-store helper is missing (its own check reports that).
@@ -159,15 +159,15 @@ command arguments.
 
 #### Scenario: Active credential removed
 - **WHEN** `IDIOT_ACTIVE_CRED` is `old` and no credential `old` is saved
-- **THEN** a `✗` line says the active credential no longer exists and suggests `idiot auth login` or `idiot auth logout`
+- **THEN** a `✗` line says the active credential no longer exists and suggests `idiot auth use` or `idiot auth unset`
 
 #### Scenario: Padded credential
 - **WHEN** the saved credential `work` has a padded macaroon
-- **THEN** a `!` line names `work`, says snapd can't use it, suggests `idiot auth login work`, and the file is unchanged
+- **THEN** a `!` line names `work`, says snapd can't use it, suggests `idiot auth use work`, and the file is unchanged
 
 #### Scenario: Shell still holds the padded value
-- **WHEN** `work` was active in a shell and was repaired by `idiot auth login work` in another shell
-- **THEN** `idiot doctor` in the first shell reports that the active credential differs from the saved one and suggests `idiot auth login work`
+- **WHEN** `work` was active in a shell and was repaired by `idiot auth use work` in another shell
+- **THEN** `idiot doctor` in the first shell reports that the active credential differs from the saved one and suggests `idiot auth use work`
 
 #### Scenario: Expired active credential
 - **WHEN** expiry records exist and the active credential has expired

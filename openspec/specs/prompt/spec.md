@@ -26,7 +26,7 @@ eval file on success, SHALL exit zero, and SHALL NOT change the usage
 counter. Under the snap it SHALL run confined.
 
 #### Scenario: Everything active
-- **WHEN** the user has run `idiot store use staging`, `idiot arch set arm64` and `idiot auth login work`, then runs `idiot prompt`
+- **WHEN** the user has run `idiot store use staging`, `idiot arch set arm64` and `idiot auth use work`, then runs `idiot prompt`
 - **THEN** stdout is `staging·arm64·work` followed by a newline
 
 #### Scenario: Partly active
@@ -91,7 +91,7 @@ the next `idiot` call.
 - **THEN** `IDIOT_PROMPT` starts with `staging` in that shell
 
 #### Scenario: After logging out of everything
-- **WHEN** the user runs `idiot store unset`, `idiot arch unset` and `idiot auth logout`
+- **WHEN** the user runs `idiot store unset`, `idiot arch unset` and `idiot auth unset`
 - **THEN** `IDIOT_PROMPT` is unset
 
 #### Scenario: Visible to child processes

@@ -72,8 +72,8 @@ recorded.
 
 ### Requirement: Activating a profile
 `idiot profile use [<name>]` SHALL, for each field the profile records:
-- `auth` with a name: set the variables `idiot auth login <name>` sets;
-  empty: unset the variables `idiot auth logout` unsets;
+- `auth` with a name: set the variables `idiot auth use <name>` sets;
+  empty: unset the variables `idiot auth unset` unsets;
 - `store` with a name: set `UBUNTU_STORE_ID` as `idiot store use <name>`
   does; empty: unset it;
 - `arch` with a value: set `UBUNTU_STORE_ARCH`; empty: unset it;
@@ -160,3 +160,31 @@ the host.
 #### Scenario: Under the snap
 - **WHEN** idiot is installed as a snap and the user runs `idiot profile use staging-ci`
 - **THEN** the switch happens without a host handoff, and works without any of the snap's optional components installed
+
+### Requirement: Clearing the active profile
+`idiot profile unset` SHALL clear what the active profile
+(`IDIOT_ACTIVE_PROFILE`) set: for each field the profile records, the
+variables that field sets (as `idiot auth unset`, `idiot store unset`,
+`idiot arch unset` and clearing `IDIOT_LP_USER`), and then
+`IDIOT_ACTIVE_PROFILE`. Fields the profile doesn't record SHALL be left
+as they are. It SHALL NOT write or delete any saved state (credentials,
+stores, the saved Launchpad username or the profile). With no profile
+active it SHALL say so and exit zero; when the active profile has since
+been removed it SHALL unset only `IDIOT_ACTIVE_PROFILE`, saying why. It
+SHALL run confined, like every `idiot profile` command.
+
+#### Scenario: Unset
+- **WHEN** the user has run `idiot profile use staging-ci` (recording `ci`, `staging`, `arm64` and `alice`) and runs `idiot profile unset`
+- **THEN** no credential is active, `UBUNTU_STORE_ID`, `UBUNTU_STORE_ARCH`, `IDIOT_LP_USER` and `IDIOT_ACTIVE_PROFILE` are unset, and credential `ci` and store `staging` still exist
+
+#### Scenario: Fields left out
+- **WHEN** profile `staging` records only `auth` and `store`, `UBUNTU_STORE_ARCH` is `riscv64`, and the user runs `idiot profile use staging` then `idiot profile unset`
+- **THEN** `UBUNTU_STORE_ARCH` is still `riscv64`
+
+#### Scenario: None active
+- **WHEN** no profile has been used in this shell and the user runs `idiot profile unset`
+- **THEN** stderr says no profile is active, nothing changes, and the exit status is zero
+
+#### Scenario: Removed profile
+- **WHEN** the active profile `old` has since been removed and the user runs `idiot profile unset`
+- **THEN** only `IDIOT_ACTIVE_PROFILE` is unset and stderr says `old` no longer exists
