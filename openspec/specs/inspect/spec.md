@@ -327,7 +327,7 @@ file. These checks SHALL NOT change the exit status.
 - **THEN** stderr warns that the saved model differs, naming its file and revision 3
 
 #### Scenario: Matches a saved model
-- **WHEN** the user inspects a file copied with `idiot assertion pick --signed`
+- **WHEN** the user inspects a file copied with `idiot model pick --signed`
 - **THEN** stderr says it matches the saved model, naming the file
 
 ### Requirement: Reading snapd's state

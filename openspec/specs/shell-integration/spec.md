@@ -93,8 +93,8 @@ with an error naming it.
 - **THEN** the auth usage is printed on stderr and the exit status is zero
 
 #### Scenario: Two levels deep
-- **WHEN** the user runs `idiot assertion repos update canonical`
-- **THEN** the `assertion repos update` subcommand runs with `canonical` as its argument
+- **WHEN** a group holds a subgroup directory and the user runs `idiot <group> <subgroup> <command> <arg>`
+- **THEN** that command runs with `<arg>` as its argument
 
 #### Scenario: Unknown command
 - **WHEN** the user runs `idiot frobnicate`

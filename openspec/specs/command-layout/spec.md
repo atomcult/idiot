@@ -25,20 +25,6 @@ and `status`.
 - **WHEN** the user runs `idiot arch help` and `idiot lp help`
 - **THEN** each lists `set`, `unset` and `status`
 
-### Requirement: One group for assertions
-Every command that fetches, shows, picks, writes, checks or signs an
-assertion SHALL be under `idiot assertion`: `fetch`, `show`, `pick`, `new`,
-`edit`, `check`, `sign`, and `repos list | add | remove | update` for the
-model repositories `pick` reads. There SHALL be no `model` group.
-
-#### Scenario: Assertion help
-- **WHEN** the user runs `idiot assertion help`
-- **THEN** it lists `fetch`, `show`, `pick`, `repos`, `new`, `edit`, `check` and `sign`
-
-#### Scenario: Repos help
-- **WHEN** the user runs `idiot assertion repos help`
-- **THEN** it lists `list`, `add`, `remove` and `update` and the configured repositories
-
 ### Requirement: Explicit forms for overloaded commands
 `idiot vm boot [options] [<image>] [-- <qemu-args>]` SHALL boot a VM exactly
 as `idiot vm [options] [<image>] [-- <qemu-args>]` does, and
@@ -66,9 +52,9 @@ Each renamed command SHALL keep running under its old name:
 |---|---|
 | `store assertion` | `assertion fetch` |
 | `inspect assertion` | `assertion show` |
-| `model pick` | `assertion pick` |
-| `model list`, `add`, `remove`, `update` | `assertion repos list`, `add`, `remove`, `update` |
-| `model` | `assertion repos` |
+| `assertion pick` | `model pick` |
+| `assertion repos list`, `add`, `remove`, `update` | `model list`, `add`, `remove`, `update` |
+| `assertion repos` | `model` |
 | `auth login` | `auth use` |
 | `auth logout` | `auth unset` |
 | `vm console-log [<name>]` | `vm logs --console [--name <name>]` |
@@ -87,26 +73,42 @@ help after the note.
 - **THEN** stderr says `auth login` is now `idiot auth use`, and `work` is activated exactly as `idiot auth use work` activates it
 
 #### Scenario: Stdout unchanged
-- **WHEN** the user runs `idiot model pick --signed -o - >pc.model` and selects a model
+- **WHEN** the user runs `idiot assertion pick --signed -o - >pc.model` and selects a model
 - **THEN** `pc.model` holds only the assertion, and the note is on stderr
 
 #### Scenario: Group alias
-- **WHEN** the user runs `idiot model update`
-- **THEN** stderr notes it is now `idiot assertion repos update`, and every repository is updated
+- **WHEN** the user runs `idiot assertion repos update`
+- **THEN** stderr notes it is now `idiot model update`, and every repository is updated
 
 #### Scenario: Hidden from help
-- **WHEN** the user runs `idiot help`, `idiot store help` or `idiot auth help`
-- **THEN** none of `model`, `store assertion`, `store roles`, `auth login` or `auth logout` is listed
+- **WHEN** the user runs `idiot help`, `idiot assertion help`, `idiot store help` or `idiot auth help`
+- **THEN** none of `assertion pick`, `assertion repos`, `store assertion`, `store roles`, `auth login` or `auth logout` is listed
 
 ### Requirement: Main help
 `idiot help` SHALL list every top-level command under a heading that
 describes it:
 - **Store & environment**: `status`, `profile`, `auth`, `store`, `arch`, `lp`;
-- **Assertions & inspection**: `assertion`, `inspect`;
+- **Assertions & inspection**: `assertion`, `model`, `inspect`;
 - **VM & device**: `vm`;
 - **Get sources**: `kernel`, `example`;
 - **Setup & tools**: `init`, `prompt`, `run`, `clean`, `doctor`, `version`.
 
 #### Scenario: Every command listed
 - **WHEN** the user runs `idiot help`
-- **THEN** every command under `cmd/` (and `version`) appears under exactly one heading, and `model` does not appear
+- **THEN** every command under `cmd/` (and `version`) appears under exactly one heading, `model` among them
+
+### Requirement: Assertion and model groups
+Every command that fetches, shows, writes, checks or signs an assertion
+SHALL be under `idiot assertion`: `fetch`, `show`, `new`, `edit`, `check`
+and `sign`. The model repositories and picking a model from them SHALL be
+their own group, `idiot model`: `list`, `add`, `remove`, `update` and
+`pick`. `idiot assertion help` SHALL point at `idiot model` for models
+kept in repositories.
+
+#### Scenario: Assertion help
+- **WHEN** the user runs `idiot assertion help`
+- **THEN** it lists `fetch`, `show`, `new`, `edit`, `check` and `sign`, and names `idiot model` for the model repositories
+
+#### Scenario: Model help
+- **WHEN** the user runs `idiot model help`
+- **THEN** it lists `list`, `add`, `remove`, `update` and `pick` and the configured repositories

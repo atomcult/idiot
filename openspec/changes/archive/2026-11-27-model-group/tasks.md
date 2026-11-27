@@ -32,3 +32,10 @@
   Run `make check`. Commit: `test(bare-host): model again, assertion repos/pick as aliases`.
 - [x] 2.2 Run `openspec validate model-group --strict`.
 - [ ] 2.3 Run `snapcraft pack` and `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass. This needs a shell where snaps can run, which the Claude app session can't currently do.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 2.3 open: the snap build and the
+bare-host run on local: (snaps couldn't start from the session that
+implemented the change). The alias help rows passed run from the source
+tree. Specs synced.

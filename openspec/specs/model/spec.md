@@ -15,60 +15,60 @@ shipped with idiot (`canonical` → `https://github.com/canonical/models`)
 and the user's, `IDIOT_MODEL_REPOS_DIR` (default
 `$XDG_DATA_HOME/idiot/model-repos`). Clones SHALL live in
 `IDIOT_MODELS_DIR/<name>` (default `$XDG_DATA_HOME/idiot/models`).
-`idiot assertion repos list` SHALL print both registries on stderr, each repository
+`idiot model list` SHALL print both registries on stderr, each repository
 with its URL and a mark when it is cloned, and `(none)` for an empty one.
 
 #### Scenario: Nothing cloned yet
-- **WHEN** no repository has been cloned and the user runs `idiot assertion repos list`
+- **WHEN** no repository has been cloned and the user runs `idiot model list`
 - **THEN** `canonical` is listed under Built-in with its URL and no clone mark, and User shows `(none)`
 
 #### Scenario: Cloned
 - **WHEN** `canonical` has been cloned
-- **THEN** `idiot assertion repos list` marks it with `✓`
+- **THEN** `idiot model list` marks it with `✓`
 
 ### Requirement: Registering a repository
-`idiot assertion repos add <name> <url>` SHALL save a user repository, accepting only
+`idiot model add <name> <url>` SHALL save a user repository, accepting only
 names made of letters, digits, `-` and `_`. It SHALL refuse a name a
 built-in repository has, and a name already registered, and SHALL NOT clone
-anything (it says to run `idiot assertion repos update <name>`).
+anything (it says to run `idiot model update <name>`).
 
 #### Scenario: Add
-- **WHEN** the user runs `idiot assertion repos add mine https://example.com/models.git`
-- **THEN** `mine` appears under User in `idiot assertion repos list`, not yet cloned
+- **WHEN** the user runs `idiot model add mine https://example.com/models.git`
+- **THEN** `mine` appears under User in `idiot model list`, not yet cloned
 
 #### Scenario: Invalid name
-- **WHEN** the user runs `idiot assertion repos add ../x https://example.com/m.git`
+- **WHEN** the user runs `idiot model add ../x https://example.com/m.git`
 - **THEN** the command fails with an invalid-name error and nothing is written
 
 #### Scenario: Built-in name
-- **WHEN** the user runs `idiot assertion repos add canonical https://example.com/m.git`
+- **WHEN** the user runs `idiot model add canonical https://example.com/m.git`
 - **THEN** the command fails saying it can't shadow the built-in repository
 
 #### Scenario: Duplicate
-- **WHEN** `mine` is registered and the user runs `idiot assertion repos add mine <url>`
+- **WHEN** `mine` is registered and the user runs `idiot model add mine <url>`
 - **THEN** the command fails telling the user to remove it first
 
 ### Requirement: Removing a repository
-`idiot assertion repos remove [<name>]` SHALL delete a user repository's registration
+`idiot model remove [<name>]` SHALL delete a user repository's registration
 and its clone, offering an fzf picker of the user repositories when no name
 is given (cancelling changes nothing). It SHALL refuse a built-in
 repository, an unknown name, and any name that isn't a repository name
 (letters, digits, `-` and `_`), before deleting anything.
 
 #### Scenario: Remove
-- **WHEN** `mine` is registered and cloned and the user runs `idiot assertion repos remove mine`
+- **WHEN** `mine` is registered and cloned and the user runs `idiot model remove mine`
 - **THEN** its registration and its clone are both deleted
 
 #### Scenario: Built-in
-- **WHEN** the user runs `idiot assertion repos remove canonical`
+- **WHEN** the user runs `idiot model remove canonical`
 - **THEN** the command fails saying a built-in repository can't be removed
 
 #### Scenario: Path as a name
-- **WHEN** the user runs `idiot assertion repos remove ../auth/work`
+- **WHEN** the user runs `idiot model remove ../auth/work`
 - **THEN** the command fails with an invalid-name error and no file is deleted
 
 ### Requirement: Updating clones
-`idiot assertion repos update <name>` SHALL clone the repository into
+`idiot model update <name>` SHALL clone the repository into
 `IDIOT_MODELS_DIR/<name>`, or pull it if already cloned, and fail if that
 fails, the name is unknown, or it isn't a repository name (letters,
 digits, `-` and `_`); a name is checked before any file is read. With no name it SHALL update every built-in
@@ -79,11 +79,11 @@ A models directory from before multi-repository support (a single clone at
 It runs on the host (it needs git and the network).
 
 #### Scenario: First update
-- **WHEN** the user runs `idiot assertion repos update canonical` and it isn't cloned
+- **WHEN** the user runs `idiot model update canonical` and it isn't cloned
 - **THEN** `https://github.com/canonical/models` is cloned into `IDIOT_MODELS_DIR/canonical`
 
 #### Scenario: Unknown repository
-- **WHEN** the user runs `idiot assertion repos update nope`
+- **WHEN** the user runs `idiot model update nope`
 - **THEN** the command fails with `unknown model repo 'nope'`
 
 #### Scenario: One of several fails
@@ -91,33 +91,33 @@ It runs on the host (it needs git and the network).
 - **THEN** the other is still updated, a warning names the failed one, and the exit status is non-zero
 
 #### Scenario: Path as a name
-- **WHEN** the user runs `idiot assertion repos update ../auth/work`
+- **WHEN** the user runs `idiot model update ../auth/work`
 - **THEN** the command fails with an invalid-name error, without reading the file or running git
 
 ### Requirement: Picking a model assertion
-`idiot assertion pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]` SHALL
+`idiot model pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]` SHALL
 offer, in fzf with a preview, every `*.model` (`--signed`), `*.json`
 (`--unsigned`) or both found in the clones, and copy the selected file into
 `<dir>` (default: the current directory) under its own name, into `<file>`
 with `-o`, or to stdout with `-o -`; it SHALL say where it copied the file
 (on stderr). Cancelling SHALL write nothing and exit zero. It SHALL fail
-when nothing is cloned (pointing at `idiot assertion repos update`), when no file
+when nothing is cloned (pointing at `idiot model update`), when no file
 matches, when `<dir>` doesn't exist, and when a directory follows `-o`.
 
 #### Scenario: To stdout
-- **WHEN** the user runs `idiot assertion pick --signed -o - >pc.model` and selects `ubuntu-core-24-amd64-dangerous.model`
+- **WHEN** the user runs `idiot model pick --signed -o - >pc.model` and selects `ubuntu-core-24-amd64-dangerous.model`
 - **THEN** `pc.model` holds the assertion (starting `type: model`) and nothing else
 
 #### Scenario: Into a directory
-- **WHEN** the user runs `idiot assertion pick --unsigned ./out` and selects `canonical/ubuntu-core-24-pi-arm64.json`
+- **WHEN** the user runs `idiot model pick --unsigned ./out` and selects `canonical/ubuntu-core-24-pi-arm64.json`
 - **THEN** `./out/ubuntu-core-24-pi-arm64.json` is written
 
 #### Scenario: Nothing cloned
-- **WHEN** no repository is cloned and the user runs `idiot assertion pick`
-- **THEN** the command fails telling the user to run `idiot assertion repos update` first
+- **WHEN** no repository is cloned and the user runs `idiot model pick`
+- **THEN** the command fails telling the user to run `idiot model update` first
 
 #### Scenario: Missing directory
-- **WHEN** the user runs `idiot assertion pick ./nodir` and `./nodir` doesn't exist
+- **WHEN** the user runs `idiot model pick ./nodir` and `./nodir` doesn't exist
 - **THEN** the command fails saying the destination directory does not exist
 
 #### Scenario: Cancelled
