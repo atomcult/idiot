@@ -926,7 +926,7 @@ fn check_model(o: &Map<String, Value>, r: &mut Report) {
                 Ok(true) => {}
                 Ok(false) => r.error(
                     &at("default-channel"),
-                    format!("must give a track ('{ch}' has none; e.g. latest/{ch})"),
+                    format!("must give a track ('{ch}' has none: e.g. latest/{ch}, or 24/{ch} for a UC24 gadget or kernel)"),
                 ),
                 Err(m) => r.error(&at("default-channel"), m),
             }

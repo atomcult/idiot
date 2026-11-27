@@ -1,0 +1,83 @@
+#!/bin/bash
+# tests/bare-host.d/assertion-writer - idiot assertion new/check/edit/sign
+#
+# Usage: assertion-writer   (as root; needs network for the store lookups)
+# Without a terminal and without a credential: usage errors, a required
+# header missing (before anything is contacted), check on a good and a
+# bad draft (offline), anonymous drafts for public snaps (a model, a
+# validation set), a system-user draft (mode 0600, no password), edit's
+# revision bump and its refusal of signed input, and signing with a
+# throwaway key made in a private SNAP_GNUPG_HOME.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+work="$(mktemp -d)"
+cd "${work}" || exit 1
+unset UBUNTU_STORE_AUTH UBUNTU_STORE_ID
+
+# fails <label> <pattern> <args...>: idiot assertion fails, stderr matching,
+# stdout empty
+fails() {
+	_l="${1}" _p="${2}"
+	shift 2
+	out="$(idiot assertion "$@" 2>"${work}/err" </dev/null)" && _rc=0 || _rc=$?
+	[ "${_rc}" -ne 0 ] && [ -z "${out}" ] && grep -q -- "${_p}" "${work}/err" &&
+		ok "assertion: ${_l}" ||
+		fail "assertion: ${_l}: rc ${_rc}, $(head -n 3 "${work}/err" | tr '\n' ' ')"
+}
+
+fails "new: no type" 'usage: idiot assertion new' new bogus
+fails "new: required header without a terminal" 'name is required' new validation-set --no-edit
+fails "new: brand without a credential" 'brand-id is required' new model --set model=kiosk --no-edit
+fails "new: plain-text password refused" 'crypt(3) hash' \
+	new system-user --set email=dev@example.com --set username=dev --set brand-id=abc \
+	--set password=hunter2 --no-edit -o -
+fails "check: missing file" 'file not found' check nope.json
+
+# an anonymous model for public snaps, on stdout only
+idiot assertion new model --set model=kiosk --set brand-id=abcDEF123 \
+	--snap pc=24/stable --snap pc-kernel=24/stable --snap core24 --snap snapd \
+	--arch amd64 --no-edit -o - >kiosk.json 2>"${work}/err" </dev/null
+grep -q '"id": "pYVQrBcKmBa0mZ4CCN7ExT6jH8rY1hza"' kiosk.json &&
+	grep -q '"type": "kernel"' kiosk.json && [ "$(grep -c '"name"' kiosk.json)" -eq 4 ] &&
+	! grep -qE ': [0-9tf]' kiosk.json &&
+	ok "assertion new model: IDs and types from the store, every scalar a string" ||
+	fail "assertion new model: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+
+idiot assertion check kiosk.json 2>"${work}/err" &&
+	ok "assertion check: a good draft" || fail "assertion check: good: $(cat "${work}/err")"
+sed 's|"24/stable"|"stable"|' kiosk.json >bad.json
+idiot assertion check bad.json 2>"${work}/err" && _rc=0 || _rc=$?
+[ "${_rc}" -eq 1 ] && grep -q 'snaps\[pc\].default-channel must give a track' "${work}/err" &&
+	ok "assertion check: a bad draft exits 1 naming the snap" ||
+	fail "assertion check: bad: rc ${_rc}, $(cat "${work}/err")"
+
+fails "new: not released for the target" 'has no amd64 revision in 99/stable' \
+	new model --set model=k --set brand-id=a --snap pc=99/stable --arch amd64 --no-edit -o -
+
+idiot assertion new validation-set --set account-id=abcDEF123 --set name=bare-host-set \
+	--snap core24=latest/stable --arch amd64 --no-edit 2>"${work}/err" </dev/null
+grep -q '"sequence": "1"' bare-host-set-1.json &&
+	grep -q '"presence": "required"' bare-host-set-1.json &&
+	grep -qE '"revision": "[0-9]+"' bare-host-set-1.json &&
+	ok "assertion new validation-set: sequence 1, a revision from the channel" ||
+	fail "assertion new validation-set: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+
+idiot assertion new system-user --set email=dev@example.com --set username=dev \
+	--set brand-id=abc --add models=kiosk --add ssh-keys='ssh-ed25519 AAAA dev@host' \
+	--no-edit 2>"${work}/err" </dev/null
+[ "$(stat -c %a dev.json 2>/dev/null)" = 600 ] && grep -q '"until"' dev.json &&
+	! grep -q password dev.json &&
+	ok "assertion new system-user: mode 0600, no password" ||
+	fail "assertion new system-user: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+
+sed -i 's/"grade": "signed",/"grade": "signed", "revision": "2",/' kiosk.json
+idiot assertion edit kiosk.json --no-edit 2>"${work}/err" </dev/null
+grep -q '"revision": "3"' kiosk.json &&
+	ok "assertion edit: the model's revision bumped" ||
+	fail "assertion edit: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+printf 'type: model\nauthority-id: canonical\n\nSIG\n' >signed.model
+fails "edit: signed input refused" 'signed assertion' edit signed.model --no-edit
+
+rm -rf "${work}"

@@ -9,6 +9,7 @@ options not listed here before guessing.
 - [Environment: status, auth, store, arch, lp, profile](#environment)
 - [VMs](#vms)
 - [Inspecting](#inspecting)
+- [Writing assertions](#writing-assertions)
 - [Tools and housekeeping](#tools-and-housekeeping)
 - [Development checkouts](#development-checkouts)
 - [Environment variables](#environment-variables)
@@ -89,6 +90,18 @@ e2fsprogs, mtools and fdisk).
 | `idiot inspect snap <file.snap>` | Its snapcraft.yaml or snap.yaml |
 | `idiot inspect changes` | Browse recent snapd changes (fzf) |
 | `idiot model list` / `add` / `remove` / `pick` / `update` | Model assertion repos; `pick` is an fzf picker; `update` needs git |
+
+## Writing assertions
+
+Host commands. Drafts are the unsigned JSON `snap sign` takes (every
+scalar a string); snap IDs, types and revisions come from the active
+store, as the credential sees it.
+
+| Command | Does |
+|---|---|
+| `idiot assertion new <model\|system-user\|validation-set> [--set h=v]... [--add h=v]... [--snap name[=channel]]... [--arch a] [--cred c] [--no-edit] [-o file\|-]` | Asks for each header (defaults: the credential's account, the arch, the active store, UC24 essentials), fills each snap's ID/type/channel or revision, opens $EDITOR, checks, writes `<model>.json` / `<username>.json` / `<name>-<seq>.json` (never overwrites). Without a terminal every required header must be given |
+| `idiot assertion edit <file.json> [--refresh] [--snap name[=channel]]... [--set …] [--no-edit] [-o file\|-]` | Same prompts, the file's values as defaults; bumps a model's revision (a validation set's revision or sequence), moves the timestamp on; `--refresh` looks snaps up again; keeps fields it doesn't model; refuses signed input |
+| `idiot assertion check <file.json\|->` | snapd's rules for the three types, offline; exit 1 on an error |
 
 ## Tools and housekeeping
 

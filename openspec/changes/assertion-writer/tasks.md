@@ -15,7 +15,7 @@
 
 ## 3. sh: idiot assertion new and check
 
-- [ ] 3.1 `share/assertion.sh`, covering:
+- [x] 3.1 `share/assertion.sh`, covering:
   - the per-type header lists;
   - the defaults (account ID from `idiot-store whoami` through `query_cred`, architecture, store, times, model essentials per base and architecture);
   - the `--set`, `--add` and `--snap` parsing, and the terminal check before any network call;
@@ -24,15 +24,15 @@
   - the editor loop with `draft check` and the no-clobber write.
 
   Verify from the source tree, anonymously, with `--no-edit` and no terminal: the spec's "Model without prompts" command gives the live IDs, and "Not released for the target" and "Required value missing" fail as specified.
-- [ ] 3.2 `cmd/assertion/help`, `cmd/assertion/new` and `cmd/assertion/check` (host commands; usage, `-o`, default file names, refusing to overwrite). Verify:
+- [x] 3.2 `cmd/assertion/help`, `cmd/assertion/new` and `cmd/assertion/check` (host commands; usage, `-o`, default file names, refusing to overwrite). Verify:
   - each scenario of "Writing an assertion", "Defaults from the environment", "Snaps from the store" and "Model essentials" that needs no account, from the source tree;
   - `check` on the failing drafts from 2.2 exits 1 naming the header;
   - on a terminal, a UC24 amd64 model written with all the defaults passes `check`.
-- [ ] 3.3 Add `tests/bare-host.d/assertion-writer`: usage errors, the no-terminal failure, `check` on a good and a bad draft (offline), and an anonymous `new model --no-edit -o -` for public snaps. Update the README (a "Writing assertions" section) and the using-idiot skill reference (`skills/using-idiot/references/commands.md`). Run `make check`. Commit: `feat(assertion): write and check unsigned assertions`.
+- [x] 3.3 Add `tests/bare-host.d/assertion-writer`: usage errors, the no-terminal failure, `check` on a good and a bad draft (offline), and an anonymous `new model --no-edit -o -` for public snaps. Update the README (a "Writing assertions" section) and the using-idiot skill reference (`skills/using-idiot/references/commands.md`). Run `make check`. Commit: `feat(assertion): write and check unsigned assertions`.
 
 ## 4. sh: system users and validation sets
 
-- [ ] 4.1 System-user prompts:
+- [x] 4.1 System-user prompts:
   - models from saved model repositories with a matching `brand-id`, and SSH keys from `~/.ssh/*.pub`;
   - the optional password: read twice with echo off (echo restored by a trap), hashed with `openssl passwd -6 -stdin`, the variable unset after;
   - `format` from `serials` and `user-presence`;
@@ -43,19 +43,21 @@
   - "Plain text refused";
   - "Serials need format 1";
   - without openssl on PATH, the hint is shown.
-- [ ] 4.2 Validation-set sequences: the default sequence from the latest validation set fetched through `store-assertions`' fetch subcommand (falling back to 1 with a note when the store has none or can't be reached), `timestamp` filled, and `revision` left out. Verify with a stubbed fetch in a copied tree (latest sequence 3 → default 4; not found → 1), and live against a public validation set if one is known.
-- [ ] 4.3 Extend the bare-host check with a system-user draft (mode 0600, the password prompt skipped) and a validation-set draft for a public snap. Update the README and the skill reference. Run `make check`. Commit: `feat(assertion): system users and validation sets`.
+- [x] 4.2 Validation-set sequences: the default sequence from the latest validation set (`idiot-store assertion validation-set account-id=… name=…`, which asks for `sequence=latest`): one more than its sequence, 1 when the store has none (exit 4), and 1 with a note only when the store can't be reached (exit 3), `timestamp` filled, and `revision` left out. Verify with a stubbed fetch in a copied tree (latest sequence 3 → default 4; not found → 1), and live against a public validation set if one is known.
+- [x] 4.3 Extend the bare-host check with a system-user draft (mode 0600, the password prompt skipped) and a validation-set draft for a public snap. Update the README and the skill reference. Run `make check`. Commit: `feat(assertion): system users and validation sets`.
 
 ## 5. sh: idiot assertion edit
 
-- [ ] 5.1 `cmd/assertion/edit`: defaults from `draft read`, the model `revision` bump, the validation-set choice between a new revision and a new sequence (the store's revision via the fetch subcommand when higher), the `timestamp` update, `--refresh` with `--snap` channels, writing back in place or to `-o`, and refusing signed input. Verify the spec's "Editing an assertion" scenarios from the source tree, and that `edit` on a file from `idiot model pick --unsigned` keeps the fields it doesn't model (`modes`, components) unchanged.
-- [ ] 5.2 Add `edit` to the group help, the bare-host check (bump and signed-input refusal, offline with `--no-edit`), the README and the skill reference. Run `make check`. Commit: `feat(assertion): edit unsigned assertions`.
+- [x] 5.1 `cmd/assertion/edit`: defaults from `draft read`, the model `revision` bump, the validation-set choice between a new revision and a new sequence (the store's revision, from `idiot-store assertion validation-set … sequence=<n>`, when higher), the `timestamp` update, `--refresh` with `--snap` channels, writing back in place or to `-o`, and refusing signed input. Verify the spec's "Editing an assertion" scenarios from the source tree, and that `edit` on a file from `idiot model pick --unsigned` keeps the fields it doesn't model (`modes`, components) unchanged.
+- [x] 5.2 Add `edit` to the group help, the bare-host check (bump and signed-input refusal, offline with `--no-edit`), the README and the skill reference. Run `make check`. Commit: `feat(assertion): edit unsigned assertions`.
+
+  Notes (implementation): groups 3–5 landed in one commit (`feat(assertion): write, check and edit unsigned assertions`): `share/assertion.sh` holds the per-type headers for both `new` and `edit` (a header the records already hold is the prompt's default, so `edit` gets the file's values for free). Verified from the source tree without a credential (so with `--set brand-id=…`/`account-id=…`; the account default itself needs the user's credential, task 7.3): the spec's no-terminal scenarios with live IDs (core24 amd64 `latest/stable` 2307), on a terminal through tmux a UC24 amd64 model with all the defaults (passes `check`) and the editor loop (an error listed, reopened, written only once it passes), the password (hashed `$6$`, mode 0600, absent from the file, the terminal and every idiot or openssl process's argv in a `ps` loop), the openssl-missing hint, and sequences against a stubbed `idiot-store assertion` (latest 3 → 4, not found → 1). No public validation set was known for a live sequence check. A dangerous model's snap the store doesn't show gets its essential role as `type`. Drafts other than system-users get the umask's mode (system-users 0600).
 
 ## 6. sh: idiot assertion sign
 
 - [ ] 6.1 `cmd/assertion/sign`:
   - `check` first;
-  - keys from `snap keys --json`, each key's account from the account-key fetched through `store-assertions` (anonymous), the picker preselecting the `authority-id` match, and `default` without a terminal;
+  - keys from `snap keys --json`, each key's account from `idiot-store assertion account-key public-key-sha3-384=<sha>` (anonymous; exit 4: not registered), the picker preselecting the `authority-id` match, and `default` without a terminal;
   - the no-keys message (`snap create-key`, `snapcraft register-key`);
   - warnings for an unregistered or foreign key and for a `timestamp` before the key's `since`;
   - `snap sign -k <name> [--chain]` on the terminal, the output written beside the input (`.model` / `.assert`) or to `-o`, no-clobber, 0600 for system-users;

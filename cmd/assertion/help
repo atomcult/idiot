@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# cmd/assertion/help - usage for the assertion subcommand group
+
+. "$(dirname "${0}")/../../share/common.sh"
+
+main() {
+	help_heading "Usage:" "idiot assertion <subcommand> [args...]"
+	echo >&2
+	help_heading "Subcommands:"
+	help_command "new" "Write an unsigned model, system-user or validation-set"
+	help_command "edit" "Edit an unsigned assertion (bump its revision, refresh snaps)"
+	help_command "check" "Check an unsigned assertion against snapd's rules"
+	help_command "sign" "Sign an unsigned assertion with snap sign"
+	echo >&2
+	say "Drafts are the JSON snap sign takes. Snap IDs, types and revisions"
+	say "come from the active store, as your credential sees it."
+}
+main "$@"

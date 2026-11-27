@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+# cmd/assertion/check - check an unsigned assertion against snapd's rules
+# idiot: host
+
+. "$(dirname "${0}")/../../share/common.sh"
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot assertion check <file.json|->"
+		echo >&2
+		say "Checks an unsigned model, system-user or validation-set against the"
+		say "rules snapd applies when it signs, offline. Exits 1 on an error."
+		exit 0
+		;;
+	esac
+	[ $# -eq 1 ] || die "usage: idiot assertion check <file.json|->"
+	[ "${1}" = - ] || [ -f "${1}" ] || die "file not found: ${1}"
+	h="$(helper idiot-helper)" || exit 1
+	work="$(mktemp -d)" || die "can't create a temporary directory"
+	trap 'rm -rf "${work:?}"' EXIT INT TERM HUP
+	rc=0
+	"${h}" draft check "${1}" >"${work}/problems" || rc=$?
+	tab="$(printf '\t')"
+	errors=0 warnings=0
+	while IFS="${tab}" read -r level at msg; do
+		case "${level}" in
+		error)
+			errors=$((errors + 1))
+			[ "${at}" != - ] || at=''
+			say "${RED}✗${RESET} ${at:+${BOLD}${at}${RESET} }${msg}"
+			;;
+		warning)
+			warnings=$((warnings + 1))
+			say "${YELLOW}!${RESET} ${BOLD}${at}${RESET} ${msg}"
+			;;
+		esac
+	done <"${work}/problems"
+	if [ "${rc}" -eq 0 ]; then
+		if [ "${warnings}" -gt 0 ]; then
+			say "${GREEN}✓${RESET} no errors (${warnings} warning(s))"
+		else
+			say "${GREEN}✓${RESET} no errors"
+		fi
+		exit 0
+	fi
+	[ "${errors}" -gt 0 ] || die "idiot-helper draft check failed"
+	exit 1
+}
+main "$@"

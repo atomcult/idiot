@@ -1,0 +1,140 @@
+#!/usr/bin/env sh
+# cmd/assertion/new - write an unsigned model, system-user or validation-set
+# idiot: host
+# shellcheck disable=SC2034,SC2154 # as_* and no_edit are shared with share/assertion.sh
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include models.sh
+include assertion.sh
+
+USAGE="usage: idiot assertion new <model|system-user|validation-set> [options]"
+
+usage() {
+	help_heading "Usage:" "idiot assertion new <model|system-user|validation-set> [options]"
+	echo >&2
+	help_heading "Options:"
+	help_option "--set <header>=<value>" "Give a header (never asked)"
+	help_option "--add <header>=<value>" "Add to a list header (models, ssh-keys, serials…)"
+	help_option "--snap <name>[=<channel>]" "Add a snap (validation set: =invalid marks it invalid)"
+	help_option "--arch <arch>" "Target architecture (default: UBUNTU_STORE_ARCH, else the host's)"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+	help_option "--no-edit" "Don't open the draft in an editor"
+	help_option "-o <file>" "Write here (- for stdout; default: named after it)"
+	echo >&2
+	say "Asks for each header on the terminal, with defaults from your credential,"
+	say "the active store and the target architecture, and fills in each snap's ID,"
+	say "type and channel (model) or revision (validation set) from the store."
+	say "The draft opens in \$VISUAL/\$EDITOR and is checked against snapd's rules."
+}
+
+_cleanup() {
+	as_restore_tty
+	[ -z "${work:-}" ] || rm -rf "${work:?}"
+}
+
+# Fails, before anything is contacted, naming the first required header
+# that no option gives, when there is no terminal to ask.
+_require_offline() {
+	case "${type}" in
+	model) as_require model ;;
+	system-user)
+		as_require email
+		as_require username
+		;;
+	validation-set) as_require name ;;
+	esac
+	case "${type}" in
+	validation-set) _acct=account-id ;;
+	*) _acct=brand-id ;;
+	esac
+	as_have_cred || as_require "${_acct}" "no credential to take it from"
+	[ "${as_tty}" -eq 1 ] || [ "${type}" != validation-set ] || [ -n "${as_snaps_given}" ] ||
+		die "no snaps to add — pass --snap <name>[=<channel>]"
+}
+
+main() {
+	case "${1:-}" in
+	-h | --help | help | '')
+		usage
+		[ -n "${1:-}" ] || exit 2
+		exit 0
+		;;
+	model | system-user | validation-set) type="${1}" ;;
+	*) die "${USAGE}" ;;
+	esac
+	shift
+	[ "${type}" != system-user ] || umask 077
+	work="$(mktemp -d)" || die "can't create a temporary directory"
+	trap _cleanup EXIT
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	trap 'exit 129' HUP
+	as_init
+	arch='' cred='' no_edit=0 out=''
+	as_snaps_given=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--set | --add)
+			[ -n "${2:-}" ] || die "${1} needs <header>=<value>"
+			as_option "${1}" "${2}"
+			shift
+			;;
+		--snap)
+			[ -n "${2:-}" ] || die "--snap needs <name>[=<channel>]"
+			as_snaps_given="${as_snaps_given}${2}
+"
+			shift
+			;;
+		--arch | --cred | -o)
+			[ -n "${2:-}" ] || die "${1} needs a value"
+			case "${1}" in
+			--arch) arch="${2}" ;;
+			--cred) cred="${2}" ;;
+			-o) out="${2}" ;;
+			esac
+			shift
+			;;
+		--no-edit) no_edit=1 ;;
+		*) die "${USAGE}" ;;
+		esac
+		shift
+	done
+	[ -z "${cred}" ] || {
+		validate_cred_name "${cred}"
+		require_cred "${cred}"
+	}
+	if as_is_given architecture; then
+		as_arch="$(as_get architecture)"
+	else
+		as_arch="${arch:-${UBUNTU_STORE_ARCH:-$(uname_to_snap_arch)}}"
+	fi
+	_require_offline
+	[ "${as_tty}" -eq 0 ] || [ "${type}" = system-user ] || require fzf "install fzf for the snap pickers"
+	helper idiot-helper >/dev/null || exit 1
+
+	as_mode=new
+	case "${type}" in
+	model)
+		as_model_headers
+		as_model_snaps
+		;;
+	system-user) as_system_user_headers ;;
+	validation-set)
+		as_vs_headers
+		as_vs_snaps
+		[ -n "$(as_snap_names)" ] ||
+			die "a validation set needs at least one snap — pass --snap <name>[=<channel>]"
+		;;
+	esac
+
+	as_build "${type}"
+	[ -n "${out}" ] || out="$(as_default_name "${work}/draft.json")"
+	as_write "${work}/draft.json" "${out}"
+}
+main "$@"

@@ -99,6 +99,8 @@ command reference.
 | Try a built snap in a VM | `idiot vm install ./app.snap`, then `idiot vm logs -f app` |
 | What's in an image | `idiot inspect image core.img`, `idiot inspect diff a.img b.img` |
 | Is an assertion valid | `idiot inspect assertion pc.model` (exit 1 on a bad signature) |
+| What snapd did (changes, kept revisions) | `idiot inspect state --name a` (or a state.json, an image, `--local`; secrets always redacted; `--json` for scripts) |
+| Write a model or validation set | `idiot assertion new model`, `idiot assertion check kiosk.json` (`--set`/`--snap`/`--no-edit` without a terminal) |
 | A bundled tool | `idiot run <tool>`, `idiot run --sudo <tool>`, `idiot run --list` |
 
 Booting a VM (`idiot vm <image>`) stays in the foreground on the serial
