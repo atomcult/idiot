@@ -70,8 +70,10 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run `openspec validate assertion-writer --strict`.
-- [ ] 7.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass, including `assertion-writer`.
+- [x] 7.1 Run `openspec validate assertion-writer --strict`.
+- [x] 7.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass, including `assertion-writer`.
+
+  Notes: packed from a clone (a worktree's build instance can't see its `.git`). At 9b2bbdf with `--boot download --kvm`: 280 passed, 3 failed (the container has no gpg, and gnupg was installed without `apt-get update`); fixed in 6565070 and rerun without `--boot`: 270 passed, 0 failed, all 20 assertion-writer checks included. 45d1f23 (a lookup-cache fix) was checked with the local copy of the check.
 - [ ] 7.3 With the user, under the snap and on a terminal:
   - write a UC24 model for their brand in a brand store they belong to (a private snap's ID filled in with their credential);
   - sign it with their registered key (they type the passphrase);
