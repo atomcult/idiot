@@ -178,7 +178,7 @@ VM's state directory.
 $ idiot vm list                     # name, arch, running/stopped, port, image
 $ idiot vm stop gadget              # power button, then quit after --timeout
 $ idiot vm console-log -f gadget    # its serial console (--previous: last boot)
-$ idiot vm reset gadget             # discard disk, UEFI vars, TPM: freshly flashed
+$ idiot vm reset gadget             # discard disk, UEFI vars, TPM, snapshots: freshly flashed
 $ idiot vm delete gadget            # forget it (the image is untouched)
 ```
 
@@ -225,7 +225,9 @@ beside it, so a restore never pairs a disk with another moment's TPM.
 `restore` keeps the snapshot (restore it as often as you like), and it and
 `delete` ask first (`--yes` skips the question). Running VMs and
 `--in-place` VMs can't be snapshotted; a snapshot of a VM stopped with
-`--force` is crash-consistent.
+`--force` is crash-consistent. `idiot vm reset` discards a VM's snapshots
+with its overlay, asking first when it has any (`--yes` skips the
+question).
 
 **Changed:** before named VMs, `idiot vm` wrote to the image and threw
 the UEFI variables and TPM state away after each run (unless you gave

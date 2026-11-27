@@ -8,7 +8,8 @@
 # create and list, the refusals (names, running, --in-place, no overlay,
 # several VMs), the files' modes, restore (the disk's contents by pattern,
 # the copies' bytes, an interrupted restore), delete (broken snapshots
-# too) and the confirmations.
+# too), the confirmations, and reset and --state-dir delete discarding
+# snapshots.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
 . "$(dirname "$0")/lib"
@@ -226,5 +227,35 @@ in_tty y "idiot vm delete fresh" >/dev/null 2>&1
 	fail "vm-snapshot: vm delete answered yes kept it"
 idiot vm delete --yes raw 2>/dev/null && [ ! -e "${IDIOT_VM_DIR}/raw" ] &&
 	ok "vm-snapshot: vm delete --yes" || fail "vm-snapshot: vm delete --yes"
+
+# reset discards snapshots, asking first
+idiot vm snapshot create --name p two 2>/dev/null
+expect "reset with snapshots, no terminal" "--yes" idiot vm reset p </dev/null
+[ -f "${p}/disk.qcow2" ] && [ -d "${p}/snapshots/two" ] &&
+	ok "vm-snapshot: a refused reset keeps everything" || fail "vm-snapshot: a refused reset discarded"
+out="$(idiot vm reset --yes p 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'its 2 snapshots' &&
+	[ ! -e "${p}/disk.qcow2" ] && [ ! -e "${p}/snapshots" ] &&
+	idiot vm snapshot list --name p 2>&1 | grep -q 'No snapshots' &&
+	ok "vm-snapshot: reset --yes discards the snapshots" || fail "vm-snapshot: reset --yes: ${out}"
+mkvm q
+idiot vm reset q </dev/null 2>/dev/null && [ ! -e "${IDIOT_VM_DIR}/q/disk.qcow2" ] &&
+	ok "vm-snapshot: reset without snapshots asks nothing" || fail "vm-snapshot: reset q"
+
+# a --state-dir VM's snapshots go with it, foreign files stay
+for keep in 0 1; do
+	sd="${work}/sd${keep}"
+	mkdir -p "${sd}"
+	mkvm "s${keep}"
+	mv "${IDIOT_VM_DIR}/s${keep}"/* "${sd}/"
+	rmdir "${IDIOT_VM_DIR}/s${keep}"
+	ln -s "${sd}" "${IDIOT_VM_DIR}/s${keep}"
+	idiot vm snapshot create --name "s${keep}" snap 2>/dev/null
+	[ "${keep}" -eq 0 ] || : >"${sd}/mine"
+	idiot vm delete --yes "s${keep}" 2>/dev/null
+done
+[ ! -e "${work}/sd0" ] && [ "$(entries "${work}/sd1")" = mine ] &&
+	ok "vm-snapshot: deleting a --state-dir VM removes its snapshots, keeps foreign files" ||
+	fail "vm-snapshot: --state-dir delete left: $(find "${work}/sd0" "${work}/sd1" 2>/dev/null)"
 
 rm -rf "${work:?}"

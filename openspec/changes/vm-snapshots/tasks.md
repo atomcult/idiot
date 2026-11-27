@@ -16,9 +16,9 @@
 
 ## 3. Reset and delete with snapshots
 
-- [ ] 3.1 `do_reset`: `[--yes] <name>`; with snapshots, say how many will be discarded and `_confirm`; remove `snapshots/` with the overlay. Without snapshots, no question (as today). Verify on the scratch VM: reset with two snapshots on `</dev/null` fails naming `--yes` and keeps everything; with `--yes` the snapshots and overlay are gone and `snapshot list` prints none; reset of a VM without snapshots asks nothing.
-- [ ] 3.2 `do_delete` of a `--state-dir` VM: remove `snapshots/` among the files idiot created. Verify: a `--state-dir` VM with a snapshot and no other files leaves no directory; with a foreign file there, only that file remains.
-- [ ] 3.3 Docs: `vm reset --help`, README and commands.md (reset discards snapshots, `--yes`). Extend `tests/bare-host.d/vm-snapshot` with reset and `--state-dir` delete. Run `make check`. Commit: `feat(vm): reset and delete discard snapshots`.
+- [x] 3.1 `do_reset`: `[--yes] <name>`; with snapshots, say how many will be discarded and `_confirm`; remove `snapshots/` with the overlay. Without snapshots, no question (as today). Verify on the scratch VM: reset with two snapshots on `</dev/null` fails naming `--yes` and keeps everything; with `--yes` the snapshots and overlay are gone and `snapshot list` prints none; reset of a VM without snapshots asks nothing.
+- [x] 3.2 `do_delete` of a `--state-dir` VM: remove `snapshots/` among the files idiot created. Verify: a `--state-dir` VM with a snapshot and no other files leaves no directory; with a foreign file there, only that file remains.
+- [x] 3.3 Docs: `vm reset --help`, README and commands.md (reset discards snapshots, `--yes`). Extend `tests/bare-host.d/vm-snapshot` with reset and `--state-dir` delete. Run `make check`. Commit: `feat(vm): reset and delete discard snapshots`.
 
 ## 4. Verification
 

@@ -777,22 +777,44 @@ _confirm() {
 }
 
 do_reset() {
-	case "${1:-}" in
-	-h | --help | help)
-		help_heading "Usage:" "idiot vm reset <name>"
-		echo >&2
-		say "Discards a stopped VM's disk overlay, UEFI variables, TPM state and"
-		say "serial logs, so that it next boots as a freshly flashed device."
-		exit 0
-		;;
-	esac
-	[ $# -eq 1 ] || die "usage: idiot vm reset <name>"
-	name="$(vm_resolve "${1}")" || exit 1
+	yes=0
+	name=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot vm reset [--yes] <name>"
+			echo >&2
+			say "Discards a stopped VM's disk overlay, UEFI variables, TPM state, serial"
+			say "logs and snapshots, so that it next boots as a freshly flashed device."
+			say "When it has snapshots, asks first (--yes skips the question)."
+			exit 0
+			;;
+		--yes | -y) yes=1 ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${name}" ] || die "usage: idiot vm reset [--yes] <name>"
+			name="${1}"
+			;;
+		esac
+		shift
+	done
+	[ -n "${name}" ] || die "usage: idiot vm reset [--yes] <name>"
+	name="$(vm_resolve "${name}")" || exit 1
 	_require_stopped "${name}"
 	_d="$(vm_dir "${name}")"
-	rm -f "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* \
+	_n="$(vm_snapshot_names "${name}" | wc -l)"
+	if [ "${_n}" -gt 0 ]; then
+		[ "${_n}" -eq 1 ] && _what='its snapshot' || _what="its ${_n} snapshots"
+		say "Resetting VM ${BOLD}${name}${RESET} also discards ${_what}"
+		_confirm "resetting VM '${name}'" "Reset VM ${BOLD}${name}${RESET}?" || {
+			say "Nothing reset"
+			exit 0
+		}
+	fi
+	rm -f "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* "${_d}"/*.restore \
 		"${_d}/serial.log" "${_d}/serial.log.1" "${_d}/swtpm.pid" "${_d}/swtpm.sock" \
 		"${_d}/qemu.pid" "${_d}/qmp.sock" "${_d}/inspect.sock" "${_d}/inspect.sock.ctrl"
+	rm -rf "${_d:?}/snapshots"
 	say "Reset VM ${BOLD}${name}${RESET}: it boots as a freshly flashed device"
 	[ "$(vm_conf_get "${name}" in_place)" -ne 1 ] ||
 		say "${YELLOW}warning:${RESET} VM '${name}' writes $(vm_conf_get "${name}" image) in place: the image itself can't be reset"
@@ -832,7 +854,9 @@ do_delete() {
 		# a --state-dir: only what idiot put there, and the dir if now empty
 		rm -f "${_d}/vm.conf" "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* \
 			"${_d}/serial.log" "${_d}/serial.log.1" "${_d}/swtpm.pid" "${_d}/swtpm.sock" \
-			"${_d}/qemu.pid" "${_d}/qmp.sock" "${_d}/inspect.sock" "${_d}/inspect.sock.ctrl"
+			"${_d}/qemu.pid" "${_d}/qmp.sock" "${_d}/inspect.sock" "${_d}/inspect.sock.ctrl" \
+			"${_d}"/*.restore
+		rm -rf "${_d:?}/snapshots"
 		rmdir "${_real}" 2>/dev/null || say "${DIM}Kept ${_real}: it holds other files${RESET}"
 		rm -f "${_d}"
 	else
