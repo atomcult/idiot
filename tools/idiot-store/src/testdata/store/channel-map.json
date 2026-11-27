@@ -1,0 +1,17 @@
+{
+  "channel-map": [
+    {"architectures": ["amd64"], "base": "core24", "channel": {"architecture": "amd64", "name": "stable", "released-at": "2026-10-02T10:00:00.000000+00:00", "risk": "stable", "track": "latest"},
+     "confinement": "strict", "created-at": "2026-10-01T09:00:00.000000+00:00", "download": {"deltas": [], "sha3-384": "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", "size": 4096, "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdCeDummyXXXXXXXXXXXXXXXXXXX_3.snap"},
+     "epoch": {"read": [0, 1], "write": [1]}, "revision": 3, "type": "app", "version": "0.3"},
+    {"architectures": ["arm64"], "base": "core24", "channel": {"architecture": "arm64", "name": "edge", "released-at": "2026-10-03T10:00:00.000000+00:00", "risk": "edge", "track": "latest"},
+     "confinement": "strict", "created-at": "2026-10-03T09:00:00.000000+00:00", "download": {"deltas": [], "sha3-384": "abababababababababababababababababababababababababababababababababababababababababababababababab", "size": 8192, "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdCeDummyXXXXXXXXXXXXXXXXXXX_4.snap"},
+     "epoch": {"read": [0, 1], "write": [1]}, "revision": 4, "type": "app", "version": "0.4"},
+    {"architectures": ["amd64"], "base": "core24", "channel": {"architecture": "amd64", "name": "2.0/stable", "released-at": "2026-09-01T10:00:00.000000+00:00", "risk": "stable", "track": "2.0"},
+     "confinement": "devmode", "created-at": "2026-09-01T09:00:00.000000+00:00", "download": {"deltas": [], "sha3-384": "222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222", "size": 2048, "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdCeDummyXXXXXXXXXXXXXXXXXXX_2.snap"},
+     "epoch": {"read": [0], "write": [0]}, "revision": 2, "type": "app", "version": "1.4.2"}
+  ],
+  "default-track": null,
+  "name": "ce-dummy",
+  "snap": {"private": true, "publisher": {"display-name": "Test User", "id": "AccountIdTestUserXXXXXXXXXXXXXXX", "username": "test-user", "validation": "unproven"}, "title": "CE\tdummy"},
+  "snap-id": "SnapIdCeDummyXXXXXXXXXXXXXXXXXXX"
+}

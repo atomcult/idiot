@@ -12,6 +12,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Run `openspec validate store-members --strict`.
+- [x] 3.1 Run `openspec validate store-members --strict`.
 - [ ] 3.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 3.3 With the user, once they have a `store_admin` credential: `idiot store members --cred <it>` in `ce-team-test` lists the members, confirming the response shape.

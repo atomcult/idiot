@@ -1,0 +1,11 @@
+{
+  "channel-map": [
+    {"architectures": ["amd64"], "channel": {"architecture": "amd64", "name": "stable", "released-at": "2026-08-01T10:00:00.000000+00:00", "risk": "stable", "track": "latest"},
+     "confinement": "strict", "created-at": "2026-07-30T09:00:00.000000+00:00", "download": {"deltas": [], "sha3-384": "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", "size": 70000000, "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdExampleBaseXXXXXXXXXXXXXXX_10.snap"},
+     "epoch": {"read": [0], "write": [0]}, "revision": 10, "type": "base", "version": "20260801"}
+  ],
+  "default-track": null,
+  "name": "example-base",
+  "snap": {"private": false, "publisher": {"display-name": "Canonical", "id": "canonical", "username": "canonical", "validation": "verified"}, "title": "example-base"},
+  "snap-id": "SnapIdExampleBaseXXXXXXXXXXXXXXX"
+}
