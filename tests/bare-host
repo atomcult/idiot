@@ -28,6 +28,8 @@
 #            leftovers (as that user; removes and reinstalls vm and tpm)
 #   refresh  a refresh under a shell set up before it
 #   vm-snapshot  (with idiot+vm) snapshots of hand-made VM state, offline
+#   vm-second  (with idiot+vm and idiot+tpm) detached VMs side by side on
+#            blank images: forwards, shared images, no swtpm left
 #   vm       (with --boot) an Ubuntu Core image boots with secure boot and
 #            a TPM from the vm and tpm components, and vm stop powers it down
 # Prints one ok/FAIL line per check; exits 1 if any failed.
@@ -198,6 +200,9 @@ for c in "$@"; do
 	idiot+vm.* | idiot+vm_*)
 		say "vm-snapshot"
 		on bash "${d}/vm-snapshot" | tee -a "${log}"
+		printf '%s\n' "$@" | grep -q 'idiot+tpm[._]' || continue
+		say "vm-second"
+		on bash "${d}/vm-second" | tee -a "${log}"
 		;;
 	esac
 done

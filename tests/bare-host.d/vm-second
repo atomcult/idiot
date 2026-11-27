@@ -1,0 +1,97 @@
+#!/bin/bash
+# tests/bare-host.d/vm-second - detached VMs side by side, no guest needed
+#
+# Usage: vm-second   (as root; needs idiot+vm and idiot+tpm)
+# Boots blank images (only the firmware runs) with --detach in a scratch
+# IDIOT_VM_DIR: boot returns with the VM running and its console logged;
+# a failed start leaves no swtpm; a second VM gets another ssh port; a
+# --port another VM forwards is refused naming it, a recorded one moves up
+# and vm list shows it; --in-place and an overlay of one image don't run
+# together, two overlays do; vm stop leaves no qemu or swtpm.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+installed vm && installed tpm || {
+	fail "vm-second: needs idiot+vm and idiot+tpm"
+	exit 1
+}
+
+work="$(mktemp -d)"
+export IDIOT_VM_DIR="${work}/vm"
+cleanup() {
+	for n in a b c; do
+		idiot vm stop --force "${n}" >/dev/null 2>&1
+	done
+	rm -rf "${work:?}"
+}
+trap cleanup EXIT
+truncate -s 64M "${work}/one.img" "${work}/two.img"
+
+# expect <label> <pattern> <command...>: the command fails, saying pattern
+expect() {
+	_l="${1}"
+	_p="${2}"
+	shift 2
+	_o="$("$@" </dev/null 2>&1)" && fail "vm-second: ${_l}: succeeded: ${_o}" && return
+	printf '%s' "${_o}" | grep -qF -- "${_p}" && ok "vm-second: ${_l}" ||
+		fail "vm-second: ${_l}: ${_o}"
+}
+swtpms() { pgrep -x swtpm -a | grep -c "${work}"; }
+row() { idiot vm list 2>/dev/null | awk -v n="${1}" '$1 == n'; }
+
+out="$(idiot vm boot --detach --tpm --no-gfx --name a --port 18080:80 "${work}/one.img" </dev/null 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'runs in the background' &&
+	row a | grep -q ' running ' &&
+	ok "vm-second: boot --detach returns with the VM running" ||
+	fail "vm-second: boot --detach: ${out}"
+[ "$(swtpms)" -eq 1 ] && ok "vm-second: the detached VM's swtpm runs on" ||
+	fail "vm-second: $(swtpms) swtpm for a detached --tpm VM"
+for _ in $(seq 30); do
+	[ -s "${IDIOT_VM_DIR}/a/serial.log" ] && break
+	sleep 1
+done
+[ -n "$(idiot vm logs --console --name a 2>/dev/null)" ] &&
+	ok "vm-second: a detached VM's console is logged" ||
+	fail "vm-second: no console log for a detached VM"
+
+expect "a forward another VM has is refused, naming it" "port 18080 is forwarded by VM 'a'" \
+	idiot vm boot --detach --no-gfx --name b --port 18080:80 "${work}/one.img"
+expect "a forward on the VM's own ssh port is refused" "is the VM's ssh port" \
+	idiot vm boot --detach --no-gfx --name b --ssh-port 9100 --port 9100:80 "${work}/one.img"
+expect "--in-place on an image another VM runs from is refused" "VM 'a' is running from" \
+	idiot vm boot --detach --no-gfx --name c --in-place "${work}/one.img"
+[ ! -e "${IDIOT_VM_DIR}/c" ] && ok "vm-second: a refused new VM leaves nothing" ||
+	fail "vm-second: a refused new VM left ${IDIOT_VM_DIR}/c"
+
+# b recorded 18080:80 before: it moves up while a has 18080
+out="$(idiot vm boot --detach --no-gfx --name b "${work}/one.img" </dev/null 2>&1)" ||
+	fail "vm-second: a second VM on overlays of one image: ${out}"
+idiot vm stop --force b >/dev/null 2>&1
+sed -i 's/^ports=.*/ports=18080:80/' "${IDIOT_VM_DIR}/b/vm.conf"
+out="$(idiot vm boot --detach --no-gfx --name b </dev/null 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'guest port 80 forwarded from 18081' &&
+	row b | grep -q ' 18081:80 ' &&
+	ok "vm-second: a recorded forward that is taken moves up, and vm list shows it" ||
+	fail "vm-second: recorded forward: ${out} / $(row b)"
+[ "$(row a | awk '{ print $4 }')" != "$(row b | awk '{ print $4 }')" ] &&
+	ok "vm-second: the second VM has its own ssh port" ||
+	fail "vm-second: ssh ports: $(row a) / $(row b)"
+
+idiot vm stop --force a >/dev/null 2>&1
+idiot vm stop --force b >/dev/null 2>&1
+[ "$(swtpms)" -eq 0 ] && ok "vm-second: no swtpm after stopping detached VMs" ||
+	fail "vm-second: $(swtpms) swtpm left"
+
+idiot vm boot --detach --no-gfx --name c --in-place "${work}/two.img" </dev/null >/dev/null 2>&1 ||
+	fail "vm-second: --in-place boot --detach failed"
+expect "an image another VM writes in place is refused" "VM 'c' is running and writes" \
+	idiot vm boot --detach --no-gfx --name d "${work}/two.img"
+idiot vm stop --force c >/dev/null 2>&1
+
+expect "a detached start qemu refuses fails" "invalid option" \
+	idiot vm boot --detach --tpm --no-gfx --name a -- -no-such-flag
+[ "$(swtpms)" -eq 0 ] && ok "vm-second: a failed detached start leaves no swtpm" ||
+	fail "vm-second: $(swtpms) swtpm after a failed start"
+pgrep -a -f "qemu-system.*${work}" >/dev/null && fail "vm-second: qemu left running" ||
+	ok "vm-second: no qemu left"

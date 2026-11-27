@@ -7,7 +7,7 @@
 # <seconds> (default 600) pass, then stops it with vm stop (a graceful power
 # down). A first boot runs install mode and reboots. Then takes a snapshot,
 # boots again, restores it and boots once more: the last boot must reach
-# console-conf in run mode.
+# console-conf in run mode; those two boots are --detach.
 # The image is booted through an overlay, so it must come out unchanged.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
@@ -101,21 +101,27 @@ wait
 
 # a snapshot after first boot, restored after another boot, boots in run
 # mode (no install mode again: the TPM still unseals the data partition)
-# boot <log>: boot the VM to console-conf (or the timeout), then stop it
+# boot <log>: boot the VM detached, wait for console-conf in its console
+# log (or the timeout), then stop it
 boot() {
-	idiot vm --tpm --no-gfx --name "${name}" </dev/null >"${1}" 2>&1 &
-	bpid=$!
+	idiot vm boot --detach --tpm --no-gfx --name "${name}" </dev/null >"${1}" 2>&1 ||
+		fail "vm: boot --detach failed (see ${1})"
 	for _ in $(seq "${secs}"); do
-		grep -aq 'Press enter to configure' "${1}" && break
-		kill -0 "${bpid}" 2>/dev/null || break
+		grep -aq 'Press enter to configure' "${state}/serial.log" && break
+		idiot vm list 2>/dev/null | grep -q "^${name} .* running " || break
 		sleep 1
 	done
 	idiot vm stop --timeout 120 "${name}" >/dev/null 2>&1
-	wait "${bpid}"
 }
 out="$(idiot vm snapshot create --name "${name}" seeded 2>&1)" &&
 	ok "vm: snapshot after first boot" || fail "vm: snapshot create: ${out}"
 boot "${log}.2"
+grep -aq 'Press enter to configure' "${state}/serial.log" &&
+	grep -q "runs in the background" "${log}.2" &&
+	ok "vm: boot --detach returns, and the detached guest reaches console-conf" ||
+	fail "vm: boot --detach (see ${log}.2 and ${state}/serial.log)"
+pgrep -x swtpm >/dev/null && fail "vm: swtpm left running after stopping a detached VM" ||
+	ok "vm: swtpm stopped with the detached VM"
 out="$(idiot vm snapshot restore --yes --name "${name}" seeded 2>&1)" &&
 	ok "vm: restore the snapshot" || fail "vm: snapshot restore: ${out}"
 boot "${log}.3"
