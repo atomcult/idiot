@@ -24,6 +24,28 @@ What the store offers, and how sure we are:
 | `GET dashboard.snapcraft.io/api/v2/snaps/<name>/channel-map` | current map incl. closed channels and progressive state | `package_access` | docs, snapcraft `get_channel_map`; live 401 anonymously. **Not used** (see below) |
 | `GET dashboard.snapcraft.io/api/v2/stores/<id>/snaps` | per snap also `id`, `store`, `other-stores`, `latest-release.{channel,revision,timestamp,version}`; `?q=`, `?publisher=` | store admin, `store_admin` | dashboard v2 stores reference; not yet in our fixture |
 
+Recorded on 2026-11-27 with the user's go-ahead (fixtures
+`releases-ce-dummy.json`, `channel-map-ce-dummy.json`, `releases-404.json`,
+account details replaced):
+- `releases` lists revisions and releases **newest first**; `_links` holds
+  plain URL strings (`{"self": "https://…/releases?page=1"}`), no `href`
+  object, and no `next` for a short history. The hash is `sha3-384`, the
+  time `created_at`, `build_url` is null; `channel` is the full name
+  (`latest/stable`) with `branch` null; `progressive` has `paused`,
+  `percentage`, `current-percentage`, all null when not progressive.
+- An **admin of the brand store** (`ce-team-test`, `admin,review,view,
+  access`) who neither publishes nor collaborates on `ce-dummy` **can**
+  read its history (200). For a snap the account has nothing to do with
+  (`hello`) the store answers **404** `resource-not-found`. The viewer
+  case wasn't recorded: `dsmr6` isn't among the account's stores and no
+  snap name is known in its view-only stores.
+- `/api/v2/stores/ce-team-test/snaps` without `store_admin` answers 403
+  `macaroon-permission-required` with `extra.permission`, as the fixture
+  had; the success shape (`id`, `latest-release`) still needs a
+  `store_admin` credential.
+- Every dashboard call first got 401 `macaroon-needs-refresh` and
+  succeeded after the one in-memory refresh.
+
 The releases page holds up to 500 release records and is paged with
 `?page=` / `?size=` and `_links.next`. Names differ between the two dashboard
 endpoints (`created_at`/`build_url` there, `created-at`/`build-url` in
@@ -224,9 +246,10 @@ key `vm-install-from-store` (`<snap>=<channel>`) and `store-assertions`
 
 ## Open Questions
 
-- Which brand-store roles (admin, reviewer, viewer) can read
-  `/api/v2/snaps/<name>/releases` for snaps they neither publish nor
-  collaborate on? This only affects the wording of the refusal.
+- Which brand-store roles can read `/api/v2/snaps/<name>/releases` for
+  snaps they neither publish nor collaborate on? Admins can (recorded);
+  reviewers and viewers are untested. This only affects the wording of
+  the refusal.
 - Does the v2 info channel map in a brand store include snaps the store
   includes from other stores? That affects named-snap browsing only, not
   the list (`store-snaps` leaves included snaps out by design).

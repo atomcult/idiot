@@ -13,3 +13,8 @@ and `releases.json` (the dashboard's `/api/v2/snaps/<name>/releases`, from
 its v2 snaps reference and snapcraft's model; it mixes both spellings of
 `created_at`, `build_url` and the hash on purpose) are synthetic too, until
 real answers are recorded with the user.
+
+`releases-ce-dummy.json`, `channel-map-ce-dummy.json` and
+`releases-404.json` were recorded live on 2026-11-27 with the user's
+go-ahead; the publisher's account ID, username and display name and the
+snap ID were replaced with made-up values.

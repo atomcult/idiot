@@ -3,7 +3,7 @@
 ## 1. Response shapes
 
 - [ ] 1.1 With the user's go-ahead, make the read-only calls once with their credential: `/api/v2/snaps/ce-dummy/releases` (a snap they publish, all pages), the same for a snap they don't collaborate on (as an admin of `ce-team-test` and as a viewer in `dsmr6`), `/api/v2/stores/<ce-team-test>/snaps` (for `id` and `latest-release`), and `/v2/snaps/info/ce-dummy` with the extended `fields` and `Snap-Device-Store`. Save them as fixtures under `tools/idiot-store/src/testdata/store/` with account details replaced. Record in design.md the history's order, the `_links.next` form, the hash field's spelling, and which roles were refused `releases` (and how: 403 or 404). Verify: the fixtures hold no email, account ID or macaroon (grep for `@`, the user's account ID, `Macaroon`).
-  - Open: waits for the user's go-ahead to make the calls with their credential. 2.x were built on synthetic fixtures meanwhile.
+  - Partly done (2026-11-27, credential `lauren-brock`): recorded `releases` for `ce-dummy` (admin of `ce-team-test`, not a collaborator: 200) and `hello` (404), `stores/ce-team-test/snaps` (403, no `store_admin`) and the extended v2 info for `ce-dummy` in `ce-team-test`; findings in design.md, fixtures checked for `@`, account IDs and `Macaroon`, and `recorded_shapes` tests them. Open: the full `stores/<id>/snaps` answer (needs `store_admin`), the viewer case (`dsmr6` isn't among the account's stores), and a snap the account publishes in a brand store (the only ones it publishes are in the global store).
 
 ## 2. idiot-store: channel maps and releases
 

@@ -477,6 +477,48 @@ mod tests {
         assert_eq!(branch.expires.as_deref(), Some("2026-11-03T10:00:00Z"));
     }
 
+    /// The answers recorded on 2026-11-27 (account details replaced).
+    #[test]
+    fn recorded_shapes() {
+        let j = fixture("releases-ce-dummy.json");
+        let mut h = History::default();
+        parse_releases_page(&j, &mut h);
+        let revs: Vec<u64> = h.revisions.iter().map(|r| r.revision).collect();
+        assert_eq!(revs, [6, 5, 4, 3, 2, 1]); // newest first, as served
+        assert!(h.revisions.iter().all(|r| r.sha3_384.len() == 96));
+        assert!(h.revisions.iter().all(|r| !r.created_at.is_empty()));
+        assert!(h.revisions.iter().all(|r| r.status == "Published"));
+        assert_eq!(h.revisions[0].base.as_deref(), Some("core20"));
+        assert_eq!(h.releases.len(), 6);
+        assert!(h.releases.iter().all(|r| r.channel == "latest/stable"));
+        assert_eq!(h.releases[0].revision, Some(6));
+        assert_eq!(h.releases[0].progressive, None);
+        // only a `self` link: no next page
+        let here =
+            Url::parse("https://dashboard.snapcraft.io/api/v2/snaps/ce-dummy/releases").unwrap();
+        assert_eq!(next_page(&j, &here), None);
+
+        let m = fixture("channel-map-ce-dummy.json");
+        assert_eq!(parse_meta(&m).publisher, "test-user");
+        assert!(!parse_meta(&m).private);
+        let map = parse_info(&m);
+        assert_eq!(map.len(), 2);
+        let amd64 = map.iter().find(|c| c.arch == "amd64").unwrap();
+        assert_eq!((amd64.revision, amd64.base.as_deref()), (2, None));
+        assert_eq!(amd64.epoch, "0");
+        assert_eq!(amd64.kind, "app");
+
+        let gone = Reply {
+            status: StatusCode::NOT_FOUND,
+            body: fixture("releases-404.json").to_string(),
+            wants_refresh: false,
+        };
+        assert_eq!(
+            releases_refusal(&gone).unwrap(),
+            Some(HistoryRefusal::NotCollaborator)
+        );
+    }
+
     #[test]
     fn releases_refused() {
         let perm = r#"{"error-list": [{"code": "macaroon-permission-required", "extra": {"permission": "package_access"}, "message": "Missing permission"}]}"#;
