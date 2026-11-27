@@ -102,6 +102,7 @@ store, as the credential sees it.
 | `idiot assertion new <model\|system-user\|validation-set> [--set h=v]... [--add h=v]... [--snap name[=channel]]... [--arch a] [--cred c] [--no-edit] [-o file\|-]` | Asks for each header (defaults: the credential's account, the arch, the active store, UC24 essentials), fills each snap's ID/type/channel or revision, opens $EDITOR, checks, writes `<model>.json` / `<username>.json` / `<name>-<seq>.json` (never overwrites). Without a terminal every required header must be given |
 | `idiot assertion edit <file.json> [--refresh] [--snap name[=channel]]... [--set …] [--no-edit] [-o file\|-]` | Same prompts, the file's values as defaults; bumps a model's revision (a validation set's revision or sequence), moves the timestamp on; `--refresh` looks snaps up again; keeps fields it doesn't model; refuses signed input |
 | `idiot assertion check <file.json\|->` | snapd's rules for the three types, offline; exit 1 on an error |
+| `idiot assertion sign <file.json> [-k key] [--chain] [-o file\|-]` | Checks, warns when the key isn't registered to the `authority-id` (store lookup), runs `snap sign -k <key>` on the terminal (it asks the passphrase; idiot never reads the key), writes `<name>.model`/`.assert` beside the draft (0600 for system-users), reports the signature status. Without `-k` and a terminal: snap's `default` key |
 
 ## Tools and housekeeping
 

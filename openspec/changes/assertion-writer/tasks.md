@@ -55,7 +55,7 @@
 
 ## 6. sh: idiot assertion sign
 
-- [ ] 6.1 `cmd/assertion/sign`:
+- [x] 6.1 `cmd/assertion/sign`:
   - `check` first;
   - keys from `snap keys --json`, each key's account from `idiot-store assertion account-key public-key-sha3-384=<sha>` (anonymous; exit 4: not registered), the picker preselecting the `authority-id` match, and `default` without a terminal;
   - the no-keys message (`snap create-key`, `snapcraft register-key`);
@@ -64,7 +64,9 @@
   - the verdict from `idiot-helper assertion --remote` on stderr.
 
   Verify from the source tree with a throwaway key (`snap create-key` in a scratch `HOME`, never the user's keyring): a draft signs, `idiot inspect assertion` reads the result, and the "Invalid draft", "No keys" and "To stdout" scenarios hold. Also check that a stubbed account-key fetch naming another account gives the "Key for another account" warning.
-- [ ] 6.2 Extend the bare-host check: in the container, create a key without a passphrase, sign a dangerous model draft, check that the file starts `type: model`, that `snap sign` wasn't given anything but the key name and the file, and that stdout with `-o -` holds only the assertion. Update the README and the skill reference. Run `make check`. Commit: `feat(assertion): sign with snap sign`.
+- [x] 6.2 Extend the bare-host check: in the container, create a key without a passphrase, sign a dangerous model draft, check that the file starts `type: model`, that `snap sign` wasn't given anything but the key name and the file, and that stdout with `-o -` holds only the assertion. Update the README and the skill reference. Run `make check`. Commit: `feat(assertion): sign with snap sign`.
+
+  Notes (implementation): `snap` ignores `HOME` for its keyring; the throwaway keys (source tree and bare-host) live in a private `SNAP_GNUPG_HOME`, made with `gpg --batch` as `snap create-key` makes them (RSA 4096, no passphrase), so the user's keyring was never used. The "Key for another account" warning was checked with a stubbed `idiot-store assertion account-key` in a copied tree. bare-host installs gnupg in the container when it has no gpg (`snap sign` needs it).
 
 ## 7. Verification
 

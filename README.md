@@ -253,6 +253,7 @@ $ idiot assertion new validation-set --snap core24=latest/stable --no-edit
 $ idiot assertion new system-user              # SSH keys from ~/.ssh, an optional password
 $ idiot assertion edit kiosk.json --refresh    # bump the revision, look the snaps up again
 $ idiot assertion check kiosk.json             # snapd's rules, offline
+$ idiot assertion sign kiosk.json -k brand-key # snap sign, then the signature checked
 ```
 
 Drafts are the unsigned JSON `snap sign` takes, every scalar a string.
@@ -267,6 +268,13 @@ system-user's 365 days…) before it is written, and reopened in the editor
 until it passes. A system-user's password is read twice without echo and
 only its SHA-512 crypt hash (from `openssl passwd -6`) is written, mode
 0600. `--set`, `--add` and `--snap` answer without prompts, for scripts.
+
+`assertion sign` runs the check, looks up in the store which account the
+key is registered to (warning when it isn't the `authority-id`), signs
+with `snap sign` (which asks for the passphrase: idiot only passes the
+key's name) and reports the result's signature as `inspect assertion
+--remote` sees it. It writes `kiosk.model` (or `<name>.assert`) beside
+the draft, or stdout with `-o -`.
 
 ---
 
