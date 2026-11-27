@@ -5,10 +5,11 @@
 # Without a terminal and without a credential: usage errors, a required
 # header missing (before anything is contacted), check on a good and a
 # bad draft (offline), anonymous drafts for public snaps (a model, a
-# validation set), a system-user draft (mode 0600, no password), edit's
-# revision bump, edits of a signed model (and new --from it), one fetched
-# from the store, and signing with a throwaway key made in a private
-# SNAP_GNUPG_HOME.
+# validation set, a classic model), Ubuntu Core vs classic and
+# validation-set component checks, a system-user draft (mode 0600, no
+# password), edit's revision bump, edits of a signed model (and new
+# --from it), one fetched from the store, and signing with a throwaway key
+# made in a private SNAP_GNUPG_HOME.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
 . "$(dirname "$0")/lib"
@@ -53,6 +54,48 @@ idiot assertion check bad.json 2>"${work}/err" && _rc=0 || _rc=$?
 [ "${_rc}" -eq 1 ] && grep -q 'snaps\[pc\].default-channel must give a track' "${work}/err" &&
 	ok "assertion check: a bad draft exits 1 naming the snap" ||
 	fail "assertion check: bad: rc ${_rc}, $(cat "${work}/err")"
+
+# Ubuntu Core vs classic models, and validation-set components (offline)
+sed '/"type": "model",/a\  "classic": "true",' kiosk.json >classic-nodist.json
+idiot assertion check classic-nodist.json 2>"${work}/err" && _rc=0 || _rc=$?
+[ "${_rc}" -eq 1 ] && grep -q 'distribution is required in a classic model' "${work}/err" &&
+	ok "assertion check: a classic model needs a distribution" ||
+	fail "assertion check: classic without distribution: rc ${_rc}, $(cat "${work}/err")"
+sed '/"type": "model",/a\  "classic": "true",\n  "distribution": "ubuntu",' kiosk.json >classic.json
+idiot assertion check classic.json 2>"${work}/err" &&
+	ok "assertion check: a classic model with a distribution, gadget and kernel" ||
+	fail "assertion check: classic: $(cat "${work}/err")"
+sed '/"type": "model",/a\  "distribution": "ubuntu",' kiosk.json >core-dist.json
+idiot assertion check core-dist.json 2>"${work}/err" && _rc=0 || _rc=$?
+[ "${_rc}" -eq 1 ] && grep -q 'distribution is only for a classic model' "${work}/err" &&
+	ok "assertion check: no distribution in an Ubuntu Core model" ||
+	fail "assertion check: Core with distribution: rc ${_rc}, $(cat "${work}/err")"
+cat >vs-comp.json <<'JSON'
+{
+  "type": "validation-set",
+  "authority-id": "abcDEF123",
+  "series": "16",
+  "account-id": "abcDEF123",
+  "name": "comp-set",
+  "sequence": "1",
+  "timestamp": "2026-11-27T10:00:00Z",
+  "snaps": [
+    {
+      "name": "app",
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "presence": "required",
+      "revision": "12",
+      "components": {
+        "extra": "required"
+      }
+    }
+  ]
+}
+JSON
+idiot assertion check vs-comp.json 2>"${work}/err" && _rc=0 || _rc=$?
+[ "${_rc}" -eq 1 ] && grep -q 'components.extra.revision is required since app has a revision' "${work}/err" &&
+	ok "assertion check: a component needs a revision when its snap has one" ||
+	fail "assertion check: components: rc ${_rc}, $(cat "${work}/err")"
 
 fails "new: not released for the target" 'has no amd64 revision in 99/stable' \
 	new model --set model=k --set brand-id=a --snap pc=99/stable --arch amd64 --no-edit -o -
@@ -109,6 +152,15 @@ if getent hosts api.snapcraft.io >/dev/null 2>&1; then
 		ok "assertion edit model canonical/ubuntu-core-24-amd64: fetched, a draft that passes check" ||
 		fail "assertion edit from the store: $(head -n 3 "${work}/err" | tr '\n' ' ')"
 	fails "edit: a model the store doesn't have" "the store has no model" edit model canonical/nope --no-edit
+	idiot assertion new model --classic --set model=desk --set brand-id=abcDEF123 \
+		--arch amd64 --no-edit -o - >desk.json 2>"${work}/err" </dev/null
+	grep -q '"classic": "true"' desk.json && grep -q '"distribution": "ubuntu"' desk.json &&
+		! grep -q '"type": "gadget"' desk.json && idiot assertion check desk.json 2>/dev/null &&
+		ok "assertion new model --classic: a distribution, no gadget or kernel, passes check" ||
+		fail "assertion new model --classic: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+	fails "new --classic: a kernel without a gadget" 'kernel only with a gadget' \
+		new model --classic --set model=desk --set brand-id=abcDEF123 \
+		--snap pc-kernel=24/stable --arch amd64 --no-edit -o -
 else
 	ok "assertion edit from the store: skipped (the store isn't reachable from here)"
 fi
