@@ -31,26 +31,28 @@ idiot_help() {
 	help_command "status" "Show current environment at a glance"
 	help_command "profile" "Save and switch whole environments"
 	help_command "auth" "Manage snap store credentials"
-	help_command "store" "Pick a snap store; query and browse it, fetch assertions"
+	help_command "store" "Pick a snap store; query and browse it"
 	help_command "arch" "Set the target build architecture"
 	help_command "lp" "Manage Launchpad identity"
 	echo >&2
-	help_heading "Development:"
-	help_command "kernel" "Clone an Ubuntu kernel from Launchpad"
-	help_command "example" "Clone an example repository"
-	help_command "inspect" "Inspect snaps, images, snapd state, changes, assertions"
-	help_command "model" "Model assertion repositories"
-	help_command "assertion" "Write, check and sign models, system-users, validation sets"
+	help_heading "Assertions & inspection:"
+	help_command "assertion" "Fetch, show, pick, write and sign assertions"
+	help_command "inspect" "Inspect snaps, images, snapd state and changes"
 	echo >&2
 	help_heading "VM & device:"
 	help_command "vm" "Run a QEMU VM: snapshots, snap installs, ssh"
 	echo >&2
-	help_heading "Shell:"
+	help_heading "Get sources:"
+	help_command "kernel" "Clone an Ubuntu kernel from Launchpad"
+	help_command "example" "Clone an example repository"
+	echo >&2
+	help_heading "Setup & tools:"
 	help_command "init" "Set up shell integration"
 	help_command "prompt" "Active store, arch and credential for a prompt"
 	help_command "run" "Run a snap-bundled tool directly"
 	help_command "clean" "Remove development leftovers"
 	help_command "doctor" "Check idiot's setup and say what to fix"
+	help_command "version" "Print idiot's version"
 	echo >&2
 	help_heading "Shell setup" "(run once, add to your shell rc):"
 	# shellcheck disable=SC2016
@@ -95,6 +97,20 @@ main() {
 		*) break ;;
 		esac
 	done
+
+	# an old command name runs as the new one, saying so
+	include aliases.sh
+	if _alias="$(alias_resolve "$@")"; then
+		_alias_n="${_alias%%|*}"
+		_alias_new="${_alias#*|}"
+		_alias_old="${1}"
+		[ "${_alias_n}" -eq 1 ] || _alias_old="${1} ${2}"
+		alias_note "${_alias_old}" "${_alias_new}"
+		shift "${_alias_n}"
+		# shellcheck disable=SC2086 # the new words split on purpose
+		set -- ${_alias_new} "$@"
+		unset _alias _alias_n _alias_new _alias_old
+	fi
 
 	cmd="${1:-}"
 	[ $# -ge 1 ] && shift

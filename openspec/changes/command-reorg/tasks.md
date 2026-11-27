@@ -2,12 +2,12 @@
 
 ## 1. Aliases and main help
 
-- [ ] 1.1 Add `share/aliases.sh`, holding the rename table from design.md and an `alias_note <old> <new>` helper. In `idiot` main, resolve the longest match on the first two words, then on the first word, print the note, rewrite the arguments, then dispatch. `_counted` sees the new words. Verify from the source tree:
+- [x] 1.1 Add `share/aliases.sh`, holding the rename table from design.md and an `alias_note <old> <new>` helper. In `idiot` main, resolve the longest match on the first two words, then on the first word, print the note, rewrite the arguments, then dispatch. `_counted` sees the new words. Verify from the source tree:
   - `idiot store roles --help` prints the note, then the help of the not-yet-moved command;
   - `IDIOT_SHELL` unset still shows help through an alias;
   - an unknown word still fails with `unknown command`.
-- [ ] 1.2 Rewrite `idiot_help` with the command-layout headings ("Store & environment", "Assertions & inspection", "VM & device", "Get sources", "Setup & tools"), with `version` listed and no `model`. Verify that every entry in `cmd/` appears exactly once in `idiot help`.
-- [ ] 1.3 Run `make check`. Commit: `feat(dispatch): aliases for renamed commands; regroup main help`.
+- [x] 1.2 Rewrite `idiot_help` with the command-layout headings ("Store & environment", "Assertions & inspection", "VM & device", "Get sources", "Setup & tools"), with `version` listed and no `model`. Verify that every entry in `cmd/` appears exactly once in `idiot help`.
+- [x] 1.3 Run `make check`. Commit: `feat(dispatch): aliases for renamed commands; regroup main help`.
 
 ## 2. One assertion group
 
