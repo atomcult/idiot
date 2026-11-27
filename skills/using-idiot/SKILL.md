@@ -107,9 +107,12 @@ command reference.
 | Write a model or validation set | `idiot assertion new model`, `idiot assertion check kiosk.json` (`--set`/`--snap`/`--no-edit` without a terminal) |
 | A bundled tool | `idiot run <tool>`, `idiot run --sudo <tool>`, `idiot run --list` |
 
-Booting a VM (`idiot vm boot <image>`) stays in the foreground on the serial
-console until the guest powers off: run it in the background (stdin from
-`/dev/null`) or in a terminal the user can see, then drive it with
-`idiot vm ssh`, `install`, `logs` and `stop`. Always name the VM
+Booting a VM in the foreground (`idiot vm boot <image>`) keeps the
+terminal on the serial console until the guest powers off: boot it with
+`--detach` instead, which returns once qemu has started it (failing with
+qemu's error if it can't), then drive it with `idiot vm ssh`, `install`,
+`logs` (`logs --console -f` for the console) and `stop`. A second VM gets
+a free ssh port by itself, and recorded `--port` forwards move to free
+ports; `idiot vm list` shows what each VM got. Always name the VM
 (`--name <n>` for `ssh`, `scp`, `install` and `logs`; a bare `<n>` for
 `stop`): with several running, they open a picker.

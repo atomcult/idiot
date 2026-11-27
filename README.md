@@ -156,6 +156,7 @@ style = "bold yellow"
 $ idiot vm boot ubuntu-core-24-amd64.img     # the VM "ubuntu-core-24-amd64"
 $ idiot vm boot --name gadget --tpm core.img # another, from the same image
 $ idiot vm boot --name gadget                # boot it again later
+$ idiot vm boot --detach --name web --port 8080:80 core.img  # in the background
 ```
 
 `idiot vm <image>` (without `boot`) does the same.
@@ -172,12 +173,17 @@ change on any boot.
 
 Each VM forwards one host port to its ssh: 8022 for the first, the next
 free one for the others (`--ssh-port` to choose), recorded so `idiot vm
-ssh` finds it. The serial console stays on the terminal (Ctrl-a x quits,
-Ctrl-a c is qemu's monitor) and is also logged to `serial.log` in the
-VM's state directory.
+ssh` finds it. `--port host:guest` forwards more; a host port another
+running VM forwards is refused, naming that VM, and a recorded forward
+that is taken by the next boot moves up to a free port (idiot says which).
+VMs on overlays of one image run side by side; one that writes it
+`--in-place` runs alone. The serial console stays on the terminal (Ctrl-a
+x quits, Ctrl-a c is qemu's monitor) and is also logged to `serial.log` in
+the VM's state directory. With `--detach` the command returns once qemu
+has started the VM, and the console goes only to that log.
 
 ```
-$ idiot vm list                     # name, arch, running/stopped, port, image
+$ idiot vm list                     # name, arch, running/stopped, port, forwards, image
 $ idiot vm stop gadget              # power button, then quit after --timeout
 $ idiot vm logs --console -f --name gadget   # its serial console (--previous: last boot)
 $ idiot vm reset gadget             # discard disk, UEFI vars, TPM, snapshots: freshly flashed
