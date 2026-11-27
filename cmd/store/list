@@ -1,17 +1,28 @@
 #!/usr/bin/env sh
-# cmd/store/list - list saved stores and their IDs
-# Usage: idiot store list
+# cmd/store/list - list saved stores, or the stores the account belongs to
+# Usage: idiot store list [--account [--tsv] [--cred <name>]]
+#
+# Confined (idiot's state only), except --account, which asks the store:
+# under the snap it hands itself to the host.
 
 . "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
 include stores.sh
 
-main() {
-	case "${1:-}" in
-	-h | --help | help)
-		help_heading "Usage:" "idiot store list"
-		exit 0
-		;;
-	esac
+usage() {
+	help_heading "Usage:" "idiot store list [--account [--tsv] [--cred <name>]]"
+	echo >&2
+	say "Lists the saved stores and their IDs. With --account, lists the stores"
+	say "your account belongs to and your roles in each (admin, review, view,"
+	say "access), marking the active one (*), on stdout."
+	echo >&2
+	help_heading "Options:"
+	help_option "--account" "The account's stores and roles (asks the store)"
+	help_option "--tsv" "Tab-separated: active, saved name, ID, roles, display name"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+}
+
+_saved() {
 	mkdir -p "${IDIOT_STORES_DIR}"
 
 	max_len=0
@@ -36,5 +47,84 @@ main() {
 		padded="$(printf "%-${max_len}s" "${name}")"
 		say "  ${BOLD}${padded}${RESET}  ${store_id}"
 	done
+}
+
+_account() {
+	query_cred "${cred}" ||
+		die "no active credential — activate one first (idiot auth use), or use --cred <name>"
+	helper="$(store_helper)" || exit 1
+	lines="$("${helper}" account ${query_file:+--file "${query_file}"})" || exit $?
+
+	# store <id> <name> <roles>; the global store's ID is "ubuntu"
+	active="${UBUNTU_STORE_ID:-ubuntu}"
+	rows="$(printf '%s\n' "${lines}" | awk -F '\t' '$1 == "store"' |
+		while IFS='	' read -r _ id name roles; do
+			mark=''
+			[ "${id}" != "${active}" ] || mark='*'
+			saved="$(store_name_for_id "${id}")" || saved='-'
+			[ "${id}" != ubuntu ] || saved='global'
+			printf '%s\t%s\t%s\t%s\t%s\n' "${mark}" "${saved}" "${id}" "${roles}" "${name}"
+		done)"
+	if [ -z "$(printf '%s\n' "${rows}" | awk -F '\t' '$3 != "ubuntu"')" ]; then
+		say "${DIM}Your account belongs to no store but the global one.${RESET}"
+	fi
+	[ -n "${rows}" ] || exit 0
+	if [ "${tsv}" -eq 1 ]; then
+		printf '%s\n' "${rows}"
+		exit 0
+	fi
+	stdout_colors
+	# ASCII columns first, the display name (any script) last
+	printf '%s\n' "${rows}" | awk -F '\t' -v b="${OUT_BOLD}" -v d="${OUT_DIM}" -v r="${OUT_RESET}" '
+		{ for (i = 2; i <= 4; i++) if (length($i) > w[i]) w[i] = length($i); row[NR] = $0 }
+		END {
+			for (n = 1; n <= NR; n++) {
+				split(row[n], f, "\t")
+				on = (f[1] == "*") ? b : ""
+				printf "%s%-1s %-" w[2] "s  %-" w[3] "s  %-" w[4] "s  %s%s%s\n", on, f[1], f[2], f[3], f[4], d, f[5], r
+			}
+		}'
+}
+
+main() {
+	account=0
+	tsv=0
+	cred=''
+	for _a in "$@"; do
+		case "${_a}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		esac
+	done
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		--account) account=1 ;;
+		--tsv) tsv=1 ;;
+		--cred)
+			[ -n "${2:-}" ] || die "--cred needs a credential name"
+			cred="${2}"
+			shift
+			;;
+		*) die "usage: idiot store list [--account [--tsv] [--cred <name>]]" ;;
+		esac
+		shift
+	done
+	if [ "${account}" -eq 0 ]; then
+		[ "${tsv}" -eq 0 ] && [ -z "${cred}" ] ||
+			die "--tsv and --cred go with --account: idiot store list --account"
+		_saved
+		exit 0
+	fi
+	# the account's stores come from the store: a host command's job
+	if [ -n "${SNAP:-}" ]; then
+		set -- --account
+		[ "${tsv}" -eq 0 ] || set -- "$@" --tsv
+		[ -z "${cred}" ] || set -- "$@" --cred "${cred}"
+		emit_handoff store list "$@"
+		exit 0
+	fi
+	_account
 }
 main "$@"

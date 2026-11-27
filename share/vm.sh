@@ -111,11 +111,11 @@ vm_resolve() {
     _vr="$(vm_running_names)"
     if [ -z "${_vr}" ] && [ "${2:-}" = any ]; then
         _vr="$(vm_names)"
-        [ -n "${_vr}" ] || die "no VMs — boot one with: idiot vm <image>"
+        [ -n "${_vr}" ] || die "no VMs — boot one with: idiot vm boot <image>"
         [ "$(printf '%s\n' "${_vr}" | wc -l)" -eq 1 ] ||
             die "no VM is running and there are several ($(printf '%s' "${_vr}" | paste -sd, - | sed 's/,/, /g')) — name one"
     fi
-    [ -n "${_vr}" ] || die "no VM is running — boot one with: idiot vm <image>"
+    [ -n "${_vr}" ] || die "no VM is running — boot one with: idiot vm boot <image>"
     if [ "$(printf '%s\n' "${_vr}" | wc -l)" -eq 1 ]; then
         printf '%s' "${_vr}"
     elif [ -t 0 ] && [ -t 2 ] && command -v fzf >/dev/null 2>&1; then

@@ -13,7 +13,9 @@ inspect assertion|assertion show
 model pick|assertion pick
 model|assertion repos
 auth login|auth use
-auth logout|auth unset'
+auth logout|auth unset
+clean all|clean
+store roles|store list --account'
 
 # Print "<n>|<new words>" when the first one or two words ($1, $2) are an
 # old name, n being how many of them it is; fail otherwise.

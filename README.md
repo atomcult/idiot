@@ -153,10 +153,12 @@ style = "bold yellow"
 ## VMs
 
 ```
-$ idiot vm ubuntu-core-24-amd64.img          # the VM "ubuntu-core-24-amd64"
-$ idiot vm --name gadget --tpm core.img      # another, from the same image
-$ idiot vm --name gadget                     # boot it again later
+$ idiot vm boot ubuntu-core-24-amd64.img     # the VM "ubuntu-core-24-amd64"
+$ idiot vm boot --name gadget --tpm core.img # another, from the same image
+$ idiot vm boot --name gadget                # boot it again later
 ```
+
+`idiot vm <image>` (without `boot`) does the same.
 
 Every VM has a name (`--name`, else the image's file name) and keeps its
 disk, UEFI variables, TPM state and serial log between runs, in
@@ -177,15 +179,15 @@ VM's state directory.
 ```
 $ idiot vm list                     # name, arch, running/stopped, port, image
 $ idiot vm stop gadget              # power button, then quit after --timeout
-$ idiot vm console-log -f gadget    # its serial console (--previous: last boot)
+$ idiot vm logs --console -f --name gadget   # its serial console (--previous: last boot)
 $ idiot vm reset gadget             # discard disk, UEFI vars, TPM, snapshots: freshly flashed
 $ idiot vm delete gadget            # forget it (the image is untouched)
 ```
 
-`idiot vm ssh`, `scp` and `vars` take `--name <name>`; `tpm` takes
+`idiot vm ssh`, `scp`, `vars` and `logs` take `--name <name>`; `tpm` takes
 `--name <name>` or a state directory. Without a name, `ssh`, `scp`, `vars`,
-`stop` and `console-log` act on the only running VM (with several, a
-picker on a terminal).
+`logs` and `stop` act on the only running VM (with several, a picker on a
+terminal); `logs --console` also reads the only VM when none is running.
 
 The dev loop, from a built snap to its logs:
 
@@ -442,7 +444,7 @@ can't read. It exits 0 when the snap can be downloaded.
 
 ```
 $ idiot store channels ce-dummy          # revisions per channel and arch (--tsv)
-$ idiot store roles                      # your stores and roles, the active one marked
+$ idiot store list --account             # your stores and roles, the active one marked
 $ idiot store snaps                      # the snaps in the active store (--pick: fzf)
 $ idiot store snaps --cred ce-admin      # with another saved credential, once
 $ idiot store members --role admin       # who is in the store, and with which roles

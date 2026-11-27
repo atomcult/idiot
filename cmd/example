@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # cmd/examples - clone an example repository
 # idiot: host
-# Usage: idiot example [list | add | remove | update | <repo> [options]]
+# Usage: idiot example [clone <repo> [options] | list | add | remove | drop | update | <repo> [options]]
 
 . "$(dirname "${0}")/../share/common.sh"
 include examples.sh
@@ -278,7 +278,7 @@ _parse_clone_args() {
 		esac
 	done
 
-	[ -n "${repo}" ] || die "usage: idiot example <repo> [options]"
+	[ -n "${repo}" ] || die "usage: idiot example clone <repo> [options]"
 }
 
 # Set dest from subdir or repo_name if not already provided.
@@ -440,7 +440,9 @@ _clone_direct() {
 main() {
 	case "${1:-}" in
 	"" | --help | -h | help)
-		help_heading "Usage:" "idiot example <repo> [options]"
+		help_heading "Usage:" "idiot example clone <repo> [options]"
+		say "       idiot example <repo> [options]   (the same, shorter)"
+		say "       idiot example <subcommand> [args...]"
 		echo >&2
 		say "<repo> is a GitHub ${BOLD}<user>/<repo>${RESET} slug, a full git URI, or a saved example name."
 		say "Saved examples are kept as a local mirror; use ${BOLD}update${RESET} to refresh."
@@ -453,6 +455,7 @@ main() {
 		help_option "--bare" "Extract files only — no .git directory"
 		echo >&2
 		help_heading "Subcommands:"
+		help_command "clone" "Clone an example (or extract it, with --bare or --subdir)"
 		help_command "list" "List examples  (✓ before URL = locally cached)"
 		help_command "add" "Save a new example (<user>/<repo> or full URI)"
 		help_command "remove" "Remove a saved example (--all to remove all)"
@@ -460,7 +463,7 @@ main() {
 		help_command "update" "Refresh cached example(s) from remote"
 		echo >&2
 		help_heading "Examples:"
-		say "  ${CYAN}idiot example${RESET} iot-example-snaps"
+		say "  ${CYAN}idiot example clone${RESET} iot-example-snaps"
 		say "  ${CYAN}idiot example${RESET} iot-example-snaps ${DIM}--subdir${RESET}          ${DIM}# nnn picker${RESET}"
 		say "  ${CYAN}idiot example${RESET} iot-example-snaps ${DIM}--branch${RESET}          ${DIM}# fzf picker${RESET}"
 		say "  ${CYAN}idiot example${RESET} canonical/my-snap ${DIM}--dest${RESET} ~/dev"
@@ -494,6 +497,12 @@ main() {
 		shift
 		do_update "$@"
 		exit 0
+		;;
+	clone)
+		shift
+		case "${1:-}" in
+		-h | --help | help) main --help ;;
+		esac
 		;;
 	esac
 

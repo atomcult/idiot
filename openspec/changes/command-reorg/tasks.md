@@ -50,16 +50,16 @@
 
 ## 4. Explicit forms and folds
 
-- [ ] 4.1 In `cmd/vm`:
+- [x] 4.1 In `cmd/vm`:
   - add `boot` (same as the bare form) and `logs --console [--previous] [-f] [--name <name>]`, which refuses a snap name, `-n`, and `--previous` without `--console`;
   - keep a hidden `console-log` case that prints `alias_note` and maps the positional name;
   - help leads with `vm boot`, and `console-log` is no longer listed.
 
   Verify `idiot vm boot --help`, `idiot vm logs --console --help`, and the refusals.
-- [ ] 4.2 In `cmd/example`, add `clone <repo> [options]` and have help lead with it. Verify that `idiot example clone pc-gadget --bare --dest <tmp>` extracts the same files as the bare form.
-- [ ] 4.3 Merge `cmd/clean/{all,containers,snaps}` into one `cmd/clean` file taking `[containers|snaps] [-n] [-y]`, and add the `clean all` alias. Verify that `idiot clean -n`, `idiot clean containers -n` and `idiot clean all -n` list without removing anything, and that `idiot clean bogus` fails naming `bogus`.
-- [ ] 4.4 Move `cmd/store/roles`'s code into `cmd/store/list` behind `--account` (with `--tsv` and `--cred`, both refused without `--account`). Under the snap, `--account` hands off with `emit_handoff`. Remove `cmd/store/roles`, add the `store roles` alias, and update `store/help`. Add the confined-or-host pattern to CLAUDE.md. Verify that `idiot store list` still prints on stderr, and that `--tsv` alone fails.
-- [ ] 4.5 Update `README.md` and the skill. Run `make check`. Commit: `feat(vm,example,clean,store): explicit forms and folded duplicates`.
+- [x] 4.2 In `cmd/example`, add `clone <repo> [options]` and have help lead with it. Verify that `idiot example clone pc-gadget --bare --dest <tmp>` extracts the same files as the bare form.
+- [x] 4.3 Merge `cmd/clean/{all,containers,snaps}` into one `cmd/clean` file taking `[containers|snaps] [-n] [-y]`, and add the `clean all` alias. Verify that `idiot clean -n`, `idiot clean containers -n` and `idiot clean all -n` list without removing anything, and that `idiot clean bogus` fails naming `bogus`.
+- [x] 4.4 Move `cmd/store/roles`'s code into `cmd/store/list` behind `--account` (with `--tsv` and `--cred`, both refused without `--account`). Under the snap, `--account` hands off with `emit_handoff`. Remove `cmd/store/roles`, add the `store roles` alias, and update `store/help`. Add the confined-or-host pattern to CLAUDE.md. Verify that `idiot store list` still prints on stderr, and that `--tsv` alone fails.
+- [x] 4.5 Update `README.md` and the skill. Run `make check`. Commit: `feat(vm,example,clean,store): explicit forms and folded duplicates`.
 
 ## 5. Verification
 

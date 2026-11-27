@@ -33,6 +33,10 @@ which runs outside confinement. Outside a snap every command runs directly.
 - Host commands can't set variables (they run after the eval file is
   read). A command that needs to both use host tools and export must be
   split.
+- A command that is confined in one form and needs the host in another
+  (`store list` vs `store list --account`) stays confined, with no host
+  line, and hands the host form over itself: `emit_handoff <words…>`
+  with the same arguments, then exit.
 
 ## Commands
 

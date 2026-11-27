@@ -208,7 +208,7 @@ check_install() {
 # Tools and components -------------------------------------------------------
 
 # command|tool|host package, from the commands' require/tool_path calls
-# (cmd/vm, cmd/inspect/*, cmd/kernel, cmd/example, cmd/clean/*): keep in step.
+# (cmd/vm, cmd/inspect/*, cmd/kernel, cmd/example, cmd/clean): keep in step.
 _tool_table() {
 	_tt_qemu="$(snap_arch_to_qemu "$(uname_to_snap_arch)")"
 	cat <<EOF

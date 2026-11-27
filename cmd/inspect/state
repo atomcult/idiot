@@ -112,7 +112,7 @@ _from_vm() {
 	source_label="VM ${name}"
 	if ! vm_running "${name}"; then
 		disk="$(vm_dir "${name}")/disk.qcow2"
-		[ -f "${disk}" ] || die "VM '${name}' has no disk yet — boot it: idiot vm --name ${name}"
+		[ -f "${disk}" ] || die "VM '${name}' has no disk yet — boot it: idiot vm boot --name ${name}"
 		_from_qcow2 "${disk}" "VM ${name}"
 		return 0
 	fi

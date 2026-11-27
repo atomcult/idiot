@@ -107,9 +107,9 @@ command reference.
 | Write a model or validation set | `idiot assertion new model`, `idiot assertion check kiosk.json` (`--set`/`--snap`/`--no-edit` without a terminal) |
 | A bundled tool | `idiot run <tool>`, `idiot run --sudo <tool>`, `idiot run --list` |
 
-Booting a VM (`idiot vm <image>`) stays in the foreground on the serial
+Booting a VM (`idiot vm boot <image>`) stays in the foreground on the serial
 console until the guest powers off: run it in the background (stdin from
 `/dev/null`) or in a terminal the user can see, then drive it with
 `idiot vm ssh`, `install`, `logs` and `stop`. Always name the VM
 (`--name <n>` for `ssh`, `scp`, `install` and `logs`; a bare `<n>` for
-`stop` and `console-log`): with several running, they open a picker.
+`stop`): with several running, they open a picker.

@@ -34,7 +34,7 @@ in the same shell (see SKILL.md). They run confined under the snap.
 | `idiot store check <snap> [--channel c] [--arch a] [--cred n]` | Why a snap can (exit 0) or can't (exit 1) be downloaded from the active store: membership, release, credential (expiry, permissions, padding). Downloads nothing. Host command |
 | `idiot store channels <snap> [--arch a] [--tsv]` | The snap's channel map (stdout) |
 | `idiot store import [--all] [--cred n]` | Save the stores the account belongs to (skips global and saved ones). Interactive picker and name prompts; `--all` uses names from the display names. Host command |
-| `idiot store roles [--tsv]` | Your stores and roles (stdout), the active one marked `*` |
+| `idiot store list --account [--tsv] [--cred n]` | Your stores and roles (stdout), the active one marked `*` |
 | `idiot store snaps [--tsv \| --pick] [--cred n]` | Snaps in the active store (stdout); the full list only for admins with a `store_admin` credential |
 | `idiot store browse [<snap>…] [filters] [--tsv [--revisions]] [--cred n]` | Explore the active store in fzf (needs a terminal); for agents always `--tsv`: one row per snap/channel/arch (snap, channel, arch, revision, version, released, type, base, confinement, publisher, visibility), or per revision with `--revisions` (snap, revision, version, arches, status, uploaded, channels or `-`, base, confinement, grade). Filters: `--arch`, `--channel` (`edge`, `2.0/*`, `*/stable`), `--version` glob, `--revision`, `--type`, `--base`, `--confinement`, `--since YYYY-MM-DD`, `--status`/`--unreleased` (revisions), `--name` glob, `--publisher`, `--private`/`--public`. Host command |
 | `idiot store members [--role r] [--email] [--tsv] [--cred n]` | The active brand store's members: username, roles, display name (stdout); admins with a `store_admin` credential only. Emails only with `--email`: other people's data, keep them out of the transcript unless needed. Host command |
@@ -59,14 +59,14 @@ together; the warning says how to fix it and never blocks.
 
 | Command | Does |
 |---|---|
-| `idiot vm [--name n] [--arch a] [--tpm] [--no-sb] [--in-place] [--ssh-port p] [--port h:g] [--state-dir d] <image> [-- qemu-args]` | Create and boot a VM (foreground, serial console; Ctrl-a x quits) |
-| `idiot vm --name n` | Boot an existing VM again |
+| `idiot vm boot [--name n] [--arch a] [--tpm] [--no-sb] [--in-place] [--ssh-port p] [--port h:g] [--state-dir d] <image> [-- qemu-args]` | Create and boot a VM (foreground, serial console; Ctrl-a x quits) |
+| `idiot vm boot --name n` | Boot an existing VM again (`idiot vm …` without `boot` is the same) |
 | `idiot vm list` | Name, arch, state, ssh port, image |
 | `idiot vm ssh --name n [ssh-args]` / `scp --name n src dst` | As the lp user, on the VM's forwarded port (`:path` is the guest side for scp) |
 | `idiot vm install --name n [--channel c] [--cred name] <snap>...` | Copy in and install in one change, following reboots; a `<snap>` is a `.snap` file (`<file>.assert` beside every one makes them asserted, else `--dangerous`) or a store snap `name[=channel]`, downloaded on the host for the VM's arch with the active credential, verified, cached, with its assertions |
 | `idiot vm logs --name n [snap[.app]] [-f] [-n lines]` | The guest journal on stdout |
 | `idiot vm stop [--timeout s] [--force] <n>` | Power button, then quit after the timeout |
-| `idiot vm console-log [-f] [--previous] <n>` | The serial log |
+| `idiot vm logs --console [--name n] [-f] [--previous]` | The serial console log (running or stopped VM) |
 | `idiot vm vars --name n` (or a state directory) | UEFI secure boot variables (PK, KEK, db, dbx) |
 | `idiot vm tpm --name n` | swtpm on the stopped VM's TPM state for tpm2-tools |
 | `idiot vm snapshot create [--name n] <snapshot>` | Save a stopped VM's disk, UEFI vars and TPM state under a name (not `--in-place` VMs) |
@@ -118,7 +118,7 @@ store, as the credential sees it.
 | `idiot run [--sudo] <tool> [args]` | A bundled tool, else the host's |
 | `idiot run --list` / `--shell` | Components and their tools / a shell with them on PATH |
 | `idiot doctor [--quiet]` | Read-only, offline health check; exit 1 on `✗` |
-| `idiot clean containers` / `snaps` / `all` `[-n] [--yes]` | Remove snapcraft build containers / unasserted snaps; `-n` lists what would go (confirm first) |
+| `idiot clean [containers \| snaps] [-n] [--yes]` | Remove snapcraft build containers / unasserted snaps; `-n` lists what would go (confirm first) |
 | `idiot version [--short]` | Version |
 
 ## Development checkouts
@@ -128,7 +128,7 @@ Need git: Classic only.
 | Command | Does |
 |---|---|
 | `idiot kernel [<series>] [<flavour>] [--branch b] [--dest d]` | Clone an Ubuntu kernel from Launchpad (no shallow clones: large) |
-| `idiot example <repo> [--dest d] [--branch b] [--tag t] [--subdir p] [--bare]` | Clone an example repo (cached mirror); `list` / `add` / `remove` / `update` |
+| `idiot example clone <repo> [--dest d] [--branch b] [--tag t] [--subdir p] [--bare]` | Clone an example repo (cached mirror); `list` / `add` / `remove` / `update` |
 
 Options documented as "omit value for fzf picker" open a picker when given
 without a value: always pass the value in a non-interactive shell.

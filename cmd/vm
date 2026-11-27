@@ -3,6 +3,7 @@
 # idiot: host
 
 . "$(dirname "${0}")/../share/common.sh"
+include aliases.sh
 include arch.sh
 include creds.sh
 include lp.sh
@@ -62,7 +63,7 @@ tpm_device_for_arch() {
 _vm_port() {
 	[ -z "${port}" ] || return 0
 	name="$(vm_resolve "${name}")" || exit 1
-	vm_running "${name}" || die "VM '${name}' is not running — boot it: idiot vm --name ${name}"
+	vm_running "${name}" || die "VM '${name}' is not running — boot it: idiot vm boot --name ${name}"
 	port="$(vm_conf_get "${name}" ssh_port)"
 }
 
@@ -446,17 +447,19 @@ do_run() {
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
-			help_heading "Usage:" "idiot vm [options] [<image>] [-- <qemu-args>]"
+			help_heading "Usage:" "idiot vm boot [options] [<image>] [-- <qemu-args>]"
+			say "       idiot vm [options] <image>   (the same, shorter)"
+			say "       idiot vm <subcommand> [args...]"
 			echo >&2
 			help_heading "Subcommands:"
+			help_command "boot" "Boot a VM from an image, or again by --name"
 			help_command "list" "List VMs"
 			help_command "stop" "Shut a running VM down"
 			help_command "reset" "Make a VM a freshly flashed device again"
 			help_command "delete" "Remove a VM and its state"
 			help_command "snapshot" "Save and restore a stopped VM's state"
-			help_command "console-log" "Print a VM's serial console log"
 			help_command "install" "Install snaps (files or from the store) into a running VM"
-			help_command "logs" "Print a VM's journal (or a snap's logs)"
+			help_command "logs" "Print a VM's journal, a snap's logs or the console log"
 			help_command "ssh" "SSH into a running VM"
 			help_command "scp" "Copy files to/from a running VM"
 			help_command "vars" "Inspect a VM's UEFI SB variables"
@@ -475,7 +478,7 @@ do_run() {
 			echo >&2
 			say "Each VM keeps its disk overlay, UEFI variables and TPM state between runs,"
 			say "in ${DIM}${IDIOT_VM_DIR}/<name>${RESET}; the image is never written unless"
-			say "--in-place. Boot it again with ${CYAN}idiot vm --name <name>${RESET}. The image,"
+			say "--in-place. Boot it again with ${CYAN}idiot vm boot --name <name>${RESET}. The image,"
 			say "--arch, --sb and --in-place are fixed when a VM is created."
 			exit 0
 			;;
@@ -573,7 +576,7 @@ do_run() {
 		new_vm=0
 	else
 		[ -n "${image}" ] ||
-			die "no VM named '${name}' — create it from an image: idiot vm --name ${name} <image>"
+			die "no VM named '${name}' — create it from an image: idiot vm boot --name ${name} <image>"
 		mkdir -p "$(vm_dir "${name}")"
 		[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
 		vm_conf_set "${name}" image "${image}"
@@ -652,7 +655,7 @@ do_run() {
 		"$@" >&2
 	qemu_rc=$?
 
-	say "${DIM}VM ${name} stopped; its state is kept (boot again: idiot vm --name ${name})${RESET}"
+	say "${DIM}VM ${name} stopped; its state is kept (boot again: idiot vm boot --name ${name})${RESET}"
 	exit "${qemu_rc}"
 }
 
@@ -668,7 +671,7 @@ do_list() {
 	[ $# -eq 0 ] || die "usage: idiot vm list"
 	_names="$(vm_names)"
 	[ -n "${_names}" ] || {
-		say "No VMs yet (boot one with: idiot vm <image>)"
+		say "No VMs yet (boot one with: idiot vm boot <image>)"
 		exit 0
 	}
 	printf '%s\n' "${_names}" | {
@@ -875,7 +878,7 @@ _snapshot_vm() {
 		return 0
 	fi
 	_sv="$(vm_names)"
-	[ -n "${_sv}" ] || die "no VMs — boot one with: idiot vm <image>"
+	[ -n "${_sv}" ] || die "no VMs — boot one with: idiot vm boot <image>"
 	[ "$(printf '%s\n' "${_sv}" | wc -l)" -eq 1 ] ||
 		die "there are several VMs ($(printf '%s' "${_sv}" | paste -sd, - | sed 's/,/, /g')) — pick one with --name <vm>"
 	name="${_sv}"
@@ -959,7 +962,7 @@ _snapshot_create() {
 	_require_stopped "${name}"
 	_snapshot_need_overlay
 	[ -f "${_sd}/disk.qcow2" ] ||
-		die "VM '${name}' has no disk overlay yet — boot it first: idiot vm --name ${name}"
+		die "VM '${name}' has no disk overlay yet — boot it first: idiot vm boot --name ${name}"
 	_snapshot_need_qemu_img
 	_tags="$(vm_snapshot_tags "${name}")" || die "could not read the snapshots in ${_sd}/disk.qcow2"
 	[ ! -d "$(vm_snapshot_dir "${name}" "${snap}")" ] ||
@@ -1217,36 +1220,36 @@ do_snapshot() {
 	esac
 }
 
+# The old name of idiot vm logs --console: the VM is its argument there.
 do_console_log() {
-	follow=0
-	which=serial.log
-	name=''
-	while [ $# -gt 0 ]; do
-		case "${1}" in
-		-h | --help | help)
-			help_heading "Usage:" "idiot vm console-log [-f] [--previous] [<name>]"
-			echo >&2
-			help_heading "Options:"
-			help_option "-f, --follow" "Keep printing what the guest writes"
-			help_option "--previous" "The previous boot's log"
-			echo >&2
-			say "Without a name: the only running VM, or the only VM."
-			exit 0
+	alias_note "vm console-log" "vm logs --console"
+	_cl_args=''
+	_cl_name=''
+	for _cl_a in "$@"; do
+		case "${_cl_a}" in
+		-h | --help | help | -f | --follow | --previous)
+			_cl_args="${_cl_args} ${_cl_a}"
 			;;
-		-f | --follow) follow=1 ;;
-		--previous) which=serial.log.1 ;;
-		-*) die "unknown option: ${1}" ;;
+		-*) die "unknown option: ${_cl_a}" ;;
 		*)
-			[ -z "${name}" ] || die "usage: idiot vm console-log [-f] [--previous] [<name>]"
-			name="${1}"
+			[ -z "${_cl_name}" ] || die "usage: idiot vm logs --console [--name <name>] [-f] [--previous]"
+			_cl_name="${_cl_a}"
 			;;
 		esac
-		shift
 	done
-	name="$(vm_resolve "${name}" any)" || exit 1
+	# shellcheck disable=SC2086 # the flags split on purpose; none has spaces
+	do_logs --console ${_cl_args} ${_cl_name:+--name "${_cl_name}"}
+}
+
+# Print VM $1's serial console log: $2 is the file (serial.log, or
+# serial.log.1 for the previous boot), $3 1 to keep following it.
+_console_log() {
+	which="${2}"
+	follow="${3}"
+	name="$(vm_resolve "${1}" any)" || exit 1
 	log="$(vm_dir "${name}")/${which}"
 	[ -f "${log}" ] || {
-		[ "${which}" = serial.log ] && die "VM '${name}' has no console log yet — boot it: idiot vm --name ${name}"
+		[ "${which}" = serial.log ] && die "VM '${name}' has no console log yet — boot it: idiot vm boot --name ${name}"
 		die "VM '${name}' has no log of a previous boot"
 	}
 	if [ "${follow}" -eq 0 ]; then
@@ -1263,7 +1266,7 @@ do_console_log() {
 _vm_target() {
 	lp_user="$(require_lp_user)" || exit 1
 	name="$(vm_resolve "${name}")" || exit 1
-	vm_running "${name}" || die "VM '${name}' is not running — boot it: idiot vm --name ${name}"
+	vm_running "${name}" || die "VM '${name}' is not running — boot it: idiot vm boot --name ${name}"
 	port="$(vm_conf_get "${name}" ssh_port)"
 }
 
@@ -1595,20 +1598,29 @@ do_logs() {
 	follow=0
 	lines=''
 	snap=''
+	console=0
+	previous=0
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
 			help_heading "Usage:" "idiot vm logs [--name <name>] [<snap>[.<app>]] [-f] [-n <lines>]"
+			say "       idiot vm logs --console [--name <name>] [-f] [--previous]"
 			echo >&2
 			help_heading "Options:"
 			help_option "--name <name>" "VM to read (default: the running one)"
 			help_option "-f, --follow" "Keep printing new entries"
 			help_option "-n <lines>" "Only the last <lines> (default: 10 for a snap)"
+			help_option "--console" "The serial console log instead (running or stopped VM)"
+			help_option "--previous" "With --console: the previous boot's"
 			echo >&2
 			say "A snap's service logs (snap logs), or without a snap the guest's whole"
-			say "journal for the current boot, on stdout."
+			say "journal for the current boot, on stdout. --console prints what the"
+			say "guest wrote to its serial console, from the firmware on; without a"
+			say "name it reads the only running VM, or the only VM."
 			exit 0
 			;;
+		--console) console=1 ;;
+		--previous) previous=1 ;;
 		--name)
 			[ -n "${2:-}" ] || die "--name requires an argument"
 			name="${2}"
@@ -1630,6 +1642,15 @@ do_logs() {
 		esac
 		shift
 	done
+	if [ "${console}" -eq 1 ]; then
+		[ -z "${snap}" ] || die "a snap can't be given with --console: the console log is the whole guest's"
+		[ -z "${lines}" ] || die "-n can't be given with --console"
+		_cl_which=serial.log
+		[ "${previous}" -eq 0 ] || _cl_which=serial.log.1
+		_console_log "${name}" "${_cl_which}" "${follow}"
+		return
+	fi
+	[ "${previous}" -eq 0 ] || die "--previous goes with --console"
 	_vm_target
 
 	if [ -n "${snap}" ]; then
@@ -1648,6 +1669,10 @@ do_logs() {
 main() {
 	case "${1:-}" in
 	"") do_run --help ;;
+	boot)
+		shift
+		do_run "$@"
+		;;
 	install)
 		shift
 		do_install "$@"

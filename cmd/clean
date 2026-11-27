@@ -1,0 +1,90 @@
+#!/usr/bin/env sh
+# cmd/clean - remove snapcraft's LXD containers and sideloaded snaps
+# idiot: host
+
+. "$(dirname "${0}")/../share/common.sh"
+include clean.sh
+
+usage() {
+	help_heading "Usage:" "idiot clean [containers|snaps] [-n] [-y]"
+	echo >&2
+	help_heading "What:"
+	help_command "containers" "LXD containers in snapcraft's project (build leftovers)"
+	help_command "snaps" "Snaps installed from local files (x<N> revisions)"
+	say "  (neither)     Both"
+	echo >&2
+	help_heading "Options:"
+	help_option "-n, --dry-run" "Print what would be removed without removing it"
+	help_option "-y, --yes" "Remove without asking for confirmation"
+}
+
+main() {
+	what=''
+	dry_run=0
+	yes=0
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		-n | --dry-run) dry_run=1 ;;
+		-y | --yes) yes=1 ;;
+		containers | snaps)
+			[ -z "${what}" ] || die "usage: idiot clean [containers|snaps] [-n] [-y]"
+			what="${1}"
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*) die "unknown: ${1} — clean containers, snaps, or (with neither) both" ;;
+		esac
+		shift
+	done
+
+	# asked for one, its tool is needed; for both, a missing one is skipped
+	containers=''
+	if [ "${what}" != snaps ]; then
+		if [ "${what}" = containers ]; then
+			require lxc
+		elif ! command -v lxc >/dev/null 2>&1; then
+			say "${DIM}lxc not found — skipping containers${RESET}"
+		fi
+		! command -v lxc >/dev/null 2>&1 || containers="$(clean_list_containers)"
+	fi
+	snaps=''
+	if [ "${what}" != containers ]; then
+		if [ "${what}" = snaps ]; then
+			require snap
+		elif ! command -v snap >/dev/null 2>&1; then
+			say "${DIM}snap not found — skipping snaps${RESET}"
+		fi
+		! command -v snap >/dev/null 2>&1 || snaps="$(clean_list_snaps)"
+	fi
+
+	[ -n "${containers}${snaps}" ] || {
+		case "${what}" in
+		containers) say "No containers in snapcraft project." ;;
+		snaps) say "No unasserted snaps found." ;;
+		*) say "Nothing to clean." ;;
+		esac
+		exit 0
+	}
+
+	if [ "${dry_run}" -eq 1 ]; then
+		clean_show "Would delete these containers in the snapcraft project:" "${containers}"
+		clean_show "Would remove these sideloaded snaps:" "${snaps}"
+		exit 0
+	fi
+
+	clean_show "These containers in the snapcraft project will be deleted:" "${containers}"
+	clean_show "These sideloaded snaps will be removed:" "${snaps}"
+	[ "${yes}" -eq 1 ] || clean_confirm "Remove them?" || {
+		say "Nothing removed."
+		exit 0
+	}
+
+	failed=0
+	clean_remove_containers "${containers}" || failed=1
+	clean_remove_snaps "${snaps}" || failed=1
+	[ "${failed}" -eq 0 ] || die "some items could not be removed"
+}
+main "$@"
