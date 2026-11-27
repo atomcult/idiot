@@ -6,6 +6,8 @@
 //! `expiry` reads a credential's expiry caveats offline and prints only
 //! those timestamps; `repair` strips base64 padding snapd can't read from a
 //! credential file, in place, and prints only `ok`, `repaired` or `padded`.
+//! `permissions`, `account`, `store-snaps`, `info` and `probe` are the
+//! read-only queries behind `idiot store`, printing tab-separated lines.
 //!
 //! Exit status: 0 ok, 1 usage or local error, 2 authentication failed or
 //! credential rejected, 3 network or store error.
@@ -40,6 +42,61 @@ enum Commands {
     /// Strip base64 padding (which snapd can't read) from a credential file, in
     /// place (offline): prints ok, repaired, or with --check padded
     Repair(RepairArgs),
+    /// A credential's permissions (offline), one per line
+    Permissions(CredArgs),
+    /// The account's stores (`store <id> <name> <roles>`) and snaps
+    /// (`snap <name> <store name> <private|public>`)
+    Account(CredArgs),
+    /// A brand store's snaps (store admins with store_admin):
+    /// `snap <name> <owner> <private|public>`, or `refused ...`
+    StoreSnaps(StoreSnapsArgs),
+    /// A snap's channel map: `channel <track/risk> <arch> <revision> <version> <released-at>`
+    Info(InfoArgs),
+    /// Whether a snap revision can be downloaded, anonymously and with the
+    /// credential (statuses only; nothing is downloaded)
+    Probe(ProbeArgs),
+}
+
+#[derive(Args)]
+pub struct CredArgs {
+    /// Read the credential from FILE instead of UBUNTU_STORE_AUTH
+    #[arg(long, value_name = "FILE")]
+    file: Option<std::path::PathBuf>,
+}
+
+#[derive(Args)]
+pub struct StoreSnapsArgs {
+    #[command(flatten)]
+    cred: CredArgs,
+    /// The store's ID
+    #[arg(long)]
+    store: String,
+}
+
+#[derive(Args)]
+pub struct InfoArgs {
+    #[command(flatten)]
+    cred: CredArgs,
+    /// The store's ID (default: the global store)
+    #[arg(long)]
+    store: Option<String>,
+    snap: String,
+}
+
+#[derive(Args)]
+pub struct ProbeArgs {
+    #[command(flatten)]
+    cred: CredArgs,
+    /// The store's ID (default: the global store)
+    #[arg(long)]
+    store: Option<String>,
+    /// Architecture, e.g. arm64
+    #[arg(long)]
+    arch: String,
+    /// Channel, e.g. stable or 2.0/edge
+    #[arg(long, default_value = "stable")]
+    channel: String,
+    snap: String,
 }
 
 #[derive(Args)]
@@ -104,6 +161,11 @@ fn main() -> ExitCode {
         Commands::Whoami(args) => cmd::whoami::run(args),
         Commands::Expiry(args) => cmd::expiry::run(args),
         Commands::Repair(args) => cmd::repair::run(args),
+        Commands::Permissions(args) => cmd::query::run_permissions(args),
+        Commands::Account(args) => cmd::query::run_account(args),
+        Commands::StoreSnaps(args) => cmd::query::run_store_snaps(args),
+        Commands::Info(args) => cmd::query::run_info(args),
+        Commands::Probe(args) => cmd::query::run_probe(args),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

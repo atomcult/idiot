@@ -50,8 +50,9 @@ lines.** All read the credential as whoami does (`UBUNTU_STORE_AUTH`, or
 - `permissions` (offline): the credential's permissions, one per line.
 - `account`: `store <id> <name> <roles,…>` lines, then
   `snap <name> <store name> <private|public>` lines for the default series.
-- `store-snaps --store <id>`: `snap <name> <publisher> <private|public>`
-  lines, or exit 2 (rejected) on 404/401/403.
+- `store-snaps --store <id>`: `snap <name> <owner> <private|public>`
+  lines, or one `refused permission <perm>` (403
+  `macaroon-permission-required`) or `refused not-admin` (404) line.
 - `info <snap> [--store <id>]`: `channel <track/risk[/branch]> <arch>
   <revision> <version> <released-at>` lines. Exit 3 with "not found" when
   the store doesn't show the snap.
@@ -65,6 +66,17 @@ header snapd would build: the root and the bound discharge, both serialised
 without padding. So the probe tests what snapd would do, and the offline
 padding check reports a credential that snapd can't read even before any
 request is made.
+
+**Refresh the discharge in memory.** Authorised dashboard and download
+calls answer 401 with `macaroon-needs-refresh` once the Ubuntu One
+discharge is about a day old (found recording the fixtures; whoami doesn't
+hit it). Like craft-store and snapd, idiot-store then posts the discharge
+to `login.ubuntu.com/api/v2/tokens/refresh`, uses the fresh one, and
+retries the call once. The dashboard signals this in the JSON error
+body; downloads signal it with `WWW-Authenticate: Macaroon needs_refresh=1`
+(as snapd reads it), so both are recognised. The fresh discharge is never written back: the
+credential file and the shell's variables stay as they are, as with
+craft-store and environment credentials.
 
 **sh decides and formats.** `cmd/store/check` gathers the helper's lines
 and the offline facts (expiry records, `permissions`, `repair --check`,
@@ -111,9 +123,9 @@ and run from the user's shell under the snap, as `auth status` does.
   shown in the reference. The first task records real responses (with
   account details replaced) as test fixtures and writes the parsers from
   them.
-- **v2 info `fields`.** The fields needed (download URL, revision, version,
-  released-at per channel) must be requested explicitly. The exact field
-  names are confirmed against a live response in the same task.
+- **v2 info `fields`.** `fields=download,revision,version,created-at,architectures`
+  gives per channel `channel.{track,risk,architecture,released-at}`,
+  `revision`, `version` and `download.url` (confirmed live).
 - **No store in CI.** Rust tests run against fixtures, bare-host covers
   usage, errors and the offline checks, and the live checks are run by the
   user against `ce-team-test` (admin) and `dsmr6` (viewer).

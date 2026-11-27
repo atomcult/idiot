@@ -1,5 +1,6 @@
 pub mod credential;
 pub mod login;
+pub mod query;
 pub mod whoami;
 
 use crate::error::StoreError;

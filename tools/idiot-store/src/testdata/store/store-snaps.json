@@ -1,0 +1,13 @@
+{
+  "snaps": [
+    {"essential": false, "id": "SnapIdHelloTeamXXXXXXXXXXXXXXXXX", "name": "hello-team", "other-stores": [], "private": true,
+     "latest-release": {"revision": 3, "channel": "stable", "timestamp": "2026-10-02T10:00:00.00000+00:00", "version": "0.3"},
+     "users": [{"displayname": "Test User", "roles": ["owner"], "username": "test-user"}, {"displayname": "Someone Else", "roles": ["collaborator"], "username": "someone"}],
+     "store": "abc123StoreIdXXXXXXX"},
+    {"essential": true, "id": "SnapIdCoreXXXXXXXXXXXXXXXXXXXXXX", "name": "core", "other-stores": [], "private": false,
+     "latest-release": {"revision": 1, "channel": "stable", "timestamp": "2021-01-01T00:00:00.00000+00:00", "version": "1"},
+     "users": [{"displayname": "The Publisher", "roles": ["owner"], "username": "publisher"}],
+     "store": "ubuntu"}
+  ],
+  "store": {"id": "abc123StoreIdXXXXXXX", "name": "Example Team Store", "private": true}
+}

@@ -2,14 +2,14 @@
 
 ## 1. Response shapes
 
-- [ ] 1.1 With the user's go-ahead, make the four read-only calls once with their credential (`/dev/api/account`, `/api/v2/stores/{ce-team-test}/snaps`, `/v2/snaps/info/ce-dummy` with `Snap-Device-Store`, and the download probe without following redirects). Save the responses as test fixtures under `tools/idiot-store/src/testdata/store/`, with account details (emails, names, IDs other than the stores', keys) replaced by placeholders. Confirm the v2 info `fields` names and the shapes of `stores` and store-snaps items. Verify: the fixtures hold no email, account ID or macaroon (grep for `@`, the user's account ID, `Macaroon`).
+- [x] 1.1 With the user's go-ahead, make the four read-only calls once with their credential (`/dev/api/account`, `/api/v2/stores/{ce-team-test}/snaps`, `/v2/snaps/info/ce-dummy` with `Snap-Device-Store`, and the download probe without following redirects). Save the responses as test fixtures under `tools/idiot-store/src/testdata/store/`, with account details (emails, names, IDs other than the stores', keys) replaced by placeholders. Confirm the v2 info `fields` names and the shapes of `stores` and store-snaps items. Verify: the fixtures hold no email, account ID or macaroon (grep for `@`, the user's account ID, `Macaroon`).
 
 ## 2. idiot-store: read-only store calls
 
-- [ ] 2.1 `credential::permissions` (offline, from the root's `myapps.developer.ubuntu.com|acl` caveat) and `idiot-store permissions [--file]`. Verify with unit tests on crafted macaroons (a caveat present, absent, malformed) and on the shape seen in 1.1.
-- [ ] 2.2 An authorisation header snapd would build (root and bound discharge, both unpadded), used by the new calls. Verify with a unit test that neither part contains `=` and that the discharge is bound to the root.
-- [ ] 2.3 `account`, `store-snaps --store <id>`, `info <snap> [--store <id>]` and `probe <snap> --arch --channel [--store <id>]`, printing the tab-separated lines in design.md, with the exit codes there. The probe doesn't follow redirects and reads no body. Verify with unit tests that parse the 1.1 fixtures into the expected lines, plus a test that the probe's client has redirects off.
-- [ ] 2.4 Run `cargo test` and `make check`. Commit: `feat(idiot-store): read-only store queries`.
+- [x] 2.1 `credential::permissions` (offline, from the root's `myapps.developer.ubuntu.com|acl` caveat) and `idiot-store permissions [--file]`. Verify with unit tests on crafted macaroons (a caveat present, absent, malformed) and on the shape seen in 1.1.
+- [x] 2.2 An authorisation header snapd would build (root and bound discharge, both unpadded), used by the new calls, and in-memory discharge refresh: on a 401 with `macaroon-needs-refresh`, post the discharge to `login.ubuntu.com/api/v2/tokens/refresh` and retry once, never writing the credential back. Verify with unit tests that neither header part contains `=`, that the discharge is bound to the root, and that the refresh trigger recognises the error body.
+- [x] 2.3 `account`, `store-snaps --store <id>`, `info <snap> [--store <id>]` and `probe <snap> --arch --channel [--store <id>]`, printing the tab-separated lines in design.md, with the exit codes there. The probe doesn't follow redirects and reads no body. Verify with unit tests that parse the 1.1 fixtures into the expected lines, plus a test that the probe's client has redirects off.
+- [x] 2.4 Run `cargo test` and `make check`. Commit: `feat(idiot-store): read-only store queries`.
 
 ## 3. sh: the store commands
 

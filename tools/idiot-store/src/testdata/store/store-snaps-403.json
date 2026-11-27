@@ -1,0 +1,1 @@
+{"error-list": [{"code": "macaroon-permission-required", "extra": {"permission": "store_admin"}, "message": "Missing permission required as a macaroon caveat."}]}

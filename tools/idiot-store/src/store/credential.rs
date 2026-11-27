@@ -65,8 +65,8 @@ pub fn decode(credential: &str) -> Result<(String, String), StoreError> {
     Ok((cred.v.r, cred.v.d))
 }
 
-/// The `Authorization` header value the store expects for a credential:
-/// the root macaroon and the discharge bound to it.
+/// The `Authorization` header value for a credential, as snapd builds it:
+/// the root macaroon and the discharge bound to it, neither base64-padded.
 pub fn auth_header(credential: &str) -> Result<String, StoreError> {
     let (root_str, discharge_str) = decode(credential)?;
     let root = Macaroon::deserialize(&root_str).map_err(|_| StoreError::InvalidCredential)?;
@@ -76,7 +76,39 @@ pub fn auth_header(credential: &str) -> Result<String, StoreError> {
     let bound = discharge
         .serialize(Format::V1)
         .map_err(|_| StoreError::InvalidCredential)?;
-    Ok(format!("Macaroon root={root_str}, discharge={bound}"))
+    Ok(format!(
+        "Macaroon root={}, discharge={}",
+        unpad(&root_str),
+        unpad(&bound)
+    ))
+}
+
+/// The permissions in a credential's root macaroon: the JSON list in its
+/// `<location>|acl|[...]` first-party caveat. Offline. Empty when there is
+/// no such caveat; an unreadable list is an invalid credential.
+pub fn permissions(credential: &str) -> Result<Vec<String>, StoreError> {
+    let (root, _) = decode(credential)?;
+    let m = Macaroon::deserialize(&root).map_err(|_| StoreError::InvalidCredential)?;
+    for caveat in m.first_party_caveats() {
+        let Caveat::FirstParty(fp) = caveat else {
+            continue;
+        };
+        let predicate = fp.predicate().0;
+        let Ok(text) = std::str::from_utf8(&predicate) else {
+            continue;
+        };
+        let mut parts = text.splitn(3, '|');
+        if let (Some(_), Some("acl"), Some(list)) = (parts.next(), parts.next(), parts.next()) {
+            return serde_json::from_str(list).map_err(|_| StoreError::InvalidCredential);
+        }
+    }
+    Ok(Vec::new())
+}
+
+/// The credential with its discharge replaced (after a refresh).
+pub fn with_discharge(credential: &str, discharge: &str) -> Result<String, StoreError> {
+    let (root, _) = decode(credential)?;
+    encode(&root, discharge)
 }
 
 /// The expiry times in a credential's first-party caveats
@@ -215,6 +247,51 @@ pub(crate) mod tests {
         let other = BASE64_STANDARD.encode(r#"{"t":"other","v":{"r":"x=","d":"y"}}"#);
         assert!(matches!(repair(&other), Err(StoreError::InvalidCredential)));
         assert!(repair("not base64!").is_err());
+    }
+
+    fn with_caveat(predicate: &str) -> String {
+        let mut root = macaroon("dashboard.snapcraft.io", "root-id");
+        root.add_first_party_caveat(predicate.into());
+        encode(&ser(&root), &ser(&macaroon("login.ubuntu.com", "d"))).unwrap()
+    }
+
+    #[test]
+    fn permissions_from_acl() {
+        let cred =
+            with_caveat(r#"myapps.developer.ubuntu.com|acl|["package_access", "store_admin"]"#);
+        assert_eq!(
+            permissions(&cred).unwrap(),
+            ["package_access", "store_admin"]
+        );
+    }
+
+    #[test]
+    fn permissions_absent_or_malformed() {
+        let none = with_caveat("myapps.developer.ubuntu.com|expires|2027-01-01T00:00:00");
+        assert!(permissions(&none).unwrap().is_empty());
+        let bad = with_caveat("myapps.developer.ubuntu.com|acl|not json");
+        assert!(matches!(
+            permissions(&bad),
+            Err(StoreError::InvalidCredential)
+        ));
+    }
+
+    #[test]
+    fn header_unpadded_and_bound() {
+        let root = padded();
+        let discharge = macaroon("login.ubuntu.com", "discharge-id");
+        // as an older idiot-store saved it: both padded where they pad
+        let cred = padded_credential(&root);
+        let header = auth_header(&cred).unwrap();
+        let (r, d) = header
+            .strip_prefix("Macaroon root=")
+            .unwrap()
+            .split_once(", discharge=")
+            .unwrap();
+        assert!(!r.contains('=') && !d.contains('='));
+        let mut bound = discharge.clone();
+        root.bind(&mut bound);
+        assert_eq!(d, ser(&bound).trim_end_matches('='));
     }
 
     #[test]

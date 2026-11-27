@@ -1,0 +1,1 @@
+{"error_list": [{"message": "Expired macaroon (age: 128786 seconds)", "code": "macaroon-needs-refresh", "extra": {"age": 128786}}]}

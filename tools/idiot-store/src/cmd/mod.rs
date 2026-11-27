@@ -1,5 +1,6 @@
 pub mod expiry;
 pub mod login;
+pub mod query;
 pub mod repair;
 pub mod whoami;
 
@@ -9,7 +10,7 @@ use std::fmt;
 /// An error with the exit status it should produce.
 pub struct Failure {
     pub code: u8,
-    message: String,
+    pub(crate) message: String,
 }
 
 impl Failure {

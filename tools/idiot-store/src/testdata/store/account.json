@@ -1,0 +1,33 @@
+{
+  "account-keys": [],
+  "account_id": "AccountIdPlaceholderXXXXXXXXXXXX",
+  "display-name": "Test User",
+  "email": "user@example.com",
+  "id": "AccountIdPlaceholderXXXXXXXXXXXX",
+  "username": "test-user",
+  "validation": "unproven",
+  "stores": [
+    {"id": "Global", "name": "Global", "roles": ["access", "view"]},
+    {"id": "abc123StoreIdXXXXXXX", "name": "Example Team Store", "roles": ["admin", "access", "review", "view"]},
+    {"id": "def456StoreIdXXXXXXX", "name": "Example Brand Store", "roles": ["view"]}
+  ],
+  "snaps": {
+    "16": {
+      "hello-team": {
+        "icon_url": null, "latest_comments": [],
+        "latest_revisions": [{"architectures": ["amd64"], "channels": ["edge"], "revision": 3, "since": "2026-10-01T00:00:00Z", "status": "Published", "version": "0.3"}],
+        "price": null, "private": true,
+        "publisher": {"id": "AccountIdPlaceholderXXXXXXXXXXXX", "display-name": "Test User", "username": "test-user", "validation": "unproven"},
+        "since": "2026-01-01T00:00:00Z", "snap-id": "SnapIdHelloTeamXXXXXXXXXXXXXXXXX", "status": "Approved",
+        "store": "Example Team Store", "unlisted": false
+      },
+      "hello-global": {
+        "icon_url": null, "latest_comments": [], "latest_revisions": [],
+        "price": null, "private": false,
+        "publisher": {"id": "OtherAccountIdXXXXXXXXXXXXXXXXXX", "display-name": "Someone Else", "username": "someone", "validation": "verified"},
+        "since": "2025-01-01T00:00:00Z", "snap-id": "SnapIdHelloGlobalXXXXXXXXXXXXXXX", "status": "Approved",
+        "store": "Global", "unlisted": false
+      }
+    }
+  }
+}
