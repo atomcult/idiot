@@ -23,6 +23,8 @@
 ## 4. Verification
 
 - [x] 4.1 Run `openspec validate vm-snapshots --strict`.
-- [ ] 4.2 Pack the snap (`snapcraft clean idiot`, then pack into a gitignored directory inside the tree) and run `tests/bare-host <snap> <vm and tpm components>` on `local:`; the vm-snapshot checks pass with the component's qemu-img and no host qemu-utils.
+- [x] 4.2 Pack the snap (`snapcraft clean idiot`, then pack into a gitignored directory inside the tree) and run `tests/bare-host <snap> <vm and tpm components>` on `local:`; the vm-snapshot checks pass with the component's qemu-img and no host qemu-utils.
 - [ ] 4.3 Extend `tests/bare-host.d/vm` for the `--boot` run: once the first boot reaches console-conf and `vm stop` has powered it down, take a snapshot, boot to console-conf and stop again, restore the snapshot, and boot once more, checking the serial log of the last boot shows no install-mode run and reaches console-conf (the TPM-sealed data partition unlocked). Run `tests/bare-host --boot download --kvm <snap> <vm> <tpm>` on `local:`; all checks pass.
+  - Note: the check is written (tests/bare-host.d/vm) but not run: the user chose no `--boot download` run on 2026-11-27.
 - [ ] 4.4 With the user, on their laptop: snapshot a real Core 24 VM with `--tpm` after first boot, install a snap, restore, and confirm the snap is gone, `idiot vm vars` shows the same keys, and the guest boots without recovery.
+  - Note: needs the user and a real Core 24 VM on their laptop.
