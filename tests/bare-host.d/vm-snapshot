@@ -1,0 +1,131 @@
+#!/bin/bash
+# tests/bare-host.d/vm-snapshot - vm snapshot on hand-made VM state, offline
+#
+# Usage: vm-snapshot   (needs idiot+vm, for its qemu-img)
+# Builds VMs by hand in a scratch IDIOT_VM_DIR (vm.conf, a qcow2 overlay
+# over a sparse raw base made with the component's qemu-img, fake UEFI
+# variables and TPM state); no qemu boots, nothing is downloaded. Checks
+# create and list, the refusals (names, running, --in-place, no overlay,
+# several VMs) and the files' modes.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+installed vm || {
+	fail "vm-snapshot: needs idiot+vm"
+	exit 1
+}
+
+work="$(mktemp -d)"
+export IDIOT_VM_DIR="${work}/vm"
+qi() { idiot run qemu-img "$@"; }
+
+# mkvm <name> [in_place]: a stopped VM with an overlay, vars and TPM state
+mkvm() {
+	mkdir -p "${IDIOT_VM_DIR}/${1}"
+	printf 'image=%s\narch=amd64\nsb=1\nin_place=%s\ntpm=1\ngfx=0\nssh_port=8022\n' \
+		"${work}/base.raw" "${2:-0}" >"${IDIOT_VM_DIR}/${1}/vm.conf"
+	[ "${2:-0}" -eq 1 ] ||
+		qi create -q -f qcow2 -b "${work}/base.raw" -F raw "${IDIOT_VM_DIR}/${1}/disk.qcow2"
+	head -c 65536 /dev/urandom >"${IDIOT_VM_DIR}/${1}/fw_vars.fd"
+	head -c 4096 /dev/urandom >"${IDIOT_VM_DIR}/${1}/tpm2-00.permall"
+}
+
+# expect <label> <pattern> <command...>: the command fails, saying pattern
+expect() {
+	_l="${1}"
+	_p="${2}"
+	shift 2
+	_o="$("$@" 2>&1)" && fail "vm-snapshot: ${_l}: succeeded: ${_o}" && return
+	printf '%s' "${_o}" | grep -qF -- "${_p}" && ok "vm-snapshot: ${_l}" ||
+		fail "vm-snapshot: ${_l}: ${_o}"
+}
+
+truncate -s 8M "${work}/base.raw"
+base_sum="$(sha256sum <"${work}/base.raw")"
+mkvm a
+a="${IDIOT_VM_DIR}/a"
+
+# names
+for n in 1 .x -x 123456789012345678901234567890123; do
+	expect "name ${n} refused" "invalid snapshot name" idiot vm snapshot create --name a -- "${n}"
+done
+[ ! -e "${a}/snapshots" ] && ok "vm-snapshot: refused names write nothing" ||
+	fail "vm-snapshot: refused names left ${a}/snapshots"
+
+# create, list
+out="$(idiot vm snapshot create --name a seed-1 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'seed-1.*disk, UEFI variables and TPM state' &&
+	ok "vm-snapshot: create says what it holds" || fail "vm-snapshot: create: ${out}"
+rm -f "${a}/tpm2-00.permall"
+sleep 1 # created is in seconds
+out="$(idiot vm snapshot create --name a a.b 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'no TPM state' &&
+	ok "vm-snapshot: create without TPM state says so" || fail "vm-snapshot: create a.b: ${out}"
+list="$(idiot vm snapshot list --name a 2>/dev/null)"
+[ "$(printf '%s\n' "${list}" | awk '{ print $1 }' | paste -sd' ' -)" = 'NAME seed-1 a.b' ] &&
+	printf '%s\n' "${list}" | grep -qE '^seed-1 +[0-9-]+ [0-9:]+ +yes +yes +ok$' &&
+	printf '%s\n' "${list}" | grep -qE '^a\.b +[0-9-]+ [0-9:]+ +yes +no +ok$' &&
+	ok "vm-snapshot: list, oldest first, with the UEFI and TPM columns" ||
+	fail "vm-snapshot: list: ${list}"
+idiot vm snapshot list --name a 2>/dev/null | grep -q '^seed-1 ' &&
+	ok "vm-snapshot: list | grep" || fail "vm-snapshot: list | grep"
+idiot vm snapshot list 2>/dev/null | grep -q '^a.b ' &&
+	ok "vm-snapshot: the only VM without --name" || fail "vm-snapshot: list without --name"
+expect "taken name" "idiot vm snapshot delete" idiot vm snapshot create --name a seed-1
+qi snapshot -c foreign "${a}/disk.qcow2"
+expect "a tag idiot didn't take" "didn't take" idiot vm snapshot create --name a foreign
+idiot vm snapshot list --name a 2>&1 >/dev/null | grep -q "didn't take.*foreign" &&
+	ok "vm-snapshot: list notes foreign tags" || fail "vm-snapshot: no note of the foreign tag"
+qi snapshot -d foreign "${a}/disk.qcow2"
+
+# modes, the base
+[ "$(stat -c %a "${a}/snapshots" "${a}/snapshots/seed-1" | sort -u)" = 700 ] &&
+	[ "$(stat -c %a "${a}/snapshots/seed-1"/* | sort -u)" = 600 ] &&
+	ok "vm-snapshot: snapshot directories 700, files 600" ||
+	fail "vm-snapshot: modes: $(stat -c '%a %n' "${a}/snapshots"/* "${a}/snapshots/seed-1"/*)"
+[ "$(sha256sum <"${work}/base.raw")" = "${base_sum}" ] &&
+	ok "vm-snapshot: the base image is unchanged" || fail "vm-snapshot: the base image changed"
+
+# a disk snapshot that fails leaves nothing (root ignores modes: a
+# read-only bind mount over the overlay)
+if [ "$(id -u)" -eq 0 ]; then
+	mount --bind "${a}/disk.qcow2" "${a}/disk.qcow2" &&
+		mount -o remount,bind,ro "${a}/disk.qcow2"
+else
+	chmod 444 "${a}/disk.qcow2"
+fi
+expect "failing disk snapshot" "could not take a disk snapshot" idiot vm snapshot create --name a ro
+entries() { find "${1}" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | paste -sd' ' -; }
+[ "$(entries "${a}/snapshots")" = 'a.b seed-1' ] &&
+	ok "vm-snapshot: a failed create leaves no part of it" ||
+	fail "vm-snapshot: after a failed create: $(entries "${a}/snapshots")"
+if [ "$(id -u)" -eq 0 ]; then
+	umount "${a}/disk.qcow2"
+else
+	chmod 600 "${a}/disk.qcow2"
+fi
+
+# refusals
+mkvm raw 1
+expect "--in-place VM" "snapshots need a disk overlay" idiot vm snapshot create --name raw clean
+mkvm fresh
+rm -f "${IDIOT_VM_DIR}/fresh/disk.qcow2"
+expect "no overlay" "idiot vm --name fresh" idiot vm snapshot create --name fresh clean
+expect "several VMs" "--name" idiot vm snapshot create clean
+expect "unknown VM" "idiot vm list" idiot vm snapshot list --name nope
+[ ! -e "${IDIOT_VM_DIR}/raw/snapshots" ] && [ ! -e "${IDIOT_VM_DIR}/fresh/snapshots" ] &&
+	ok "vm-snapshot: refusals write nothing" || fail "vm-snapshot: a refusal wrote snapshots/"
+
+# running: a process whose command line is qemu-system-*
+bash -c 'exec -a qemu-system-x86_64 sleep 30' &
+fake=$!
+printf '%s\n' "${fake}" >"${a}/qemu.pid"
+expect "running VM" "idiot vm stop a" idiot vm snapshot create --name a live
+idiot vm snapshot list --name a 2>/dev/null | grep -q '^seed-1 ' &&
+	ok "vm-snapshot: list works on a running VM" || fail "vm-snapshot: list while running"
+kill "${fake}" 2>/dev/null
+wait "${fake}" 2>/dev/null
+rm -f "${a}/qemu.pid"
+
+rm -rf "${work:?}"

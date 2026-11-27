@@ -205,6 +205,20 @@ needs passwordless sudo, as console-conf and system-user accounts have.
 `logs` prints a snap's service logs, or the whole journal of the current
 boot, on stdout.
 
+Snapshots save a stopped VM's disk, UEFI variables and TPM state together,
+so a VM can go back to an interesting state (first boot done, keys
+enrolled) in seconds instead of a reset and a new install-mode boot:
+
+```
+$ idiot vm stop gadget
+$ idiot vm snapshot create --name gadget seeded   # after its first boot
+$ idiot vm snapshot list --name gadget            # name, taken, UEFI, TPM, ok/broken
+```
+
+The disk snapshot lives inside the VM's overlay (it costs only what the
+guest changes afterwards) and the variables and TPM state are copied
+beside it. Running VMs and `--in-place` VMs can't be snapshotted.
+
 **Changed:** before named VMs, `idiot vm` wrote to the image and threw
 the UEFI variables and TPM state away after each run (unless you gave
 `--state-dir`). Now nothing is thrown away until you reset or delete the

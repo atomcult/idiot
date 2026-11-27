@@ -451,6 +451,7 @@ do_run() {
 			help_command "stop" "Shut a running VM down"
 			help_command "reset" "Make a VM a freshly flashed device again"
 			help_command "delete" "Remove a VM and its state"
+			help_command "snapshot" "Save and restore a stopped VM's state"
 			help_command "console-log" "Print a VM's serial console log"
 			help_command "install" "Install snaps into a running VM"
 			help_command "logs" "Print a VM's journal (or a snap's logs)"
@@ -834,6 +835,228 @@ do_delete() {
 	say "Deleted VM ${BOLD}${name}${RESET}"
 }
 
+# Sets name (the VM: --name $1, else the only VM) for the snapshot
+# subcommands; never "the only running VM", which they would refuse.
+_snapshot_vm() {
+	if [ -n "${1}" ]; then
+		name="$(vm_resolve "${1}")" || exit 1
+		return 0
+	fi
+	_sv="$(vm_names)"
+	[ -n "${_sv}" ] || die "no VMs — boot one with: idiot vm <image>"
+	[ "$(printf '%s\n' "${_sv}" | wc -l)" -eq 1 ] ||
+		die "there are several VMs ($(printf '%s' "${_sv}" | paste -sd, - | sed 's/,/, /g')) — pick one with --name <vm>"
+	name="${_sv}"
+}
+
+# Parses the snapshot subcommands' arguments: sets vm (--name), yes
+# (--yes, when $1 allows it) and snap (the positional snapshot name, when
+# $2 is "snap"). $3 is the usage line; the rest are the arguments.
+_snapshot_args() {
+	_sa_yes="${1}"
+	_sa_snap="${2}"
+	_sa_usage="${3}"
+	shift 3
+	vm=''
+	yes=0
+	snap=''
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		--name)
+			[ -n "${2:-}" ] || die "--name requires an argument"
+			vm="${2}"
+			shift
+			;;
+		--name=*) vm="${1#--name=}" ;;
+		--yes | -y)
+			[ "${_sa_yes}" = yes ] || die "unknown option: ${1}"
+			yes=1
+			;;
+		--)
+			shift
+			[ $# -le 1 ] && [ "${_sa_snap}" = snap ] && [ -z "${snap}" ] || die "usage: ${_sa_usage}"
+			snap="${1:-}"
+			break
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ "${_sa_snap}" = snap ] && [ -z "${snap}" ] || die "usage: ${_sa_usage}"
+			snap="${1}"
+			;;
+		esac
+		shift
+	done
+	[ "${_sa_snap}" != snap ] || [ -n "${snap}" ] || die "usage: ${_sa_usage}"
+	[ -z "${snap}" ] || vm_validate_snapshot_name "${snap}"
+	_snapshot_vm "${vm}"
+	_sd="$(vm_dir "${name}")"
+	umask 077
+}
+
+# Dies unless VM $name has a disk overlay to snapshot (it is not
+# --in-place).
+_snapshot_need_overlay() {
+	[ "$(vm_conf_get "${name}" in_place)" != 1 ] ||
+		die "VM '${name}' writes its image in place: snapshots need a disk overlay (a VM created without --in-place)"
+}
+
+# Makes sure there is a qemu-img to run.
+_snapshot_need_qemu_img() {
+	tool_path qemu-img >/dev/null ||
+		missing_tool qemu-img "install the qemu-utils package"
+}
+
+_snapshot_create() {
+	_u="idiot vm snapshot create [--name <vm>] <snapshot>"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "${_u}"
+		echo >&2
+		help_heading "Options:"
+		help_option "--name <vm>" "VM to snapshot (default: the only VM)"
+		echo >&2
+		say "Saves a stopped VM's disk, UEFI variables and TPM state under a name,"
+		say "to restore later. The disk snapshot lives inside the VM's overlay and"
+		say "costs only what the guest changes afterwards; the image is not touched."
+		say "A VM stopped with ${CYAN}idiot vm stop --force${RESET} gives a crash-consistent"
+		say "snapshot, as its next boot would be."
+		exit 0
+		;;
+	esac
+	_snapshot_args no snap "${_u}" "$@"
+	_require_stopped "${name}"
+	_snapshot_need_overlay
+	[ -f "${_sd}/disk.qcow2" ] ||
+		die "VM '${name}' has no disk overlay yet — boot it first: idiot vm --name ${name}"
+	_snapshot_need_qemu_img
+	_tags="$(vm_snapshot_tags "${name}")" || die "could not read the snapshots in ${_sd}/disk.qcow2"
+	[ ! -d "$(vm_snapshot_dir "${name}" "${snap}")" ] ||
+		die "VM '${name}' already has a snapshot '${snap}' — delete it first: idiot vm snapshot delete --name ${name} ${snap}"
+	! printf '%s\n' "${_tags}" | grep -qxF -- "${snap}" ||
+		die "the disk of VM '${name}' already has an internal snapshot '${snap}' that idiot didn't take — pick another name, or delete it: idiot vm snapshot delete --name ${name} ${snap}"
+
+	# the copies first, then the disk snapshot, then the name: a failure
+	# at any step leaves no part of it
+	_new="$(vm_snapshot_dir "${name}")/.new.${snap}"
+	rm -rf "${_new:?}"
+	mkdir -p "${_new}" || die "could not create ${_new}"
+	_vars=0
+	_tpm=0
+	if [ -f "${_sd}/fw_vars.fd" ]; then
+		cp "${_sd}/fw_vars.fd" "${_new}/" || {
+			rm -rf "${_new:?}"
+			die "could not copy ${_sd}/fw_vars.fd"
+		}
+		_vars=1
+	fi
+	for _f in "${_sd}"/tpm2-*; do
+		[ -f "${_f}" ] || continue
+		cp "${_f}" "${_new}/" || {
+			rm -rf "${_new:?}"
+			die "could not copy ${_f}"
+		}
+		_tpm=1
+	done
+	printf 'created=%s\nvars=%s\ntpm=%s\n' "$(date +%s)" "${_vars}" "${_tpm}" >"${_new}/snapshot.conf" || {
+		rm -rf "${_new:?}"
+		die "could not write ${_new}/snapshot.conf"
+	}
+	tool qemu-img snapshot -c "${snap}" "${_sd}/disk.qcow2" >&2 || {
+		rm -rf "${_new:?}"
+		die "could not take a disk snapshot of ${_sd}/disk.qcow2"
+	}
+	mv "${_new}" "$(vm_snapshot_dir "${name}" "${snap}")" || {
+		tool qemu-img snapshot -d "${snap}" "${_sd}/disk.qcow2" >&2
+		rm -rf "${_new:?}"
+		die "could not save the snapshot in $(vm_snapshot_dir "${name}")"
+	}
+
+	_parts='disk'
+	if [ "${_vars}" -eq 1 ] && [ "${_tpm}" -eq 1 ]; then
+		_parts='disk, UEFI variables and TPM state'
+	elif [ "${_vars}" -eq 1 ]; then
+		_parts='disk and UEFI variables (no TPM state)'
+	elif [ "${_tpm}" -eq 1 ]; then
+		_parts='disk and TPM state (no UEFI variables)'
+	else
+		_parts='disk (no UEFI variables or TPM state)'
+	fi
+	say "Took snapshot ${BOLD}${snap}${RESET} of VM ${BOLD}${name}${RESET}: ${_parts}"
+}
+
+_snapshot_list() {
+	_u="idiot vm snapshot list [--name <vm>]"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "${_u}"
+		echo >&2
+		help_heading "Options:"
+		help_option "--name <vm>" "VM whose snapshots to list (default: the only VM)"
+		echo >&2
+		say "Prints a VM's snapshots, oldest first: name, when it was taken, whether"
+		say "it holds UEFI variables and TPM state, and ${BOLD}broken${RESET} when a part of"
+		say "it is missing. Works on a running VM too."
+		exit 0
+		;;
+	esac
+	_snapshot_args no no "${_u}" "$@"
+	_tags=''
+	if [ -f "${_sd}/disk.qcow2" ]; then
+		_snapshot_need_qemu_img
+		_tags="$(vm_snapshot_tags "${name}")" || die "could not read the snapshots in ${_sd}/disk.qcow2"
+	fi
+	_names="$(vm_snapshot_names "${name}")"
+	if [ -z "${_names}" ]; then
+		say "No snapshots of VM ${name} (take one with: idiot vm snapshot create --name ${name} <snapshot>)"
+	else
+		printf '%s\n' "${_names}" | {
+			printf '%-20s %-16s %-4s %-4s %s\n' NAME CREATED UEFI TPM STATE
+			while IFS= read -r _n; do
+				_t="$(vm_snapshot_conf_get "${name}" "${_n}" created)"
+				_c="$(date -d "@${_t:-0}" '+%Y-%m-%d %H:%M' 2>/dev/null)" || _c='-'
+				[ -n "${_t}" ] || _c='-'
+				[ "$(vm_snapshot_conf_get "${name}" "${_n}" vars)" = 1 ] && _v=yes || _v=no
+				[ "$(vm_snapshot_conf_get "${name}" "${_n}" tpm)" = 1 ] && _p=yes || _p=no
+				[ -z "$(vm_snapshot_problem "${name}" "${_n}" "${_tags}")" ] && _s=ok || _s=broken
+				printf '%-20s %-16s %-4s %-4s %s\n' "${_n}" "${_c}" "${_v}" "${_p}" "${_s}"
+			done
+		}
+	fi
+	_foreign="$(printf '%s\n' "${_tags}" | while IFS= read -r _t; do
+		[ -n "${_t}" ] && ! printf '%s\n' "${_names}" | grep -qxF -- "${_t}" && printf '%s\n' "${_t}"
+	done | paste -sd, - | sed 's/,/, /g')"
+	[ -z "${_foreign}" ] ||
+		say "${DIM}The disk also has internal snapshots idiot didn't take (not listed): ${_foreign}${RESET}"
+	_half="$(vm_snapshot_dir "${name}")/.restoring"
+	[ ! -f "${_half}" ] ||
+		say "${YELLOW}warning:${RESET} VM '${name}' is half-restored from '$(cat "${_half}")' — finish it: idiot vm snapshot restore --name ${name} $(cat "${_half}")"
+}
+
+do_snapshot() {
+	case "${1:-}" in
+	'' | -h | --help | help)
+		help_heading "Usage:" "idiot vm snapshot <subcommand> [--name <vm>] [<snapshot>]"
+		echo >&2
+		help_heading "Subcommands:"
+		help_command "create" "Save a stopped VM's state under a name"
+		help_command "list" "List a VM's snapshots"
+		echo >&2
+		say "A snapshot is a stopped VM's disk, UEFI variables and TPM state, taken"
+		say "together. Without --name: the only VM."
+		exit 0
+		;;
+	create)
+		shift
+		_snapshot_create "$@"
+		;;
+	list)
+		shift
+		_snapshot_list "$@"
+		;;
+	*) die "unknown subcommand: idiot vm snapshot ${1} — see: idiot vm snapshot --help" ;;
+	esac
+}
+
 do_console_log() {
 	follow=0
 	which=serial.log
@@ -1146,6 +1369,10 @@ main() {
 	delete)
 		shift
 		do_delete "$@"
+		;;
+	snapshot)
+		shift
+		do_snapshot "$@"
 		;;
 	console-log)
 		shift

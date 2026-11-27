@@ -21,6 +21,7 @@
 #   doctor   idiot doctor handed off and confined, missing components,
 #            leftovers (as that user; removes and reinstalls vm and tpm)
 #   refresh  a refresh under a shell set up before it
+#   vm-snapshot  (with idiot+vm) snapshots of hand-made VM state, offline
 #   vm       (with --boot) an Ubuntu Core image boots with secure boot and
 #            a TPM from the vm and tpm components, and vm stop powers it down
 # Prints one ok/FAIL line per check; exits 1 if any failed.
@@ -183,6 +184,14 @@ on chmod -R a+rX /tmp/bare-host.d
 lxc exec "${target}" --user "${uid}" --group "${uid}" --cwd /home/tester \
 	--env HOME=/home/tester --env "XDG_RUNTIME_DIR=/run/user/${uid}" -- \
 	bash /tmp/bare-host.d/doctor | tee -a "${log}"
+for c in "$@"; do
+	case "$(basename "${c}")" in
+	idiot+vm.* | idiot+vm_*)
+		say "vm-snapshot"
+		on bash "${d}/vm-snapshot" | tee -a "${log}"
+		;;
+	esac
+done
 say "refresh"
 # shellcheck disable=SC2086
 on bash "${d}/refresh" ${files} | tee -a "${log}"
