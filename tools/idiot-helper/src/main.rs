@@ -11,6 +11,7 @@
 use std::process::ExitCode;
 
 mod assertion;
+mod draft;
 mod py;
 mod snapd_state;
 mod sockets;
@@ -20,6 +21,7 @@ const USAGE: &str = "usage: idiot-helper <command> [args...]
 
 commands:
   assertion       summarise and verify a stream of snapd assertions
+  draft           write, read and check unsigned assertion drafts (JSON)
   uefi-vars       list the variables in an OVMF/AAVMF variable store
   snapd-state     read snapd state.json, redacted: records, reports, views
   qmp             send one QMP command to a running qemu
@@ -43,6 +45,7 @@ fn main() -> ExitCode {
         }
         "snapd-state" => snapd_state::run(rest),
         "assertion" => assertion::run(rest),
+        "draft" => draft::run(rest),
         "uefi-vars" => uefi_vars::run(rest),
         "qmp" => sockets::qmp(rest),
         "port-free" => sockets::port_free(rest),

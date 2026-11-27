@@ -7,9 +7,11 @@
 
 ## 2. idiot-helper: drafts
 
-- [ ] 2.1 `idiot-helper draft write <type>` and `draft read <file|->`. Implement the record format in design.md (`h`, `l`, `s`, `v`, `f`, `x`, `t`), with every scalar written as a string, the fixed header order and a 2-space indent. Refuse values containing a tab or newline, and refuse signed input. Verify with unit tests: round trips of Canonical's `ubuntu-core-24-amd64.json` and `ubuntu-core-24-pi-arm64.json` (from canonical/models, as test data) give the same JSON object; quotes, backslashes and UTF-8 in `display-name` survive; and a signed `.model` is refused.
-- [ ] 2.2 `idiot-helper draft check <file|->`: snapd's rules for model, system-user and validation-set (design.md Context), printing `error`/`warning` lines with a `<where>` and exiting 1 on an error. Verify with unit tests built from snapd's `asserts/*_test.go` vectors (one passing and one failing draft per rule), covering every scenario of the spec's "Checking an assertion" requirement, including the 365-day system-user and the format needed by `serials` and `user-presence`.
-- [ ] 2.3 Run `cargo test` and `make check`, and grep the new code for socket or HTTP use (none). Commit: `feat(idiot-helper): write, read and check assertion drafts`.
+- [x] 2.1 `idiot-helper draft write <type>` and `draft read <file|->`. Implement the record format in design.md (`h`, `l`, `s`, `v`, `f`, `x`, `t`), with every scalar written as a string, the fixed header order and a 2-space indent. Refuse values containing a tab or newline, and refuse signed input. Verify with unit tests: round trips of Canonical's `ubuntu-core-24-amd64.json` and `ubuntu-core-24-pi-arm64.json` (from canonical/models, as test data) give the same JSON object; quotes, backslashes and UTF-8 in `display-name` survive; and a signed `.model` is refused.
+- [x] 2.2 `idiot-helper draft check <file|->`: snapd's rules for model, system-user and validation-set (design.md Context), printing `error`/`warning` lines with a `<where>` and exiting 1 on an error. Verify with unit tests built from snapd's `asserts/*_test.go` vectors (one passing and one failing draft per rule), covering every scenario of the spec's "Checking an assertion" requirement, including the 365-day system-user and the format needed by `serials` and `user-presence`.
+- [x] 2.3 Run `cargo test` and `make check`, and grep the new code for socket or HTTP use (none). Commit: `feat(idiot-helper): write, read and check assertion drafts`.
+
+  Notes (implementation): the rule tests are snapd's vectors rewritten as JSON drafts in Rust (`draft.rs` tests), one passing and one failing draft per rule, rather than a port of the Go test files. `check` also errors on JSON null and warns when a system-user has neither SSH keys nor a password. The test data from canonical/models is GPL-3.0 (noted in `src/testdata/models/README.md`).
 
 ## 3. sh: idiot assertion new and check
 
