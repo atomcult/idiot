@@ -317,8 +317,8 @@ impl<'a> Fetcher<'a> {
         let Some(name) = req.snap_name.clone() else {
             return Ok(req);
         };
-        let store = self.store.clone();
-        let reply = self.send(|c| query::info_request(c, &name, store.as_deref()))?;
+        // send() adds Snap-Device-Store itself; a second copy hides the snap
+        let reply = self.send(|c| query::info_request(c, &name, None))?;
         let info = match reply.status {
             StatusCode::NOT_FOUND => {
                 return Err(StoreError::NotFound(format!(
