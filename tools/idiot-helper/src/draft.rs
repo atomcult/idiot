@@ -857,6 +857,30 @@ fn check_model(o: &Map<String, Value>, r: &mut Report) {
             r.error("classic", "must be 'true' or 'false'");
         }
     }
+    // distribution: an os-release ID, in a classic model with snaps only
+    match (classic && o.contains_key("snaps"), s(o, "distribution")) {
+        (true, None) | (true, Some("")) => r.error(
+            "distribution",
+            "is required in a classic model (an os-release ID, e.g. ubuntu)",
+        ),
+        (true, Some(d))
+            if !d
+                .bytes()
+                .all(|b| matches!(b, b'a'..=b'z' | b'0'..=b'9' | b'.' | b'_' | b'-')) =>
+        {
+            r.error(
+                "distribution",
+                format!(
+                    "'{d}' isn't an os-release ID: lowercase letters, digits, '.', '_' and '-'"
+                ),
+            )
+        }
+        (false, Some(_)) => r.error(
+            "distribution",
+            "is only for a classic model with the extended snaps header",
+        ),
+        _ => {}
+    }
     let Some(snaps) = o.get("snaps") else {
         // classic and pre-UC20 models: the old headers
         for h in ["grade", "storage-safety"] {
@@ -864,7 +888,16 @@ fn check_model(o: &Map<String, Value>, r: &mut Report) {
                 r.error(h, "needs the extended snaps header");
             }
         }
-        if !classic {
+        if classic {
+            for h in ["kernel", "base"] {
+                if o.contains_key(h) {
+                    r.error(
+                        h,
+                        "can't be given in a classic model without the extended snaps header",
+                    );
+                }
+            }
+        } else {
             for h in ["architecture", "gadget", "kernel"] {
                 need(o, h, r);
             }
@@ -1004,6 +1037,12 @@ fn check_model(o: &Map<String, Value>, r: &mut Report) {
                 r.error(&at("classic"), "only an app snap can be classic");
             }
         }
+    }
+    if classic && !kernels.is_empty() && gadgets.is_empty() {
+        r.error(
+            "snaps",
+            "a classic model can list a kernel only with a gadget",
+        );
     }
     if !classic {
         if gadgets.is_empty() {
@@ -1262,9 +1301,60 @@ fn check_validation_set(o: &Map<String, Value>, r: &mut Report) {
             }
         }
         if let Some(c) = e.get("components") {
-            if !c.is_object() {
-                r.error(&at("components"), "must be a map of components");
+            let snap_rev = s(e, "revision").is_some_and(|r| r.parse::<u64>().is_ok_and(|n| n > 0));
+            check_vs_components(name, c, snap_rev, r);
+        }
+    }
+}
+
+/// A validation set snap's components, as snapd checks them: each a
+/// presence string, or an object with presence and an optional revision;
+/// no revision when invalid, and one exactly when the snap has one.
+fn check_vs_components(snap: &str, c: &Value, snap_rev: bool, r: &mut Report) {
+    let Some(map) = c.as_object() else {
+        r.error(
+            &format!("snaps[{snap}].components"),
+            "must be a map of components",
+        );
+        return;
+    };
+    for (name, comp) in map {
+        let at = format!("snaps[{snap}].components.{name}");
+        let (presence, rev) = match comp {
+            Value::String(p) => (p.as_str(), None),
+            Value::Object(o) => (s(o, "presence").unwrap_or("required"), s(o, "revision")),
+            _ => {
+                r.error(&at, "must be a presence or an object");
+                continue;
             }
+        };
+        if !valid_snap_name(name) {
+            r.error(&at, format!("'{name}' isn't a component name"));
+        }
+        if !["required", "optional", "invalid"].contains(&presence) {
+            r.error(
+                &format!("{at}.presence"),
+                format!("must be required, optional or invalid, not '{presence}'"),
+            );
+        }
+        match rev {
+            Some(v) if !v.parse::<u64>().is_ok_and(|n| n > 0) => r.error(
+                &format!("{at}.revision"),
+                format!("must be a revision number above 0, not '{v}'"),
+            ),
+            Some(_) if presence == "invalid" => r.error(
+                &format!("{at}.revision"),
+                "can't be given for a component whose presence is invalid",
+            ),
+            Some(_) if !snap_rev => r.error(
+                &format!("{at}.revision"),
+                format!("can't be given when {snap} has no revision"),
+            ),
+            None if snap_rev && presence != "invalid" => r.error(
+                &format!("{at}.revision"),
+                format!("is required since {snap} has a revision"),
+            ),
+            _ => {}
         }
     }
 }
@@ -1645,6 +1735,116 @@ mod tests {
             &errors(v),
             "snaps[core24].presence",
             "required, optional or invalid"
+        ));
+    }
+
+    #[test]
+    fn classic_model_rules() {
+        let classic = || {
+            let mut m = model();
+            m["classic"] = json!("true");
+            m["distribution"] = json!("ubuntu");
+            m
+        };
+        assert!(errors(classic()).is_empty());
+        let mut m = classic();
+        m.as_object_mut().unwrap().remove("distribution");
+        assert!(has(
+            &errors(m),
+            "distribution",
+            "required in a classic model"
+        ));
+        let mut m = classic();
+        m["distribution"] = json!("Ubuntu");
+        assert!(has(&errors(m), "distribution", "os-release ID"));
+        let mut m = model();
+        m["distribution"] = json!("ubuntu");
+        assert!(has(&errors(m), "distribution", "only for a classic model"));
+        // a kernel needs a gadget; neither is fine
+        let mut m = classic();
+        let snaps: Vec<Value> = m["snaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["type"] != "gadget")
+            .cloned()
+            .collect();
+        m["snaps"] = json!(snaps);
+        assert!(has(&errors(m), "snaps", "kernel only with a gadget"));
+        let mut m = classic();
+        let snaps: Vec<Value> = m["snaps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["type"] != "gadget" && e["type"] != "kernel")
+            .cloned()
+            .collect();
+        m["snaps"] = json!(snaps);
+        assert!(errors(m).is_empty());
+        // old style: no snaps
+        let old = json!({"type": "model", "authority-id": "acme", "brand-id": "acme",
+            "series": "16", "model": "desk", "classic": "true",
+            "timestamp": "2026-11-27T10:00:00Z"});
+        assert!(errors(old.clone()).is_empty());
+        let mut m = old.clone();
+        m["kernel"] = json!("pc-kernel");
+        assert!(has(
+            &errors(m),
+            "kernel",
+            "without the extended snaps header"
+        ));
+        let mut m = old.clone();
+        m["base"] = json!("core24");
+        assert!(has(&errors(m), "base", "without the extended snaps header"));
+        let mut m = old;
+        m["distribution"] = json!("ubuntu");
+        assert!(has(&errors(m), "distribution", "only for a classic model"));
+    }
+
+    #[test]
+    fn validation_set_components() {
+        let with = |comps: Value, rev: bool| {
+            let mut v = vset();
+            if !rev {
+                v["snaps"][0].as_object_mut().unwrap().remove("revision");
+            }
+            v["snaps"][0]["components"] = comps;
+            errors(v)
+        };
+        assert!(with(
+            json!({"extra": {"presence": "required", "revision": "3"}}),
+            true
+        )
+        .is_empty());
+        assert!(with(json!({"extra": "optional"}), false).is_empty());
+        assert!(with(json!({"extra": "invalid"}), true).is_empty());
+        assert!(has(
+            &with(json!({"extra": "required"}), true),
+            "snaps[core24].components.extra.revision",
+            "required since core24 has a revision"
+        ));
+        assert!(has(
+            &with(
+                json!({"extra": {"presence": "invalid", "revision": "3"}}),
+                true
+            ),
+            "snaps[core24].components.extra.revision",
+            "presence is invalid"
+        ));
+        assert!(has(
+            &with(json!({"extra": {"revision": "3"}}), false),
+            "snaps[core24].components.extra.revision",
+            "core24 has no revision"
+        ));
+        assert!(has(
+            &with(json!({"extra": "sometimes"}), false),
+            "snaps[core24].components.extra.presence",
+            "required, optional or invalid"
+        ));
+        assert!(has(
+            &with(json!(["extra"]), false),
+            "snaps[core24].components",
+            "map of components"
         ));
     }
 

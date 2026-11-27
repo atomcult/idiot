@@ -2,14 +2,14 @@
 
 ## 1. Offline check
 
-- [ ] 1.1 In `tools/idiot-helper/src/draft.rs` `check_model`, add the rules from design.md:
+- [x] 1.1 In `tools/idiot-helper/src/draft.rs` `check_model`, add the rules from design.md:
   - `distribution`: required and of os-release form in a classic model with `snaps`, an error in any other model;
   - a classic model with `snaps` lists a kernel only with a gadget;
   - an old-style classic model (no `snaps`) has no `kernel` or `base`.
 
   Add `model_rules` cases for each scenario in "Checking an assertion": classic without a distribution, distribution in Ubuntu Core, classic kernel without a gadget, classic without kernel or gadget passing, and old-style classic with a kernel. Run `cargo test`.
-- [ ] 1.2 In `check_validation_set`, check the components as design.md says (presence values, the string shortcut, the revision rules), naming `snaps[<snap>].components.<name>`. Add `validation_set_rules` cases. Run `cargo test`.
-- [ ] 1.3 Verify: the five drafts from the investigation give the results snapd gives (four errors, one pass) with `idiot assertion check`. Run `make check`. Commit: `feat(idiot-helper): check classic models and validation-set components as snapd does`.
+- [x] 1.2 In `check_validation_set`, check the components as design.md says (presence values, the string shortcut, the revision rules), naming `snaps[<snap>].components.<name>`. Add `validation_set_rules` cases. Run `cargo test`.
+- [x] 1.3 Verify: the five drafts from the investigation give the results snapd gives (four errors, one pass) with `idiot assertion check`. Run `make check`. Commit: `feat(idiot-helper): check classic models and validation-set components as snapd does`.
 
 ## 2. idiot-store info
 
