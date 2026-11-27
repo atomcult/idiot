@@ -30,6 +30,44 @@ SHALL NOT be recorded in the VM's settings.
 - **WHEN** the VM `a` was booted with `--detach`, stopped, and the user runs `idiot vm boot --name a`
 - **THEN** the VM boots in the foreground on the terminal's serial console
 
+### Requirement: Port forwards per VM
+Each `--port <host:guest>` SHALL forward that host port to the guest port
+and be recorded with the VM, so that booting it again without `--port`
+forwards the same ports. A host port SHALL be free as an ssh port is (see
+"SSH port per VM"), counting the forwards of other running VMs as well as
+their ssh ports. A host port given with `--port` that is not free SHALL
+fail before qemu starts, naming the running VM that forwards it when it is
+one. A recorded forward whose host port is not free SHALL move to the
+first free port above it, keeping its guest port; idiot SHALL say the new
+mapping and record it. A `--port` host port that is the VM's ssh port, or
+that is given twice, SHALL be refused.
+
+#### Scenario: Second VM, same forward
+- **WHEN** the VM `a` is running with `--port 8080:80` and the user runs `idiot vm boot --name b --port 8080:80 core.img`
+- **THEN** the command fails saying port 8080 is forwarded by `a`, and qemu is not started
+
+#### Scenario: Recorded forward taken
+- **WHEN** the stopped VM `b` recorded `--port 8080:80`, the VM `a` is running with 8080 forwarded, and the user runs `idiot vm boot --name b`
+- **THEN** `b` boots with 8081 forwarded to its port 80, idiot says so, and `idiot vm list` shows `8081:80` for `b`
+
+#### Scenario: Clash with its own ssh port
+- **WHEN** the user runs `idiot vm boot --ssh-port 9000 --port 9000:80 core.img`
+- **THEN** the command fails before qemu starts, saying 9000 is the VM's ssh port
+
+### Requirement: VMs sharing an image
+Booting a VM SHALL fail before qemu starts, naming the other VM, when
+another running VM writes the same image `--in-place`, or when the VM
+writes its image `--in-place` and another running VM boots from that
+image. VMs booting from overlays of one image SHALL run side by side.
+
+#### Scenario: Overlays side by side
+- **WHEN** the VM `a` is running from an overlay of `core.img` and the user runs `idiot vm boot --name b core.img`
+- **THEN** `b` boots from its own overlay of `core.img`
+
+#### Scenario: Image written in place
+- **WHEN** the VM `a` is running `--in-place` on `core.img` and the user runs `idiot vm boot --name b core.img`
+- **THEN** the command fails saying `a` writes `core.img` in place, and qemu is not started
+
 ## MODIFIED Requirements
 
 ### Requirement: Serial console log
@@ -64,3 +102,26 @@ the only VM.
 #### Scenario: Old name
 - **WHEN** the user runs `idiot vm console-log --previous a`
 - **THEN** stderr notes that it is now `idiot vm logs --console`, and the previous boot's console output of `a` is printed
+
+### Requirement: Listing VMs
+`idiot vm list` SHALL print one line per VM to stdout, under a header
+line: its name, image path, architecture, `running` or `stopped`, ssh
+port, and its `--port` forwards (`host:guest`, comma-separated, `-` for
+none). A VM SHALL be `running` only while its qemu process is alive. With
+no VMs it SHALL print nothing to stdout and say so on stderr.
+
+#### Scenario: Running and stopped
+- **WHEN** the VM `a` is running on 8022 and the VM `b` is stopped
+- **THEN** `idiot vm list` prints `a` as running with port 8022 and `b` as stopped with its recorded port
+
+#### Scenario: Forwards
+- **WHEN** the VM `a` was booted with `--port 8080:80 --port 8443:443`
+- **THEN** `idiot vm list` shows `8080:80,8443:443` for `a`, and `-` for a VM without forwards
+
+#### Scenario: Stale pid
+- **WHEN** a VM's qemu was killed with SIGKILL and its pid file remains
+- **THEN** `idiot vm list` shows the VM as stopped
+
+#### Scenario: Pipeable
+- **WHEN** the user runs `idiot vm list | grep running`
+- **THEN** grep prints the running VMs' lines

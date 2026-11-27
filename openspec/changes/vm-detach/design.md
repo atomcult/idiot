@@ -18,6 +18,9 @@ confinement.
 - Start a VM without tying up the terminal, surviving the shell.
 - Report start-up failures as a foreground boot does.
 - Leave every other `vm` command working on a detached VM unchanged.
+- A second VM never fails on something idiot could have sorted out or
+  explained: forwards behave like the ssh port, shared images are
+  refused by name.
 
 **Non-Goals:**
 - Attaching an interactive console to a detached VM later (`vm console`):
@@ -25,6 +28,10 @@ confinement.
 - Waiting for the guest to come up (ssh answering): `vm install` and
   `vm logs` already wait or say the guest isn't reachable.
 - Remembering `--detach` per VM.
+- Memory and CPUs: every VM gets `-m 2048 -smp $(nproc)` as now; the
+  host overcommits, and a knob for them is a change of its own.
+- Guest ports: two VMs forwarding to the same guest port is fine (each
+  guest has its own).
 
 ## Decisions
 
@@ -57,10 +64,37 @@ it does now.
 daemonized; the bundled QEMU has no display anyway. idiot doesn't
 second-guess it.
 
+**Forwards go through `vm_port_free`.** It already says whether a port
+is free of running VMs' ssh ports and host listeners (`idiot-helper
+port-free`); it gains the running VMs' recorded `ports`, and says which
+VM holds a port so the error can name it. Picking a moved forward reuses
+the ssh port's search: the first free port above the recorded one (up to
+100 above), skipping the VM's own ssh port and its other forwards. The
+ssh port is picked first, so a forward never takes it. All of this runs
+before anything is written, as the ssh check does now, so a refused boot
+leaves `vm.conf` as it was; `vm.conf`'s `ports` is rewritten only with
+what the VM boots with.
+
+**Shared images are checked by path, before QEMU.** QEMU's image lock
+already stops the second VM, but its error names neither the VM nor the
+fix. idiot compares the absolute image paths recorded in the running
+VMs' `vm.conf` (they are made absolute at creation) and their
+`in_place`. Overlays only read the image, so they share it freely. Paths
+are compared after `readlink -f`, so a symlink to the image counts.
+
+**`vm list` gets a `FORWARDS` column before `IMAGE`.** `IMAGE` stays
+last since it is the one that can be long. This changes the stdout of a
+listing scripts may parse; the column order was never specified beyond
+the header line, and the header names it.
+
 ## Risks / Trade-offs
 
 - QEMU's stderr after daemonizing goes to `/dev/null`: a warning QEMU
   prints while the VM runs is lost. → The guest console is still logged;
   start-up errors (the common case) are still shown.
+- A port freed between idiot's check and QEMU's bind (or taken) still
+  makes QEMU fail. → The same race the ssh port has; QEMU's error shows.
+- `vm list` scripts that split on columns see a new one. → Header line;
+  the image path stays last.
 - No HMP for a detached VM (Ctrl-a c). → QMP covers stop; anything else
   can use `-- -monitor unix:…,server,nowait` passed through to QEMU.
