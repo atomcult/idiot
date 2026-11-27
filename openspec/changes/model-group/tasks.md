@@ -24,11 +24,11 @@
 
 ## 2. Verification
 
-- [ ] 2.1 In `tests/bare-host.d/aliases`:
+- [x] 2.1 In `tests/bare-host.d/aliases`:
   - the alias rows become `assertion pick|model pick`, `assertion repos list|model list` and `assertion repos update|model update`;
   - the stdout check compares `assertion repos list` with `model list`;
   - the stale-help check flags `pick`/`repos` in `assertion help`, not `model` in the main help.
 
   Run `make check`. Commit: `test(bare-host): model again, assertion repos/pick as aliases`.
-- [ ] 2.2 Run `openspec validate model-group --strict`.
+- [x] 2.2 Run `openspec validate model-group --strict`.
 - [ ] 2.3 Run `snapcraft pack` and `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass. This needs a shell where snaps can run, which the Claude app session can't currently do.

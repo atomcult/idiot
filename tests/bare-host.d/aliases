@@ -27,9 +27,8 @@ while IFS='|' read -r old new; do
 done <<'EOF'
 store assertion|assertion fetch
 inspect assertion|assertion show
-model pick|assertion pick
-model list|assertion repos list
-model update|assertion repos update
+assertion pick|model pick
+assertion repos|model
 auth login|auth use
 auth logout|auth unset
 clean all|clean
@@ -43,11 +42,11 @@ b="$(idiot assertion show --no-verify "${work}/brand.model" 2>/dev/null)"
 [ -n "${a}" ] && [ "${a}" = "${b}" ] && grep -q '^note:' "${work}/err" &&
 	ok "aliases: inspect assertion's stdout is assertion show's" ||
 	fail "aliases: inspect assertion stdout differs: $(printf '%s' "${a}" | head -n 2 | tr '\n' ' ')"
-a="$(idiot model list 2>&1 | grep -v '^note:')"
-b="$(idiot assertion repos list 2>&1)"
+a="$(idiot assertion repos list 2>&1 | grep -v '^note:')"
+b="$(idiot model list 2>&1)"
 [ "${a}" = "${b}" ] &&
-	ok "aliases: model list prints what assertion repos list does" ||
-	fail "aliases: model list: ${a}"
+	ok "aliases: assertion repos list prints what model list does" ||
+	fail "aliases: assertion repos list: ${a}"
 out="$(idiot auth login bare-no-such 2>&1)"
 case "${out}" in
 *"is now 'idiot auth use'"*"credentials 'bare-no-such' not found"*)
@@ -78,8 +77,9 @@ done
 stale=''
 for g in "" store inspect auth clean vm assertion; do
 	# shellcheck disable=SC2086 # an empty group is the main help
-	idiot ${g} help 2>&1 | grep -qE '^  (model|roles|login|logout|console-log|all) ' && stale="${stale} ${g:-main}"
+	idiot ${g} help 2>&1 | grep -qE '^  (roles|login|logout|console-log|all) ' && stale="${stale} ${g:-main}"
 done
+idiot assertion help 2>&1 | grep -qE '^  (pick|repos) ' && stale="${stale} assertion"
 for g in store inspect; do
 	idiot "${g}" help 2>&1 | grep -qE '^  assertion ' && stale="${stale} ${g}"
 done
