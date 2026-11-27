@@ -311,6 +311,7 @@ $ sudo snap ack hello.assert && sudo snap install ./hello-world_29.snap
 
 ```
 $ idiot assertion new model                    # asks for each header, then opens $EDITOR
+$ idiot assertion new model --classic          # a classic model: distribution, optional gadget/kernel
 $ idiot assertion new validation-set --snap core24=latest/stable --no-edit
 $ idiot assertion new system-user              # SSH keys from ~/.ssh, an optional password
 $ idiot assertion edit kiosk.json --refresh    # bump the revision, look the snaps up again
@@ -333,6 +334,15 @@ system-user's 365 days…) before it is written, and reopened in the editor
 until it passes. A system-user's password is read twice without echo and
 only its SHA-512 crypt hash (from `openssl passwd -6`) is written, mode
 0600. `--set`, `--add` and `--snap` answer without prompts, for scripts.
+
+A model is an Ubuntu Core model or a classic one (`classic: true`), and
+the two take different headers: idiot asks which on a terminal (Ubuntu
+Core without one, unless `--classic` or `--set classic=…`; `edit` and a
+template keep theirs). A classic model needs a `distribution` (an
+os-release ID, default `ubuntu`) and may leave out the gadget and kernel
+(a kernel only with a gadget); its app snaps with classic confinement
+are marked `classic: true`. In an Ubuntu Core model such a snap is
+added with a warning, since a Core device can't install it.
 
 `assertion edit` reads a draft or a signed assertion: a `.model`, a
 stream such as `idiot assertion fetch --chain --raw` or `snap known model`

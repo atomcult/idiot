@@ -324,10 +324,18 @@ as_model_snap() {
     [ -n "${_ams_type}" ] || _ams_type=app
     # snapd's model calls a classic core "core"; the store says "os"
     [ "${_ams_type}" != os ] || _ams_type=core
+    _ams_conf="$(as_channel_field "${1}" "${_ams_ch}" 8)"
     as_put s "${1}"
     as_put f id "$(awk -F '\t' '$1 == "snap" { print $3; exit }' "${work}/info.${1}")"
     as_put f type "${_ams_type}"
     as_put f default-channel "${_ams_ch}"
+    if [ "${_ams_conf}" = classic ]; then
+        if [ "${as_classic:-0}" -eq 0 ]; then
+            say "${YELLOW}!${RESET} ${1} has classic confinement in ${_ams_ch}: an Ubuntu Core device can't install it"
+        elif [ "${_ams_type}" = app ]; then
+            as_put f classic true
+        fi
+    fi
     case "${_ams_type}" in
     snapd | kernel | gadget) ;;
     *) [ "${1}" = "${_ams_base}" ] || as_put f presence required ;;
@@ -374,7 +382,8 @@ as_vs_snap() {
 }
 
 # The essential snaps for base $1 on ${as_arch}: "role name channel" lines
-# (no name: ask, no default).
+# (no name: ask, no default). A classic model's gadget and kernel are
+# optional ("gadget?", "kernel?"), with no default.
 as_essentials() {
     _ae_track="${1#core}"
     case "${_ae_track}" in
@@ -382,6 +391,10 @@ as_essentials() {
     esac
     printf 'snapd snapd latest/stable\n'
     printf 'base %s latest/stable\n' "${1}"
+    if [ "${as_classic:-0}" -eq 1 ]; then
+        printf 'gadget?\nkernel?\n'
+        return 0
+    fi
     case "${as_arch}" in
     amd64) _ae_g=pc _ae_k=pc-kernel ;;
     arm64 | armhf) _ae_g=pi _ae_k=pi-kernel ;;
@@ -423,6 +436,14 @@ as_model_snaps() {
     _ams_base="$(as_get base)"
     as_essentials "${_ams_base}" >"${work}/essentials"
     while read -r _role _name _chan; do
+        # optional (a classic model's gadget and kernel): no default
+        _opt=0
+        case "${_role}" in
+        *\?)
+            _opt=1
+            _role="${_role%\?}"
+            ;;
+        esac
         # already there: by name for snapd and the base, by type otherwise
         case "${_role}" in
         snapd | base)
@@ -433,6 +454,21 @@ as_model_snaps() {
                 "${as_rec}" && continue
             ;;
         esac
+        if [ "${_opt}" -eq 1 ]; then
+            # a kernel only with a gadget; without a terminal, only --snap's
+            if [ "${_role}" = kernel ] &&
+                ! awk -F '\t' '$1 == "f" && $2 == "type" && $3 == "gadget" { f = 1 } END { exit !f }' "${as_rec}"; then
+                continue
+            fi
+            [ "${as_tty}" -eq 1 ] || continue
+            as_ask "${_role} snap (optional: name or name=channel; empty: none)" ''
+            case "${answer}" in
+            '') ;;
+            *=*) as_model_snap "${answer%%=*}" "${answer#*=}" "${_role}" ;;
+            *) as_model_snap "${answer}" '' "${_role}" ;;
+            esac
+            continue
+        fi
         if [ "${as_tty}" -eq 1 ]; then
             while :; do
                 as_ask "${_role} snap (name or name=channel)" "${_name:+${_name}=${_chan}}"
@@ -712,6 +748,37 @@ as_timestamp() {
     as_is_given "${1}" || as_set "${1}" "$(as_now)"
 }
 
+# Settle whether the model is classic (as_classic 1) or Ubuntu Core (0):
+# given (--classic, --set classic=…), the draft's or the template's, asked
+# on a terminal for a new model, else Ubuntu Core. A classic model gets a
+# distribution (an os-release ID).
+as_model_kind() {
+    if [ "${as_mode}" = new ] && [ -z "${as_src_type:-}" ] && ! as_is_given classic &&
+        ! as_has classic && [ "${as_tty}" -eq 1 ]; then
+        while :; do
+            as_ask "Ubuntu Core or classic model (core/classic)" core
+            case "${answer}" in
+            core) break ;;
+            classic)
+                as_set classic true
+                break
+                ;;
+            *) say "${YELLOW}answer core or classic${RESET}" ;;
+            esac
+        done
+    fi
+    as_classic=0
+    [ "$(as_get classic || :)" != true ] || as_classic=1
+    [ "${as_classic}" -eq 1 ] || return 0
+    as_header distribution "Distribution (os-release ID)" ubuntu 1
+    _amk_d="$(as_get distribution)"
+    case "${_amk_d}" in
+    '' | *[!a-z0-9._-]*)
+        die "'${_amk_d}' isn't an os-release ID — lowercase letters, digits, '.', '_' and '-' (e.g. ubuntu)"
+        ;;
+    esac
+}
+
 as_model_headers() {
     as_is_given series || as_has series || as_set series 16
     if [ -n "${arch:-}" ] && ! as_is_given architecture; then
@@ -724,6 +791,7 @@ as_model_headers() {
     as_account_headers brand-id "Brand (account ID)"
     as_header architecture "Architecture" "${as_arch}" 1
     as_arch="$(as_get architecture)"
+    as_model_kind
     as_header base "Base" core24 1
     as_header grade "Grade (dangerous, signed or secured)" signed 1
     # the global store has no store header

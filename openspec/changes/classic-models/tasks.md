@@ -17,12 +17,12 @@
 
 ## 3. Writer
 
-- [ ] 3.1 In `cmd/assertion/new`, add `--classic` (as `--set classic=true`) to the options and help.
-- [ ] 3.2 In `share/assertion.sh`:
+- [x] 3.1 In `cmd/assertion/new`, add `--classic` (as `--set classic=true`) to the options and help.
+- [x] 3.2 In `share/assertion.sh`:
   - `as_model_headers` settles `classic` (given, the draft's, asked on a terminal, else Ubuntu Core) and, for classic, asks for `distribution` (default `ubuntu`), refusing a value that isn't an os-release ID;
   - `as_essentials` and `as_model_snaps` treat a classic model's gadget and kernel as optional, as design.md says;
   - `as_model_snap` reads the confinement column, marking `classic: true` in a classic model and warning in an Ubuntu Core one.
-- [ ] 3.3 Verify from the source tree, without a terminal, against the global store (anonymous):
+- [x] 3.3 Verify from the source tree, without a terminal, against the global store (anonymous):
   - the spec's "Classic without a terminal" draft passes `idiot assertion check`;
   - `--classic --snap pc=24/stable --snap pc-kernel=24/stable` lists both;
   - `--classic --snap pc-kernel=24/stable` (no gadget) fails `check`;
@@ -30,7 +30,7 @@
   - a plain `new model` is unchanged;
   - `edit` of a classic draft keeps `classic` and `distribution`;
   - a classic-confined snap is marked in a classic model and warned about in an Ubuntu Core one.
-- [ ] 3.4 Update README ("Writing assertions": a classic model) and `skills/using-idiot/references/commands.md`. Run `make check`. Commit: `feat(assertion): write classic models`.
+- [x] 3.4 Update README ("Writing assertions": a classic model) and `skills/using-idiot/references/commands.md`. Run `make check`. Commit: `feat(assertion): write classic models`.
 
 ## 4. Verification
 

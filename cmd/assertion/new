@@ -18,6 +18,7 @@ usage() {
 	help_option "--set <header>=<value>" "Give a header (never asked)"
 	help_option "--add <header>=<value>" "Add to a list header (models, ssh-keys, serials…)"
 	help_option "--snap <name>[=<channel>]" "Add a snap (validation set: =invalid marks it invalid)"
+	help_option "--classic" "Model: a classic model (default: asked on a terminal, else Ubuntu Core)"
 	help_option "--arch <arch>" "Target architecture (default: UBUNTU_STORE_ARCH, else the host's)"
 	help_option "--cred <name>" "Use this saved credential instead of the active one"
 	help_option "--from <file|->" "Start from another assertion of this type (draft or signed)"
@@ -111,6 +112,10 @@ main() {
 			shift
 			;;
 		--no-edit) no_edit=1 ;;
+		--classic)
+			[ "${type}" = model ] || die "--classic is for a model"
+			printf '%s\t%s\n' --set classic=true >>"${work}/opts"
+			;;
 		*) die "${USAGE}" ;;
 		esac
 		shift
