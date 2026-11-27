@@ -21,6 +21,12 @@ enough to reorganise without losing anyone.
 
   The `model` group goes. Its name was misleading anyway: it managed
   repositories of models, not models.
+- **Fetch by what the user knows.** `assertion fetch` is worth having
+  where it saves a lookup. It already takes a snap's name for
+  `snap-declaration`, and a name and revision for `snap-revision`. It
+  gains `snap-revision <snap> [<channel>]`: the revision released in that
+  channel for the target architecture, `stable` when no channel is given,
+  following a closed risk down as snapd does.
 - **One set of verbs in every group:**
   - `use` picks something already saved: `auth use` replaces `auth login`; `store use` and `profile use` are unchanged.
   - `set` takes a free value: `arch set` and `lp set` are unchanged.
@@ -58,7 +64,7 @@ There are no new runtime dependencies, and the snap stages nothing new.
 - `model`: the repository and pick commands move to `idiot assertion repos …` and `idiot assertion pick`.
 - `assertion-writing`: the requirements name `assertion fetch` and `assertion show`, where they named `store assertion` and `inspect assertion`.
 - `store`:
-  - the fetching requirements move to `idiot assertion fetch`;
+  - the fetching requirements move to `idiot assertion fetch`, and `snap-revision` can be fetched by channel;
   - `store list --account` replaces `store roles`;
   - references to `auth login` are renamed.
 - `inspect`: assertion summary, signature and cross-check requirements move to `idiot assertion show`.
@@ -79,6 +85,7 @@ There are no new runtime dependencies, and the snap stages nothing new.
   - `cmd/clean/*` becomes one `cmd/clean` file;
   - `cmd/store/roles` folds into `cmd/store/list`;
   - `cmd/vm` gains `boot` and `logs --console`, and `cmd/example` gains `clone`.
+- **idiot-store:** the assertion lookup resolves a channel to its revision's SHA3-384, from the channel map it already fetches for the snap-id.
 - **Dispatch:** `idiot` gets an alias table and the new help headings.
 - **Hints:** user-facing hints that name old commands are updated in `cmd/`, `share/` and `tools/idiot-helper/src/assertion.rs`.
 - **Docs:** `README.md`, `skills/using-idiot/` (SKILL.md and its references) and `CLAUDE.md`.

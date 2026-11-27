@@ -87,6 +87,25 @@ These are all `git mv`:
 
 After the move, update each file's `. "$(dirname "${0}")/…/share/common.sh"` depth and its usage strings. `assertion/repos/help` takes over the repository listing that `model help` printed.
 
+### `snap-revision` by channel
+`cmd/assertion/fetch` maps the snap-revision words as follows:
+
+| Words | Passed to idiot-store |
+|---|---|
+| `<snap>` alone (40 characters or fewer, the longest a snap name can be) | `snap-name=<snap>` and `snap-channel=stable` |
+| `<snap> <digits>` | `snap-name=` and `snap-revision=`, as today |
+| `<snap> <anything else>` | `snap-name=` and `snap-channel=<channel>` |
+| a longer word alone | a SHA3-384, as today |
+
+idiot-store's `Request` gains `snap_channel`. `resolve` already fetches the snap's info, including its channel map, to find the snap-id, so it looks the channel up in that same reply:
+1. A risk alone takes the snap's `default-track`, else `latest`.
+2. It takes the entry for that track and risk at the request's architecture. When there is none, it tries each more stable risk in the same track (edge → beta → candidate → stable), which is what snapd does with a closed channel.
+3. It fills `snap-sha3-384` from that entry's `download.sha3-384`.
+
+The channel and revision it settled on are printed on stderr, because sh owns the UX. This extends the lookup that `snap-revision=` already uses, adding no second endpoint. `snap-channel` is a lookup word, not an assertion header: like `snap-name`, it never reaches the assertions service.
+
+*Alternative:* resolve the channel in sh, through `store channels --tsv`. That costs a second info request and parsing in sh, for what idiot-store already holds.
+
 ### `auth use` and `auth unset`
 `cmd/auth/login` and `logout` are renamed with `git mv`. `_counted`'s expiry-warning skip checks `auth use`. `profile use` and `profile unset` keep calling the creds.sh emitters, which are unchanged.
 

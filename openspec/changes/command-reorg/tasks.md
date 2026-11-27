@@ -29,7 +29,15 @@
   - `idiot assertion show tests/bare-host.d/brand.model --no-verify`;
   - `idiot model list` (note, then the same output);
   - `idiot assertion pick --help`.
-- [ ] 2.5 Update `README.md`, `skills/using-idiot/SKILL.md`, its `references/` and `CLAUDE.md`. Run `make check`. Commit: `refactor(assertion): fetch, show, pick and repos under idiot assertion`.
+- [ ] 2.5 Add `snap-revision <snap> [<channel>]` lookups, per the design:
+  - in idiot-store, `snap-channel=` resolves through the info reply's channel map, using the default track and following a closed risk down, and prints the channel and revision it used on stderr;
+  - in `cmd/assertion/fetch`, map the words and add the form to the help's Types list.
+
+  Add `cargo test` cases with a recorded channel map: a risk alone, `<track>/<risk>`, a closed risk following down, a missing architecture, and the default track. Verify against the global store:
+  - `idiot assertion fetch snap-revision hello-world` and `… hello-world stable` fetch the same revision;
+  - `… hello-world 29` still works;
+  - `… hello-world latest/stable --arch riscv64` fails naming `idiot store channels`.
+- [ ] 2.6 Update `README.md`, `skills/using-idiot/SKILL.md`, its `references/` and `CLAUDE.md`. Run `make check`. Commit: `feat(assertion): fetch, show, pick and repos under idiot assertion; snap-revision by channel`.
 
 ## 3. Verbs
 

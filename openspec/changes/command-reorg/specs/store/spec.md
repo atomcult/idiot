@@ -77,7 +77,18 @@ the store's assertions service and accept these forms:
 - `snap-revision <snap-name> <revision>`, the revision's SHA3-384 looked up
   in the active store, for the target architecture (`--arch <arch>`, else
   `UBUNTU_STORE_ARCH`, else the host's) where the lookup needs one;
-- `snap-revision <sha3-384>`, given in hex or base64url;
+- `snap-revision <snap-name> [<channel>]`, the revision released in that
+  channel for the target architecture, `stable` when no channel is given. A
+  word of digits only is a revision; anything else is a channel (`<risk>`,
+  `<track>/<risk>` or `<track>/<risk>/<branch>`; a risk alone means the
+  snap's default track, and a track alone must be written
+  `<track>/stable`). A risk with nothing released SHALL follow the next
+  more stable risk in its track, as snapd does, and the summary SHALL say
+  which channel and revision were used. When nothing is released there for
+  that architecture it SHALL fail naming the snap, channel and
+  architecture and suggesting `idiot store channels <snap>`;
+- `snap-revision <sha3-384>`, given in hex or base64url (a word too long to
+  be a snap name);
 - `validation-set <account-id>/<name>[=<sequence>]`, the latest sequence
   when none is given;
 - for any type the store serves, `<type> <header>=<value>...`: the type's
@@ -104,6 +115,22 @@ host command.
 #### Scenario: A revision by number
 - **WHEN** the user runs `idiot assertion fetch snap-revision hello-world 29`
 - **THEN** the `snap-revision` for revision 29's SHA3-384 is fetched and the summary shows revision 29, its size and its SHA3-384
+
+#### Scenario: A revision by channel
+- **WHEN** revision 29 of `hello-world` is in `latest/stable` for amd64 and the user runs `idiot assertion fetch snap-revision hello-world stable --arch amd64`
+- **THEN** the `snap-revision` for revision 29 is fetched, and the summary says it came from `latest/stable`
+
+#### Scenario: Default channel
+- **WHEN** the user runs `idiot assertion fetch snap-revision hello-world`
+- **THEN** the revision in `stable` for the target architecture is fetched, as with `stable` given
+
+#### Scenario: Closed risk follows down
+- **WHEN** `edge` has nothing released for amd64, `beta` has revision 30, and the user runs `idiot assertion fetch snap-revision hello-world edge --arch amd64`
+- **THEN** revision 30's `snap-revision` is fetched, and the summary says `edge` follows `beta`
+
+#### Scenario: Nothing released for the architecture
+- **WHEN** a snap has no release in any risk of `latest` for riscv64 and the user runs `idiot assertion fetch snap-revision <snap> --arch riscv64`
+- **THEN** the command fails naming the snap, `latest/stable` and riscv64, suggesting `idiot store channels <snap>`, and fetches no assertion
 
 #### Scenario: A revision by hash
 - **WHEN** the user runs `idiot assertion fetch snap-revision` with the hex SHA3-384 of a snap the store has
