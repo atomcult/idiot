@@ -296,8 +296,10 @@ _build_machine_flags() {
 	fi
 }
 
-# Stops the VM's swtpm (if started).
+# Stops the VM's swtpm (if started), unless a detached qemu runs on with
+# it (swtpm's --terminate ends it with qemu).
 _cleanup() {
+	[ "${detached:-0}" -eq 0 ] || return 0
 	[ -z "${tpm_pidfile:-}" ] || vm_swtpm_stop "${tpm_pidfile%/*}"
 }
 
@@ -430,6 +432,62 @@ _build_tpm_flags() {
 	tpm_flags="${tpm_flags} -device ${tpm_dev},tpmdev=tpm0"
 }
 
+# Sets ports to the forwards VM $name boots with: $1, the ones given with
+# --port, each refused when it is taken (naming the running VM that has
+# it), else the recorded ones, each moved to the first free port above it
+# when taken. Never takes the ssh port; writes nothing.
+_pick_forwards() {
+	_pf_given="${1}"
+	_pf_list="${_pf_given:-$(vm_conf_get "${name}" ports)}"
+	_pf_out=''
+	_pf_seen=" ${ssh_port} "
+	for _pf in ${_pf_list}; do
+		_pf_h="${_pf%%:*}"
+		_pf_g="${_pf##*:}"
+		if [ -n "${_pf_given}" ]; then
+			[ "${_pf_h}" != "${ssh_port}" ] ||
+				die "--port ${_pf}: ${_pf_h} is the VM's ssh port — pick another host port, or another --ssh-port"
+			case "${_pf_seen}" in
+			*" ${_pf_h} "*) die "--port: host port ${_pf_h} is given twice" ;;
+			esac
+			! _pf_vm="$(vm_port_holder "${_pf_h}" "${name}")" ||
+				die "--port ${_pf}: port ${_pf_h} is forwarded by VM '${_pf_vm}' — pick another host port"
+			vm_port_free "${_pf_h}" "${name}" ||
+				die "--port ${_pf}: port ${_pf_h} is in use — pick another host port"
+		else
+			_pf_n="${_pf_h}"
+			until case "${_pf_seen}" in
+				*" ${_pf_n} "*) false ;;
+				*) vm_port_free "${_pf_n}" "${name}" ;;
+				esac do
+				_pf_n=$((_pf_n + 1))
+				[ "${_pf_n}" -le $((_pf_h + 100)) ] && [ "${_pf_n}" -le 65535 ] ||
+					die "no free host port in ${_pf_h}-$((_pf_h + 100)) for guest port ${_pf_g} — give one with --port <host>:${_pf_g}"
+			done
+			[ "${_pf_n}" = "${_pf_h}" ] ||
+				say "VM ${BOLD}${name}${RESET}: guest port ${_pf_g} forwarded from ${BOLD}${_pf_n}${RESET} ${DIM}(was ${_pf_h}, now taken)${RESET}"
+			_pf_h="${_pf_n}"
+		fi
+		_pf_seen="${_pf_seen}${_pf_h} "
+		_pf_out="${_pf_out:+${_pf_out} }${_pf_h}:${_pf_g}"
+	done
+	ports="${_pf_out}"
+}
+
+# Dies when another running VM writes $image in place, or when this one
+# would write it in place ($in_place) while another runs from it.
+_check_shared_image() {
+	_csi="$(readlink -f "${image}")"
+	for _csi_vm in $(vm_running_names); do
+		[ "${_csi_vm}" != "${name}" ] || continue
+		[ "$(readlink -f "$(vm_conf_get "${_csi_vm}" image)")" = "${_csi}" ] || continue
+		[ "$(vm_conf_get "${_csi_vm}" in_place)" != 1 ] ||
+			die "VM '${_csi_vm}' is running and writes ${image} in place — stop it first: idiot vm stop ${_csi_vm}"
+		[ "${in_place:-0}" != 1 ] ||
+			die "VM '${_csi_vm}' is running from ${image}, which --in-place would write under it — stop it first: idiot vm stop ${_csi_vm}"
+	done
+}
+
 do_run() {
 	name=''
 	image=''
@@ -442,6 +500,7 @@ do_run() {
 	gfx=''
 	ssh_port=''
 	ports=''
+	detach=0
 
 	# Parse arguments
 	while [ $# -gt 0 ]; do
@@ -475,11 +534,16 @@ do_run() {
 			help_option "--ssh-port <port>" "Host port for guest port 22 (default: 8022 or free)"
 			help_option "--port <host:guest>" "Additional port mapping (repeatable)"
 			help_option "--state-dir <dir>" "Keep the VM's state here"
+			help_option "--detach" "Run in the background (the console goes to its log)"
 			echo >&2
 			say "Each VM keeps its disk overlay, UEFI variables and TPM state between runs,"
 			say "in ${DIM}${IDIOT_VM_DIR}/<name>${RESET}; the image is never written unless"
 			say "--in-place. Boot it again with ${CYAN}idiot vm boot --name <name>${RESET}. The image,"
-			say "--arch, --sb and --in-place are fixed when a VM is created."
+			say "--arch, --sb and --in-place are fixed when a VM is created. With --detach"
+			say "it returns once the VM has started: follow the console with"
+			say "${CYAN}idiot vm logs --console -f${RESET}, stop it with ${CYAN}idiot vm stop${RESET}."
+			say "A second VM gets a free ssh port, and its recorded --port forwards move"
+			say "up to free ones when another VM has them."
 			exit 0
 			;;
 		--)
@@ -503,6 +567,7 @@ do_run() {
 		--no-tpm) tpm=0 ;;
 		--gfx) gfx=1 ;;
 		--no-gfx) gfx=0 ;;
+		--detach) detach=1 ;;
 		--ssh-port)
 			[ -n "${2:-}" ] || die "--ssh-port requires an argument"
 			case "${2}" in
@@ -542,7 +607,7 @@ do_run() {
 
 	[ -n "${name}${image}" ] || die \
 		"usage: idiot vm [--name <name>] [--arch <arch>] [--sb] [--in-place] [--tpm] [--no-gfx] \
-[--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] [<image>] [-- <qemu-args>]"
+[--ssh-port <port>] [--port <host:guest>] [--state-dir <dir>] [--detach] [<image>] [-- <qemu-args>]"
 	if [ -n "${image}" ]; then
 		[ -f "${image}" ] || die "image not found: ${image}"
 		image="$(cd "$(dirname "${image}")" && pwd)/${image##*/}"
@@ -553,12 +618,17 @@ do_run() {
 	# the state directory and everything qemu, swtpm and idiot write there
 	umask 077
 	# before anything is written: a port that isn't free creates nothing
+	! vm_running "${name}" ||
+		die "VM '${name}' is running (ssh port $(vm_conf_get "${name}" ssh_port)) — connect with: idiot vm ssh --name ${name}"
 	prev_port="$(vm_conf_get "${name}" ssh_port)"
-	ssh_port="$(vm_pick_ssh_port "${name}" "${ssh_port}")" || exit 1
+	_given_hosts=''
+	for _p in ${ports}; do
+		_given_hosts="${_given_hosts} ${_p%%:*}"
+	done
+	ssh_port="$(vm_pick_ssh_port "${name}" "${ssh_port}" "${_given_hosts}")" || exit 1
+	_pick_forwards "${ports}"
 	[ -z "${state_dir}" ] || _link_state_dir
 	if vm_exists "${name}"; then
-		! vm_running "${name}" ||
-			die "VM '${name}' is running (ssh port $(vm_conf_get "${name}" ssh_port)) — connect with: idiot vm ssh --name ${name}"
 		_check_fixed image "${image}" "was created from $(vm_conf_get "${name}" image)"
 		_check_fixed arch "${arch}" "is $(vm_conf_get "${name}" arch)"
 		[ "$(vm_conf_get "${name}" sb)" -eq 1 ] && _sb_was='with' || _sb_was='without'
@@ -572,11 +642,12 @@ do_run() {
 		in_place="$(vm_conf_get "${name}" in_place)"
 		[ -n "${tpm}" ] || tpm="$(vm_conf_get "${name}" tpm)"
 		[ -n "${gfx}" ] || gfx="$(vm_conf_get "${name}" gfx)"
-		[ -n "${ports}" ] || ports="$(vm_conf_get "${name}" ports)"
+		_check_shared_image
 		new_vm=0
 	else
 		[ -n "${image}" ] ||
 			die "no VM named '${name}' — create it from an image: idiot vm boot --name ${name} <image>"
+		_check_shared_image
 		mkdir -p "$(vm_dir "${name}")"
 		[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
 		vm_conf_set "${name}" image "${image}"
@@ -615,7 +686,18 @@ do_run() {
 		say "${DIM}The bundled qemu has no display window: the console is here (serial).${RESET}"
 	[ "${gfx}" -eq 1 ] && display_flags='' || display_flags='-display none'
 	# the serial console stays on the terminal (Ctrl-a c: monitor, Ctrl-a x:
-	# quit) and is logged; the previous boot's log is kept
+	# quit) and is logged; the previous boot's log is kept. Detached (qemu
+	# refuses stdio when it daemonizes) it goes only to the log, and QMP is
+	# the only monitor.
+	if [ "${detach}" -eq 1 ]; then
+		con_chardev="file,id=con0,path=${workdir}/serial.log"
+		mon_flags=''
+		detach_flags='-daemonize'
+	else
+		con_chardev="stdio,id=con0,mux=on,logfile=${workdir}/serial.log"
+		mon_flags='-mon chardev=con0,mode=readline'
+		detach_flags=''
+	fi
 	[ ! -f "${workdir}/serial.log" ] || mv -f "${workdir}/serial.log" "${workdir}/serial.log.1"
 	rm -f "${workdir}/qmp.sock"
 
@@ -646,15 +728,27 @@ do_run() {
 		-drive "${disk_flags}" \
 		-device virtio-blk-pci,drive=disk1,bootindex=1 \
 		${tpm_flags} \
-		-chardev "stdio,id=con0,mux=on,logfile=${workdir}/serial.log" \
+		-chardev "${con_chardev}" \
 		-serial chardev:con0 \
-		-mon chardev=con0,mode=readline \
+		${mon_flags} \
 		${display_flags} \
+		${detach_flags} \
 		-pidfile "${workdir}/qemu.pid" \
 		-qmp "unix:${workdir}/qmp.sock,server=on,wait=off" \
 		"$@" >&2
 	qemu_rc=$?
 
+	if [ "${detach}" -eq 1 ]; then
+		[ "${qemu_rc}" -eq 0 ] || {
+			say "${DIM}VM ${name} did not start; its state is kept${RESET}"
+			exit "${qemu_rc}"
+		}
+		# qemu runs on with the swtpm: leave it to --terminate
+		detached=1
+		say "VM ${BOLD}${name}${RESET} runs in the background"
+		say "${DIM}console: idiot vm logs --console -f --name ${name}; stop: idiot vm stop ${name}${RESET}"
+		exit 0
+	fi
 	say "${DIM}VM ${name} stopped; its state is kept (boot again: idiot vm boot --name ${name})${RESET}"
 	exit "${qemu_rc}"
 }
@@ -664,7 +758,8 @@ do_list() {
 	-h | --help | help)
 		help_heading "Usage:" "idiot vm list"
 		echo >&2
-		say "Prints each VM's name, image, architecture, state and ssh port."
+		say "Prints each VM's name, architecture, state, ssh port, --port forwards"
+		say "and image."
 		exit 0
 		;;
 	esac
@@ -675,11 +770,12 @@ do_list() {
 		exit 0
 	}
 	printf '%s\n' "${_names}" | {
-		printf '%-20s %-8s %-8s %-6s %s\n' NAME ARCH STATE PORT IMAGE
+		printf '%-20s %-8s %-8s %-6s %-16s %s\n' NAME ARCH STATE PORT FORWARDS IMAGE
 		while IFS= read -r _n; do
 			vm_running "${_n}" && _state=running || _state=stopped
-			printf '%-20s %-8s %-8s %-6s %s\n' "${_n}" "$(vm_conf_get "${_n}" arch)" \
-				"${_state}" "$(vm_conf_get "${_n}" ssh_port)" "$(vm_conf_get "${_n}" image)"
+			_fw="$(vm_conf_get "${_n}" ports | tr ' ' ',')"
+			printf '%-20s %-8s %-8s %-6s %-16s %s\n' "${_n}" "$(vm_conf_get "${_n}" arch)" \
+				"${_state}" "$(vm_conf_get "${_n}" ssh_port)" "${_fw:--}" "$(vm_conf_get "${_n}" image)"
 		done
 	}
 }

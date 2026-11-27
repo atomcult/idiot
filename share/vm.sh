@@ -129,17 +129,30 @@ vm_resolve() {
 # it, and (when idiot-helper is there) binding it works, as qemu's hostfwd
 # will.
 vm_port_free() {
-    for _vpf in $(vm_running_names); do
-        [ "${_vpf}" != "${2}" ] || continue
-        [ "$(vm_conf_get "${_vpf}" ssh_port)" != "${1}" ] || return 1
-    done
+    ! vm_port_holder "${1}" "${2}" >/dev/null || return 1
     _vpf_h="$(helper_path idiot-helper)" || return 0
     "${_vpf_h}" port-free "${1}"
 }
 
+# Print the running VM other than $2 that forwards host port $1 (as its
+# ssh port or a --port forward) and succeed; fail when none does.
+vm_port_holder() {
+    for _vph in $(vm_running_names); do
+        [ "${_vph}" != "${2}" ] || continue
+        for _vph_p in "$(vm_conf_get "${_vph}" ssh_port)" $(vm_conf_get "${_vph}" ports); do
+            [ "${_vph_p%%:*}" != "${1}" ] || {
+                printf '%s' "${_vph}"
+                return 0
+            }
+        done
+    done
+    return 1
+}
+
 # Print the ssh port VM $1 boots with: $2 when given (dying when it isn't
 # free), else its recorded port if free, else 8022, else the first free
-# port in 8023-8122.
+# port in 8023-8122; never one of the host ports in $3 (its own --port
+# forwards).
 vm_pick_ssh_port() {
     if [ -n "${2:-}" ]; then
         vm_port_free "${2}" "${1}" || die "port ${2} is in use — pick another with --ssh-port"
@@ -147,19 +160,27 @@ vm_pick_ssh_port() {
         return 0
     fi
     _vpsp="$(vm_conf_get "${1}" ssh_port)"
-    if [ -n "${_vpsp}" ] && vm_port_free "${_vpsp}" "${1}"; then
+    if [ -n "${_vpsp}" ] && _vpsp_ok "${_vpsp}" "${1}" "${3:-}"; then
         printf '%s' "${_vpsp}"
         return 0
     fi
     _vpsp=8022
     while [ "${_vpsp}" -le 8122 ]; do
-        if vm_port_free "${_vpsp}" "${1}"; then
+        if _vpsp_ok "${_vpsp}" "${1}" "${3:-}"; then
             printf '%s' "${_vpsp}"
             return 0
         fi
         _vpsp=$((_vpsp + 1))
     done
     die "no free ssh port in 8022-8122 — pick one with --ssh-port"
+}
+
+# Succeed if $1 is free for VM $2 and not among the ports in $3.
+_vpsp_ok() {
+    case " ${3} " in
+    *" ${1} "*) return 1 ;;
+    esac
+    vm_port_free "${1}" "${2}"
 }
 
 # Stop the swtpm serving state directory $1, if it is still running, and
