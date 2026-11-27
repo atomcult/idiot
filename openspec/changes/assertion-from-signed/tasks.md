@@ -33,7 +33,7 @@
 
 ## 3. sh: templates for new assertions
 
-- [ ] 3.1 In `cmd/assertion/new` and `share/assertion.sh`:
+- [x] 3.1 In `cmd/assertion/new` and `share/assertion.sh`:
   - add `--from <file|->` and `--from-store <key>` (refused together, and `--from-store` refused for system-user);
   - load the template's records, refuse a different type naming both, and drop the identity headers listed in design.md decision 7 before `--set`/`--add`/`--snap` and the prompts.
 
@@ -42,7 +42,7 @@
   - "Template of another type";
   - "Identity still required without a terminal";
   - a system-user template from a signed one keeps `models` and `ssh-keys` but drops the username, email and password.
-- [ ] 3.2 Update `new`'s help, `README.md` and the skill reference. Run `make check`. Commit: `feat(assertion): start a new assertion from another`.
+- [x] 3.2 Update `new`'s help, `README.md` and the skill reference. Run `make check`. Commit: `feat(assertion): start a new assertion from another`.
 
 ## 4. Verification
 

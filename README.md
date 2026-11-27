@@ -289,6 +289,7 @@ $ idiot assertion new system-user              # SSH keys from ~/.ssh, an option
 $ idiot assertion edit kiosk.json --refresh    # bump the revision, look the snaps up again
 $ idiot assertion edit model my-brand/kiosk    # the published model's next revision, as kiosk.json
 $ idiot assertion edit kiosk.model             # ...or from a signed file (or - for stdin)
+$ idiot assertion new model --from-store canonical/ubuntu-core-24-amd64   # Canonical's snaps, your model
 $ idiot assertion check kiosk.json             # snapd's rules, offline
 $ idiot assertion sign kiosk.json -k brand-key # snap sign, then the signature checked
 ```
@@ -315,6 +316,16 @@ signed one becomes the draft it was signed from (without its signing key
 and signature, which isn't checked) and is never written to: the draft
 goes to `<model>.json`, `<username>.json` or `<name>-<sequence>.json`
 here, or `-o`. Reading from stdin asks nothing.
+
+`assertion new --from <file|->` (or `--from-store <key>` for a model or
+validation set) starts a different assertion from one of the same type:
+its snaps, base, grade and the rest are the defaults, but not its
+identity. The authority and brand (or account) default to your account
+as usual; the model's name and display name, a validation set's name and
+sequence, and a system-user's username, email, name and password are
+asked; the revision is left out and the times start from now. Snap IDs
+are kept: add `--snap` (or edit with `--refresh`) for snaps the active
+store sees differently.
 
 `assertion sign` runs the check, looks up in the store which account the
 key is registered to (warning when it isn't the `authority-id`), signs

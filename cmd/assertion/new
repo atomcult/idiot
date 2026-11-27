@@ -20,6 +20,8 @@ usage() {
 	help_option "--snap <name>[=<channel>]" "Add a snap (validation set: =invalid marks it invalid)"
 	help_option "--arch <arch>" "Target architecture (default: UBUNTU_STORE_ARCH, else the host's)"
 	help_option "--cred <name>" "Use this saved credential instead of the active one"
+	help_option "--from <file|->" "Start from another assertion of this type (draft or signed)"
+	help_option "--from-store <key>" "...fetched from the store: <brand>/<model>, <account>/<name>[=<seq>]"
 	help_option "--no-edit" "Don't open the draft in an editor"
 	help_option "-o <file>" "Write here (- for stdout; default: named after it)"
 	echo >&2
@@ -27,6 +29,10 @@ usage() {
 	say "the active store and the target architecture, and fills in each snap's ID,"
 	say "type and channel (model) or revision (validation set) from the store."
 	say "The draft opens in \$VISUAL/\$EDITOR and is checked against snapd's rules."
+	echo >&2
+	say "With --from or --from-store, another assertion's snaps and headers are"
+	say "the defaults; its identity (authority, brand or account, name, revision,"
+	say "times; a system-user's username, email and password) is not."
 }
 
 _cleanup() {
@@ -51,7 +57,7 @@ _require_offline() {
 	esac
 	as_have_cred || as_require "${_acct}" "no credential to take it from"
 	[ "${as_tty}" -eq 1 ] || [ "${type}" != validation-set ] || [ -n "${as_snaps_given}" ] ||
-		die "no snaps to add — pass --snap <name>[=<channel>]"
+		[ -n "$(as_snap_names)" ] || die "no snaps to add — pass --snap <name>[=<channel>]"
 }
 
 main() {
@@ -72,8 +78,10 @@ main() {
 	trap 'exit 143' TERM
 	trap 'exit 129' HUP
 	as_init
-	arch='' cred='' no_edit=0 out=''
+	arch='' cred='' no_edit=0 out='' from='' from_store=''
 	as_snaps_given=''
+	# --set/--add are applied after a template, so they win
+	: >"${work}/opts"
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
@@ -82,7 +90,7 @@ main() {
 			;;
 		--set | --add)
 			[ -n "${2:-}" ] || die "${1} needs <header>=<value>"
-			as_option "${1}" "${2}"
+			printf '%s\t%s\n' "${1}" "${2}" >>"${work}/opts"
 			shift
 			;;
 		--snap)
@@ -91,12 +99,14 @@ main() {
 "
 			shift
 			;;
-		--arch | --cred | -o)
+		--arch | --cred | -o | --from | --from-store)
 			[ -n "${2:-}" ] || die "${1} needs a value"
 			case "${1}" in
 			--arch) arch="${2}" ;;
 			--cred) cred="${2}" ;;
 			-o) out="${2}" ;;
+			--from) from="${2}" ;;
+			--from-store) from_store="${2}" ;;
 			esac
 			shift
 			;;
@@ -105,10 +115,29 @@ main() {
 		esac
 		shift
 	done
+	[ -z "${from}" ] || [ -z "${from_store}" ] || die "--from and --from-store can't both be given"
+	[ -z "${from_store}" ] || [ "${type}" != system-user ] ||
+		die "the store doesn't serve system-users by key — start from a file: --from <file>"
 	[ -z "${cred}" ] || {
 		validate_cred_name "${cred}"
 		require_cred "${cred}"
 	}
+	if [ -n "${from}${from_store}" ]; then
+		if [ -n "${from_store}" ]; then
+			as_source_fetch "${type}" "${from_store}"
+		else
+			as_source_file "${from}"
+		fi
+		as_source_read
+		[ "${as_src_type}" = "${type}" ] ||
+			die "the template is a ${as_src_type}, not a ${type}"
+		cat "${work}/source.records" >>"${as_rec}"
+		as_template_strip "${type}"
+		as_source_say
+	fi
+	while IFS="${AS_TAB}" read -r _o _v; do
+		as_option "${_o}" "${_v}"
+	done <"${work}/opts"
 	if as_is_given architecture; then
 		as_arch="$(as_get architecture)"
 	else

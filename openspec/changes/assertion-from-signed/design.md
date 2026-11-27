@@ -110,8 +110,9 @@
 7. **Template mode** (`new --from`) loads the template's records, then
    removes identity before prompting, so the existing "no default"
    prompts and the non-terminal "missing header" failure apply unchanged:
-   - **model:** `authority-id`, `brand-id`, `model`, `revision`,
-     `timestamp`;
+   - **model:** `authority-id`, `brand-id`, `model`, `display-name`,
+     `revision`, `timestamp` (a template's display name names the other
+     model);
    - **validation-set:** `authority-id`, `account-id`, `name`,
      `sequence`, `revision`, `timestamp`;
    - **system-user:** `authority-id`, `brand-id`, `username`, `email`,

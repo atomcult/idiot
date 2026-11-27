@@ -84,7 +84,7 @@ entries), its other headers and the fields idiot doesn't model. It SHALL
 NOT take the template's identity:
 - `authority-id` and `brand-id` (a validation set's `account-id`) SHALL
   default as `new`'s do, to the credential's account;
-- a model's `model`, a validation set's `name` and `sequence`, and a
+- a model's `model` and `display-name`, a validation set's `name` and `sequence`, and a
   system-user's `username`, `email`, `name` and password SHALL be asked
   (or given with `--set`) with no default from the template;
 - `revision` SHALL be left out, and `timestamp`, `since` and `until`
