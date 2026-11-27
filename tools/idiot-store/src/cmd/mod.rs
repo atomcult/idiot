@@ -1,3 +1,4 @@
+pub mod download;
 pub mod expiry;
 pub mod login;
 pub mod query;

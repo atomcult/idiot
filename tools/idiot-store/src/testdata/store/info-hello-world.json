@@ -1,0 +1,680 @@
+{
+ "channel-map": [
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "amd64",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "arm64",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "armhf",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "i386",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "powerpc",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "ppc64el",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "riscv64",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "s390x",
+    "name": "stable",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "amd64",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "arm64",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "armhf",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "i386",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "powerpc",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "ppc64el",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "riscv64",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "s390x",
+    "name": "candidate",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "amd64",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "arm64",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "armhf",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "i386",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "powerpc",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "ppc64el",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "riscv64",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "s390x",
+    "name": "beta",
+    "released-at": "2024-02-27T20:53:33.514303+00:00",
+    "risk": "beta",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "amd64",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "arm64",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "armhf",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "i386",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "powerpc",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "ppc64el",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "riscv64",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  },
+  {
+   "architectures": [
+    "all"
+   ],
+   "channel": {
+    "architecture": "s390x",
+    "name": "edge",
+    "released-at": "2024-02-27T20:53:32.824299+00:00",
+    "risk": "edge",
+    "track": "latest"
+   },
+   "created-at": "2019-04-17T16:43:58.548661+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b07bdb78e762c2e6020c75fafc92055b323a6f8da3ab42a3963da5ade386aba11f77e3c8f919b8aa23f3aa5c06c844f9",
+    "size": 20480,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ_29.snap"
+   },
+   "revision": 29,
+   "version": "6.4"
+  }
+ ],
+ "default-track": null,
+ "name": "hello-world",
+ "snap": {},
+ "snap-id": "buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ"
+}

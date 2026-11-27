@@ -22,7 +22,7 @@ const INFO_FIELDS: &str = "download,revision,version,created-at,architectures";
 
 /// A credential for a run of queries; refreshed in place when needed.
 pub struct Auth {
-    credential: String,
+    pub(crate) credential: String,
 }
 
 impl Auth {
@@ -81,7 +81,7 @@ fn header_wants_refresh(resp: &reqwest::blocking::Response) -> bool {
 
 /// A response read into a Reply. Only for answers whose body is small (API
 /// responses and error bodies), never a snap.
-fn reply(resp: reqwest::blocking::Response) -> Reply {
+pub(crate) fn reply(resp: reqwest::blocking::Response) -> Reply {
     let status = resp.status();
     let header = header_wants_refresh(&resp);
     let body = resp.text().unwrap_or_default();
@@ -120,7 +120,7 @@ pub(crate) fn send(
 }
 
 /// The credential with a fresh discharge from Ubuntu SSO.
-fn refresh(client: &Client, cred: &str) -> Result<String, StoreError> {
+pub(crate) fn refresh(client: &Client, cred: &str) -> Result<String, StoreError> {
     let (_, discharge) = credential::decode(cred)?;
     let resp = client
         .post(REFRESH_ENDPOINT)
@@ -308,6 +308,9 @@ pub struct Channel {
     pub version: String,
     pub released_at: String,
     pub url: String,
+    /// The revision's SHA3-384, hex, and size in bytes.
+    pub sha3_384: String,
+    pub size: u64,
 }
 
 pub(crate) fn info_request(c: &Client, snap: &str, store: Option<&str>) -> RequestBuilder {
@@ -356,6 +359,8 @@ pub fn parse_info(json: &Value) -> Vec<Channel> {
                         version: text(e, "version"),
                         released_at: text(ch, "released-at"),
                         url: text(&e["download"], "url"),
+                        sha3_384: text(&e["download"], "sha3-384"),
+                        size: e["download"]["size"].as_u64().unwrap_or(0),
                     }
                 })
                 .collect()
@@ -365,12 +370,20 @@ pub fn parse_info(json: &Value) -> Vec<Channel> {
     out
 }
 
-/// `stable` -> `latest/stable`; `2.0/edge` and `latest/edge/fix` as given.
+const RISKS: [&str; 4] = ["stable", "candidate", "beta", "edge"];
+
+/// A channel as snapd reads it: a first segment that is a risk means the
+/// `latest` track (`stable` -> `latest/stable`, `edge/fix` ->
+/// `latest/edge/fix`), a track alone means its `stable` risk; `2.0/edge`
+/// and `latest/edge/fix` as given.
 pub fn normalise_channel(channel: &str) -> String {
-    if channel.contains('/') {
-        channel.to_string()
-    } else {
+    let first = channel.split('/').next().unwrap_or("");
+    if RISKS.contains(&first) {
         format!("latest/{channel}")
+    } else if !channel.contains('/') {
+        format!("{channel}/stable")
+    } else {
+        channel.to_string()
     }
 }
 
@@ -541,6 +554,18 @@ mod tests {
         assert_eq!(map[0].revision, 4);
         assert_eq!(map[1].name, "latest/stable");
         assert!(map[1].url.ends_with("_3.snap"));
+        let map = parse_info(&fixture("info-hello-world.json"));
+        let e = map
+            .iter()
+            .find(|e| e.name == "latest/stable" && e.arch == "amd64")
+            .unwrap();
+        assert_eq!(e.revision, 29);
+        assert_eq!(e.size, 20480);
+        assert!(e.sha3_384.starts_with("b07bdb78e762c2e6"));
+        assert_eq!(
+            text(&fixture("info-hello-world.json"), "snap-id"),
+            "buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ"
+        );
     }
 
     #[test]
@@ -598,5 +623,8 @@ mod tests {
         assert_eq!(normalise_channel("stable"), "latest/stable");
         assert_eq!(normalise_channel("2.0/edge"), "2.0/edge");
         assert_eq!(normalise_channel("latest/edge/fix"), "latest/edge/fix");
+        assert_eq!(normalise_channel("edge/fix"), "latest/edge/fix");
+        assert_eq!(normalise_channel("beta"), "latest/beta");
+        assert_eq!(normalise_channel("2.0"), "2.0/stable");
     }
 }

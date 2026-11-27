@@ -10,6 +10,13 @@
 //! read-only queries behind `idiot store`, printing tab-separated lines.
 //! `assertion` fetches an assertion (and with `--chain` its prerequisites)
 //! and prints the stream, only once every assertion has been fetched.
+//! `download` fetches a released revision for an architecture into a
+//! directory, verified against the store's size and sha3-384, with its
+//! assertions beside it (`<name>_<rev>.assert`); the credential goes to the
+//! store only, never to the CDN it redirects to. It prints one result
+//! line: `snap <path> <name> <revision> <version> downloaded|cached`,
+//! `unknown`, `unreleased <channel> <arch>` with `available <channel>
+//! <revision>` lines, or `refused <status>`; a digest mismatch is exit 3.
 //!
 //! Exit status: 0 ok, 1 usage or local error, 2 authentication failed or
 //! credential rejected, 3 network or store error, 4 not found (or hidden
@@ -62,6 +69,35 @@ enum Commands {
     /// snap-name= resolves snap-id, with snap-revision= a revision's
     /// sha3-384) and print the stream; --chain adds its prerequisites
     Assertion(AssertionArgs),
+    /// Download a released revision for an architecture, verified, with its
+    /// assertions: `snap <path> <name> <rev> <version> downloaded|cached`
+    Download(DownloadArgs),
+}
+
+#[derive(Args)]
+pub struct DownloadArgs {
+    #[command(flatten)]
+    cred: CredArgs,
+    /// The store's ID, sent as Snap-Device-Store (default: the global store)
+    #[arg(long)]
+    store: Option<String>,
+    /// Architecture, e.g. arm64
+    #[arg(long)]
+    arch: String,
+    /// Channel, e.g. stable, edge/fix or 2.0/edge
+    #[arg(long, default_value = "stable")]
+    channel: String,
+    /// Don't fetch the assertions
+    #[arg(long)]
+    no_assertions: bool,
+    /// Draw a progress line on stderr
+    #[arg(long)]
+    progress: bool,
+    /// Directory to download into (created 0700 if missing); a file there
+    /// that still matches the store's digest is reused
+    #[arg(long, value_name = "DIR")]
+    dir: std::path::PathBuf,
+    snap: String,
 }
 
 #[derive(Args)]
@@ -193,6 +229,7 @@ fn main() -> ExitCode {
         Commands::Info(args) => cmd::query::run_info(args),
         Commands::Probe(args) => cmd::query::run_probe(args),
         Commands::Assertion(args) => cmd::query::run_assertion(args),
+        Commands::Download(args) => cmd::download::run(args),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
