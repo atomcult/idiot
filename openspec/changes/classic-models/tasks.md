@@ -13,7 +13,7 @@
 
 ## 2. idiot-store info
 
-- [ ] 2.1 Add `confinement` to `INFO_FIELDS`, and have `info_line` print the channel's confinement as an eighth column. Update the `info_lines` test, and check that `store channels`, `store channels --tsv` and `store browse --tsv` print what they did. Run `make check`. Commit: `feat(idiot-store): confinement in info lines`.
+- [x] 2.1 Add `confinement` to `INFO_FIELDS`, and have `info_line` print the channel's confinement as an eighth column. Update the `info_lines` test, and check that `store channels`, `store channels --tsv` and `store browse --tsv` print what they did. Run `make check`. Commit: `feat(idiot-store): confinement in info lines`.
 
 ## 3. Writer
 

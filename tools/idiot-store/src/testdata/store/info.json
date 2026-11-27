@@ -1,7 +1,7 @@
 {
   "channel-map": [
     {"architectures": ["amd64"], "channel": {"architecture": "amd64", "name": "stable", "released-at": "2026-10-02T10:00:00.000000+00:00", "risk": "stable", "track": "latest"},
-     "created-at": "2026-10-01T09:00:00.000000+00:00", "download": {"deltas": [], "sha3-384": "00", "size": 4096, "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdHelloTeamXXXXXXXXXXXXXXXXX_3.snap"},
+     "confinement": "classic", "created-at": "2026-10-01T09:00:00.000000+00:00", "download": {"deltas": [], "sha3-384": "00", "size": 4096, "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdHelloTeamXXXXXXXXXXXXXXXXX_3.snap"},
      "revision": 3, "version": "0.3"},
     {"architectures": ["arm64"], "channel": {"architecture": "arm64", "name": "edge", "released-at": "2026-10-03T10:00:00.000000+00:00", "risk": "edge", "track": "latest"},
      "created-at": "2026-10-03T09:00:00.000000+00:00", "download": {"deltas": [], "sha3-384": "00", "size": 4096, "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdHelloTeamXXXXXXXXXXXXXXXXX_4.snap"},

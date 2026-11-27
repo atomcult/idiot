@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 pub(crate) const DASHBOARD: &str = "https://dashboard.snapcraft.io";
 pub(crate) const API: &str = "https://api.snapcraft.io";
 pub(crate) const REFRESH_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/refresh";
-const INFO_FIELDS: &str = "download,revision,version,created-at,architectures,type";
+const INFO_FIELDS: &str = "download,revision,version,created-at,architectures,type,confinement";
 
 /// A credential for a run of queries; refreshed in place when needed.
 pub struct Auth {
