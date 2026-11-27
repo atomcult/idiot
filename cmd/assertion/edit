@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# cmd/assertion/edit - edit an unsigned model, system-user or validation-set
+# cmd/assertion/edit - edit a model, system-user or validation-set (a draft,
+#   a signed one, or one fetched from the store)
 # idiot: host
 # shellcheck disable=SC2034,SC2154 # as_* and no_edit are shared with share/assertion.sh
 
@@ -9,10 +10,12 @@ include creds.sh
 include models.sh
 include assertion.sh
 
-USAGE="usage: idiot assertion edit <file.json> [options]"
+USAGE="usage: idiot assertion edit <file|-> [options]  or: idiot assertion edit <model|validation-set> <key> [options]"
 
 usage() {
-	help_heading "Usage:" "idiot assertion edit <file.json> [options]"
+	help_heading "Usage:" "idiot assertion edit <file|-> [options]"
+	say "       idiot assertion edit model <brand-id>/<model> [options]"
+	say "       idiot assertion edit validation-set <account-id>/<name>[=<sequence>] [options]"
 	echo >&2
 	help_heading "Options:"
 	help_option "--refresh" "Look every snap's ID (and type, or revision) up again"
@@ -24,10 +27,16 @@ usage() {
 	help_option "--no-edit" "Don't open the draft in an editor"
 	help_option "-o <file>" "Write here instead of back to <file.json> (- for stdout)"
 	echo >&2
-	say "Asks for the headers as idiot assertion new does, the file's values as"
-	say "defaults, offers to raise a model's revision (or a validation set's"
+	say "Asks for the headers as idiot assertion new does, the assertion's values"
+	say "as defaults, offers to raise a model's revision (or a validation set's"
 	say "revision or sequence), and moves the timestamp on. Fields idiot doesn't"
 	say "know (modes, components…) are kept as they are."
+	echo >&2
+	say "The input can be a JSON draft or a signed assertion (a .model, or a"
+	say "stream such as idiot store assertion --chain --raw gives); with a type"
+	say "and key it is fetched from the active store. A signed one is never"
+	say "written to: its draft goes to <model>.json, <username>.json or"
+	say "<name>-<sequence>.json here, or to -o. From stdin (-) nothing is asked."
 }
 
 _cleanup() {
@@ -36,7 +45,7 @@ _cleanup() {
 }
 
 main() {
-	file=''
+	file='' key=''
 	refresh=0
 	arch='' cred='' no_edit=0 out=''
 	case "${1:-}" in
@@ -83,25 +92,46 @@ main() {
 			shift
 			;;
 		--no-edit) no_edit=1 ;;
+		-)
+			[ -z "${file}" ] || die "${USAGE}"
+			file=-
+			;;
 		-*) die "unknown option: ${1}" ;;
 		*)
-			[ -z "${file}" ] || die "${USAGE}"
-			file="${1}"
+			if [ -z "${file}" ]; then
+				file="${1}"
+			elif [ -z "${key}" ]; then
+				key="${1}"
+			else
+				die "${USAGE}"
+			fi
 			;;
 		esac
 		shift
 	done
 	[ -n "${file}" ] || die "${USAGE}"
-	[ -f "${file}" ] || die "file not found: ${file}"
 	[ -z "${cred}" ] || {
 		validate_cred_name "${cred}"
 		require_cred "${cred}"
 	}
-	h="$(helper idiot-helper)" || exit 1
-	"${h}" draft read "${file}" >"${work}/read" 2>"${work}/read.err" ||
-		die "${file}: $(sed 's/^idiot-helper draft: //' "${work}/read.err")"
-	type="$(sed -n '1s/^t\t//p' "${work}/read")"
-	sed 1d "${work}/read" >>"${as_rec}"
+	if [ -n "${key}" ]; then
+		case "${file}" in
+		model | validation-set) ;;
+		*) die "unknown assertion type '${file}' to fetch (model or validation-set) — ${USAGE}" ;;
+		esac
+		as_source_fetch "${file}" "${key}"
+	else
+		as_source_file "${file}"
+	fi
+	as_source_read
+	type="${as_src_type}"
+	cat "${work}/source.records" >>"${as_rec}"
+	# a signed source (or stdin) is never written back
+	writeback=1
+	if [ "${as_src_kind}" = signed ] || [ -n "${key}" ] || [ "${file}" = - ]; then
+		writeback=0
+	fi
+	[ "${as_src_kind}" != signed ] || as_source_say
 	[ "${type}" != system-user ] || umask 077
 	while IFS="${AS_TAB}" read -r _o _v; do
 		as_option "${_o}" "${_v}"
@@ -136,8 +166,10 @@ main() {
 	as_build "${type}"
 	if [ -n "${out}" ]; then
 		as_write "${work}/draft.json" "${out}"
-	else
+	elif [ "${writeback}" -eq 1 ]; then
 		as_write "${work}/draft.json" "${file}" 1
+	else
+		as_write "${work}/draft.json" "$(as_default_name "${work}/draft.json")"
 	fi
 }
 main "$@"

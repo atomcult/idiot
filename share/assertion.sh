@@ -869,3 +869,62 @@ as_default_name() {
             else print h["name"] "-" h["sequence"] ".json"
         }'
 }
+
+# Fetch assertion $1 (model or validation-set) by key $2 from the active
+# store, as idiot store assertion does (the active or --cred credential),
+# into ${work}/source. Exits with its message when the store doesn't
+# serve it.
+as_source_fetch() {
+    case "${1}" in
+    model | validation-set) ;;
+    *) die "only models and validation sets can be fetched from the store, not ${1}" ;;
+    esac
+    _asf_rc=0
+    "${IDIOT_ROOT}/cmd/store/assertion" --raw ${cred:+--cred "${cred}"} "${1}" "${2}" \
+        >"${work}/source" || _asf_rc=$?
+    [ "${_asf_rc}" -eq 0 ] || exit "${_asf_rc}"
+    as_src_from="the store"
+}
+
+# Copy source $1 (a file, or - for stdin) to ${work}/source.
+as_source_file() {
+    if [ "${1}" = - ]; then
+        cat >"${work}/source" || die "can't read stdin"
+        as_src_from=stdin
+    else
+        [ -f "${1}" ] || die "file not found: ${1}"
+        cp "${1}" "${work}/source" || die "can't read ${1}"
+        as_src_from="${1}"
+    fi
+}
+
+# Read ${work}/source (a draft or a signed assertion) into records in
+# ${work}/source.records (without the t and o records). Sets as_src_kind
+# (signed or draft), as_src_type, as_src_keys and as_src_rev.
+as_source_read() {
+    _asr_h="$(helper idiot-helper)" || exit 1
+    "${_asr_h}" draft read "${work}/source" >"${work}/source.read" 2>"${work}/source.err" ||
+        die "${as_src_from}: $(sed 's/^idiot-helper draft: //' "${work}/source.err")"
+    as_src_type="$(sed -n '1s/^t\t//p' "${work}/source.read")"
+    _asr_o="$(sed -n '2s/^o\t//p' "${work}/source.read")"
+    as_src_kind="$(printf '%s' "${_asr_o}" | cut -f 1)"
+    as_src_keys="$(printf '%s' "${_asr_o}" | cut -f 3)"
+    as_src_rev="$(printf '%s' "${_asr_o}" | cut -f 4)"
+    sed '/^[to]\t/d' "${work}/source.read" >"${work}/source.records"
+}
+
+# Say on stderr which assertion the draft starts from.
+as_source_say() {
+    say "${DIM}Starting from ${as_src_type} ${as_src_keys} revision ${as_src_rev} (${as_src_kind}, from ${as_src_from})${RESET}"
+}
+
+# Forget what makes a template some other assertion (new --from): its
+# identity, revision and times, which new then asks for or defaults.
+as_template_strip() {
+    case "${1}" in
+    model) _ats='authority-id brand-id model display-name revision timestamp' ;;
+    validation-set) _ats='authority-id account-id name sequence revision timestamp' ;;
+    system-user) _ats='authority-id brand-id username email name password since until revision timestamp' ;;
+    esac
+    for _ats_h in ${_ats}; do as_unset "${_ats_h}"; done
+}

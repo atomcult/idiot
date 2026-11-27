@@ -18,7 +18,7 @@
 
 ## 2. sh: edit from a signed file, stdin or the store
 
-- [ ] 2.1 In `cmd/assertion/edit`:
+- [x] 2.1 In `cmd/assertion/edit`:
   - accept `-`, and two positionals `model|validation-set <key>`, which fetch through `"${IDIOT_ROOT}/cmd/store/assertion" --raw` (passing `--cred`) into `${work}/source`; a non-zero exit stops before any prompt, with its message;
   - read the `o` record, and say on stderr where the input came from;
   - for signed sources without `-o`, write with `as_write` to the default name, computed as `new` does from the edited values, and never overwrite;
@@ -29,7 +29,7 @@
   - "A chain on stdin" with `idiot store assertion --chain --raw model canonical/ubuntu-core-24-amd64` (anonymous);
   - `edit model canonical/nope` fails with the not-found message and writes nothing;
   - `edit kiosk.json` on a draft still writes back.
-- [ ] 2.2 Update `README.md` ("Writing assertions": editing a published model) and `skills/using-idiot/references/commands.md`. Run `make check`. Commit: `feat(assertion): edit signed assertions and fetch them from the store`.
+- [x] 2.2 Update `README.md` ("Writing assertions": editing a published model) and `skills/using-idiot/references/commands.md`. Run `make check`. Commit: `feat(assertion): edit signed assertions and fetch them from the store`.
 
 ## 3. sh: templates for new assertions
 

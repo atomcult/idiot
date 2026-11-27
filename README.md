@@ -287,6 +287,8 @@ $ idiot assertion new model                    # asks for each header, then open
 $ idiot assertion new validation-set --snap core24=latest/stable --no-edit
 $ idiot assertion new system-user              # SSH keys from ~/.ssh, an optional password
 $ idiot assertion edit kiosk.json --refresh    # bump the revision, look the snaps up again
+$ idiot assertion edit model my-brand/kiosk    # the published model's next revision, as kiosk.json
+$ idiot assertion edit kiosk.model             # ...or from a signed file (or - for stdin)
 $ idiot assertion check kiosk.json             # snapd's rules, offline
 $ idiot assertion sign kiosk.json -k brand-key # snap sign, then the signature checked
 ```
@@ -303,6 +305,16 @@ system-user's 365 days…) before it is written, and reopened in the editor
 until it passes. A system-user's password is read twice without echo and
 only its SHA-512 crypt hash (from `openssl passwd -6`) is written, mode
 0600. `--set`, `--add` and `--snap` answer without prompts, for scripts.
+
+`assertion edit` reads a draft or a signed assertion: a `.model`, a
+stream such as `idiot store assertion --chain --raw` or `snap known model`
+gives (the one model, system-user or validation-set in it), or, with a
+type and key (`model <brand>/<model>`, `validation-set
+<account>/<name>[=<sequence>]`), one fetched from the active store. A
+signed one becomes the draft it was signed from (without its signing key
+and signature, which isn't checked) and is never written to: the draft
+goes to `<model>.json`, `<username>.json` or `<name>-<sequence>.json`
+here, or `-o`. Reading from stdin asks nothing.
 
 `assertion sign` runs the check, looks up in the store which account the
 key is registered to (warning when it isn't the `authority-id`), signs
