@@ -93,16 +93,23 @@ See proposal.md (Why). What this builds on:
   - `idiot model pick --unsigned` hands out `*.json` models;
   - `store import` shows how terminal prompts with defaults are done
     (read from `/dev/tty`, a terminal check before any network call).
-- **`store-assertions` (change 2)** owns fetching assertions from the
-  store through a new idiot-store subcommand ("fetch assertion `<type>`
-  `<primary keys>`"). This change uses it for:
-  - an `account-key` by `public-key-sha3-384` (which account a local key
-    is registered to, and its `since`);
-  - the latest `validation-set` for an account and name (the default
-    sequence, and the revision of a sequence being edited).
+- **`store-assertions`** (implemented and archived: `openspec/specs/store/spec.md`)
+  fetches assertions with `idiot-store assertion <type> <header>=<value>...`
+  (behind `idiot store assertion`), printing the stream on stdout and
+  exiting 4 when the store has no such assertion. This change uses it
+  for:
+  - `idiot-store assertion account-key public-key-sha3-384=<sha3-384>`:
+    which account a local key is registered to, and its `since`;
+  - `idiot-store assertion validation-set account-id=<id> name=<name>`,
+    which asks for `?sequence=latest`: the latest sequence (the default
+    for a new one) and its revision, and with `sequence=<n>` that
+    sequence's revision when editing it.
 
-  This change does not define that subcommand, and adapts to its final
-  name and output.
+  Both are anonymous (the assertions API is public). A not-found (exit 4)
+  is an answer: no such validation set (sequence 1) or an unregistered
+  key. Only a network or store error (exit 3) leaves the answer unknown:
+  the sequence prompt then defaults to 1 with a note, as the spec allows,
+  and `sign` warns that it couldn't check the key.
 
 ## Goals / Non-Goals
 
@@ -128,9 +135,8 @@ See proposal.md (Why). What this builds on:
 **A new `idiot assertion` group, not `idiot model`.** Three types share
 one flow (headers, snaps, editor, check, sign). `model` is about
 repositories of finished models. `inspect assertion` stays where it is.
-If `store-assertions` puts its user-facing fetch command in the same
-group (e.g. `idiot assertion fetch`), the groups merge with one `help`.
-Otherwise there is no overlap. Alternatives considered:
+store-assertions put its user-facing fetch in the store group (`idiot
+store assertion`), so there is no overlap. Alternatives considered:
 - `idiot model new` plus `idiot system-user …`: scatters one flow.
 - `idiot sign`: names only the last step.
 
@@ -214,7 +220,7 @@ Alternatives considered:
 - `mkpasswd` (whois package, less often installed than openssl).
 
 **Signing.** `snap keys --json` gives key names and SHA3-384s. For each
-key, store-assertions' fetch gets the account-key (anonymous: the
+key, `idiot-store assertion account-key` gets the account-key (anonymous: the
 assertions API is public) to learn its `account-id` and `since`. The
 picker shows `name`, the account it is registered to (or `not
 registered`), and preselects the one matching `authority-id`.
@@ -236,8 +242,7 @@ sign` must run on the host anyway: the keyring is outside confinement.
 queries use it: `query_cred`, then `--file` or the environment, for
 `whoami` and `info`. Nothing new reads it, and no output or draft contains
 any part of it. Account-key and validation-set fetches go through
-store-assertions' subcommand, which uses the credential only if that
-change decides it must.
+`idiot-store assertion`, anonymously: no credential is passed to it.
 
 ## Risks / Trade-offs
 
@@ -256,10 +261,9 @@ change decides it must.
   says so and suggests SSH keys.
 - [Editor not on the terminal under some wrappers] → `--no-edit`, and
   `check` on its own.
-- [store-assertions changes its interface] → this change only needs two
-  fetches by primary key. The tasks adapt to the final subcommand, and
-  without it the sequence defaults to 1 and the key check is skipped with
-  a warning.
+- [The store is unreachable] → `new` and `edit` still work offline but
+  for snap lookups (which fail, naming the snap); the sequence defaults
+  to 1 with a note, and `sign` warns that it couldn't check the key.
 
 ## Migration Plan
 
@@ -277,9 +281,6 @@ backwards-compatible for every current caller.
 - Assumption: drafts go to the current directory. Offering to save into a
   user model repository (`IDIOT_MODELS_DIR/<repo>`, then commit) could be
   added later without changing these commands.
-- Not confirmed live: the assertions API's "latest sequence" query for
-  validation sets. It is store-assertions' to confirm, and this change
-  falls back to 1.
 - `--snap <name>=invalid` reuses the channel slot for a validation-set
   presence. If a real channel named `invalid` ever matters, use `--set`
   instead, or set `presence` in the editor.
