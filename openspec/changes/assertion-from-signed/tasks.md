@@ -50,5 +50,5 @@
   - offline: a signed-looking model built in the script (headers, blank line, a dummy signature) edited with `--no-edit -o -`, a stream with no writable assertion, `new --from` of another type, and the no-overwrite case;
   - when the store is reachable: `edit model canonical/ubuntu-core-24-amd64 --no-edit -o -` gives a draft that `idiot assertion check` passes, apart from any errors the original already has.
 - [x] 4.2 Run `openspec validate assertion-from-signed --strict`.
-- [ ] 4.3 Run `snapcraft clean idiot`, `snapcraft pack` (into the tree; the snap and components are gitignored), and `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass.
+- [x] 4.3 Run `snapcraft clean idiot`, `snapcraft pack` (into the tree; the snap and components are gitignored), and `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass.
 - [ ] 4.4 With the user, on a terminal under the snap: `idiot assertion edit model <their-brand>/<their-model>` offers the next revision and writes `<model>.json`; `idiot assertion sign` on it gives a model that `idiot inspect assertion` verifies.
