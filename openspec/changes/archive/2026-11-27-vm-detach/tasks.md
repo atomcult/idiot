@@ -23,4 +23,4 @@
 - [x] 3.3 `tests/bare-host.d/vm`: a detached `--tpm` boot returns, `vm list` shows it running, the console log fills, `vm stop` leaves no swtpm; a detached boot QEMU refuses fails and leaves no swtpm
 - [x] 3.4 `tests/bare-host.d/vm-snapshot` (or a new check without a bootable guest): a second VM's clashing `--port` refused naming the first, a recorded one moved, `vm list`'s forwards, an `--in-place` clash refused, overlays side by side
 - [x] 3.5 `make check`; commit `docs: vm boot --detach` and `test(bare-host): vm boot --detach`
-- [ ] 3.6 Run `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:` after `snapcraft pack` — not run yet: vm-second was run locally against the source tree (14 ok)
+- [ ] 3.6 Run `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:` after `snapcraft pack` — archived with this open: not run yet; vm-second was run locally against the source tree (14 ok)
