@@ -36,4 +36,4 @@
 
 - [x] 4.1 Extend `tests/bare-host.d/assertion-writer` with offline check cases (classic without a distribution, distribution in Ubuntu Core, classic kernel without a gadget, a component revision rule) and, when the store is reachable, `new model --classic --no-edit -o -` passing `check`. Run `make check`. Commit: `test(bare-host): classic models and validation-set components`.
 - [x] 4.2 Run `openspec validate classic-models --strict`.
-- [ ] 4.3 Run `snapcraft pack` and `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass. This needs a shell where snaps can run.
+- [ ] 4.3 Run `snapcraft pack` and `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass. This needs a shell where snaps can run. Archived with this open: not run yet.
