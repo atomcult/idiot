@@ -2,7 +2,7 @@
 
 ## 1. idiot-helper: drafts from signed assertions
 
-- [ ] 1.1 In `tools/idiot-helper/src/draft.rs`, make `parse_draft` accept signed input through `assertion::decode_stream`:
+- [x] 1.1 In `tools/idiot-helper/src/draft.rs`, make `parse_draft` accept signed input through `assertion::decode_stream`:
   - pick the one model, system-user or validation-set in the stream, and fail listing the types seen when there are none or several;
   - convert `V` to JSON values in header order, dropping `sign-key-sha3-384` and `body-length`;
   - fail on a non-empty body;
@@ -14,7 +14,7 @@
   - account-only and two-model streams fail naming their types;
   - `read | write` of signed input gives a draft that `draft check` passes;
   - the old `signed_and_foreign_input` test is replaced (foreign types are still refused).
-- [ ] 1.2 Run `cargo test`, `make check`, and grep the change for socket or HTTP use (none). Commit: `feat(idiot-helper): read signed assertions as drafts`.
+- [x] 1.2 Run `cargo test`, `make check`, and grep the change for socket or HTTP use (none). Commit: `feat(idiot-helper): read signed assertions as drafts`.
 
 ## 2. sh: edit from a signed file, stdin or the store
 

@@ -17,8 +17,14 @@
 //! keys, the rest alphabetically, `snaps` last), indented by two spaces.
 //!
 //! `draft read <file|->` prints those records for a JSON draft, `t` first,
-//! so that `read | write` gives the same object back. It refuses a signed
-//! assertion and other types.
+//! so that `read | write` gives the same object back. A signed assertion
+//! (or a stream holding exactly one model, system-user or validation-set,
+//! as `--chain` and `snap known` give) is read as the draft it was signed
+//! from: every header as a string, without `sign-key-sha3-384`,
+//! `body-length` and the signature, which isn't checked. After `t` comes
+//!   o <signed|draft> <type> <keys> <revision>
+//! (`keys`: the primary keys but `series`, joined by `/`; `revision` 0
+//! when absent), which `draft write` ignores. Other types are refused.
 //!
 //! `draft check <file|->` prints `error\t<where>\t<message>` and
 //! `warning\t<where>\t<message>` lines for what snapd would refuse when
@@ -29,6 +35,7 @@
 //! usage or unreadable input. No network code; it is only ever given a
 //! password's hash.
 
+use crate::assertion;
 use serde_json::{Map, Value};
 use std::io::{Read, Write};
 
@@ -222,6 +229,9 @@ pub fn write(ty: &str, records: &str) -> Res<String> {
         }
         let mut parts = line.splitn(3, '\t');
         let tag = parts.next().unwrap_or("");
+        if tag == "o" {
+            continue;
+        }
         let a = parts.next();
         let b = parts.next();
         if b.is_some_and(|b| b.contains('\t')) {
@@ -335,15 +345,57 @@ fn render(ty: &str, mut headers: Vec<(String, Node)>) -> String {
 
 // ---- read ----------------------------------------------------------------
 
-fn parse_draft(bytes: &[u8]) -> Res<Map<String, Value>> {
-    let text = String::from_utf8_lossy(bytes);
-    let trimmed = text.trim_start();
-    if trimmed.starts_with("type:") {
-        return Err((
-            1,
-            "a signed assertion, not a JSON draft — edit the JSON it was signed from".into(),
-        ));
+/// A signed header value as the JSON a draft holds.
+fn v_json(v: &assertion::V) -> Value {
+    match v {
+        assertion::V::S(s) => Value::String(s.clone()),
+        assertion::V::L(l) => Value::Array(l.iter().map(v_json).collect()),
+        assertion::V::M(m) => {
+            Value::Object(m.iter().map(|(k, v)| (k.clone(), v_json(v))).collect())
+        }
     }
+}
+
+/// The one model, system-user or validation-set in a signed stream, as a
+/// draft.
+fn parse_signed(bytes: &[u8]) -> Res<Map<String, Value>> {
+    let stream = assertion::decode_stream(bytes).map_err(|e| (1, e.0))?;
+    let ty = |a: &assertion::Assertion| match a.h.iter().find(|(k, _)| k == "type") {
+        Some((_, assertion::V::S(t))) => t.clone(),
+        _ => String::new(),
+    };
+    let mut ours = stream.iter().filter(|a| TYPES.contains(&ty(a).as_str()));
+    let (Some(a), None) = (ours.next(), ours.next()) else {
+        let seen: Vec<String> = stream.iter().map(ty).collect();
+        let n = seen.iter().filter(|t| TYPES.contains(&t.as_str())).count();
+        let what = if n == 0 {
+            "no model, system-user or validation-set"
+        } else {
+            "more than one model, system-user or validation-set: give one"
+        };
+        return Err((1, format!("the stream holds {}: {what}", seen.join(", "))));
+    };
+    if !a.body.is_empty() {
+        return Err((1, format!("the {} has a body, which it can't have", ty(a))));
+    }
+    Ok(a.h
+        .iter()
+        .filter(|(k, _)| k != "sign-key-sha3-384" && k != "body-length")
+        .map(|(k, v)| (k.clone(), v_json(v)))
+        .collect())
+}
+
+fn is_signed(bytes: &[u8]) -> bool {
+    String::from_utf8_lossy(bytes)
+        .trim_start()
+        .starts_with("type:")
+}
+
+fn parse_draft(bytes: &[u8]) -> Res<Map<String, Value>> {
+    if is_signed(bytes) {
+        return parse_signed(bytes);
+    }
+    let text = String::from_utf8_lossy(bytes);
     let v: Value =
         serde_json::from_str(&text).map_err(|e| (1, format!("not a JSON draft: {e}")))?;
     match v {
@@ -374,6 +426,17 @@ pub fn read(bytes: &[u8]) -> Res<String> {
     let o = parse_draft(bytes)?;
     let ty = draft_type(&o)?;
     let mut out = format!("t\t{ty}\n");
+    let keys: Vec<&str> = primary_keys(ty)
+        .iter()
+        .filter(|k| **k != "series")
+        .map(|k| o.get(*k).and_then(plain).unwrap_or(""))
+        .collect();
+    out += &format!(
+        "o\t{}\t{ty}\t{}\t{}\n",
+        if is_signed(bytes) { "signed" } else { "draft" },
+        keys.join("/"),
+        o.get("revision").and_then(plain).unwrap_or("0")
+    );
     let raw = |path: &str, v: &Value| format!("x\t{path}\t{v}\n");
     for (k, v) in &o {
         if k == "type" {
@@ -1277,10 +1340,76 @@ mod tests {
         assert!(write("model", "h\ttype\tsystem-user\n").is_err());
     }
 
+    /// A signed-looking assertion: headers, a blank line, a dummy signature.
+    fn fake_signed(headers: &str) -> String {
+        format!("{headers}\nsign-key-sha3-384: abc\n\nAcLBUgQAAQoABgUC\n")
+    }
+
     #[test]
-    fn signed_and_foreign_input() {
-        let e = read(UC24_SIGNED.as_bytes()).unwrap_err();
-        assert!(e.1.contains("signed assertion"), "{}", e.1);
+    fn signed_model_read() {
+        let records = read(UC24_SIGNED.as_bytes()).unwrap();
+        assert!(records.starts_with("t\tmodel\no\tsigned\tmodel\tcanonical/ubuntu-core-24-amd64\t"));
+        let v: Value = serde_json::from_str(&write("model", &records).unwrap()).unwrap();
+        assert!(v.get("sign-key-sha3-384").is_none());
+        assert!(v.get("body-length").is_none());
+        // the signed model holds what its draft does, as strings
+        let draft: Value = serde_json::from_str(UC24_AMD64).unwrap();
+        for k in ["brand-id", "model", "architecture", "base", "grade"] {
+            assert_eq!(v[k], draft[k], "{k}");
+        }
+        let names = |x: &Value| -> Vec<String> {
+            x["snaps"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| e["name"].as_str().unwrap().to_string())
+                .collect()
+        };
+        assert_eq!(names(&v), names(&draft));
+        assert!(v["snaps"][0]["id"].is_string());
+        assert!(check(v.as_object().unwrap())
+            .unwrap()
+            .iter()
+            .all(|p| !p.error));
+        // a draft says so
+        assert!(read(UC24_AMD64.as_bytes())
+            .unwrap()
+            .contains("\no\tdraft\tmodel\tcanonical/ubuntu-core-24-amd64\t"));
+    }
+
+    #[test]
+    fn signed_streams() {
+        let account = fake_signed("type: account\nauthority-id: canonical\naccount-id: x");
+        let key = fake_signed("type: account-key\nauthority-id: canonical\naccount-id: x");
+        let vs = fake_signed(
+            "type: validation-set\nauthority-id: x\nseries: 16\naccount-id: x\nname: base\nsequence: 3\nrevision: 2\nsnaps:\n  -\n    name: core24\n    id: abc\n    presence: required\n    revision: 2307",
+        );
+        let r = read(format!("{account}\n{key}\n{vs}").as_bytes()).unwrap();
+        assert!(
+            r.starts_with("t\tvalidation-set\no\tsigned\tvalidation-set\tx/base/3\t2\n"),
+            "{r}"
+        );
+        assert!(r.contains("s\tcore24\n") && r.contains("f\trevision\t2307\n"));
+        let e = read(format!("{account}\n{key}").as_bytes()).unwrap_err();
+        assert!(
+            e.1.contains("holds account, account-key: no model"),
+            "{}",
+            e.1
+        );
+        let e = read(format!("{vs}\n{vs}").as_bytes()).unwrap_err();
+        assert!(e.1.contains("more than one"), "{}", e.1);
+        let body = "type: model\nauthority-id: x\nbrand-id: x\nseries: 16\nmodel: m\nbody-length: 2\nsign-key-sha3-384: abc\n\nhi\n\nAcLBUgQAAQoABgUC\n";
+        assert!(read(body.as_bytes()).unwrap_err().1.contains("has a body"));
+    }
+
+    #[test]
+    fn foreign_input() {
+        let e = read(fake_signed("type: serial\nauthority-id: x").as_bytes()).unwrap_err();
+        assert!(
+            e.1.contains("no model, system-user or validation-set"),
+            "{}",
+            e.1
+        );
         let e = read(br#"{"type": "serial"}"#).unwrap_err();
         assert!(e.1.contains("only model, system-user and validation-set"));
         assert!(read(b"[1]").is_err());
