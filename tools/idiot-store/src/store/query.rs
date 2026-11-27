@@ -164,6 +164,8 @@ pub struct AccountSnap {
     pub name: String,
     pub store: String,
     pub private: bool,
+    /// The publisher's username.
+    pub publisher: String,
 }
 
 pub fn account(auth: &mut Auth) -> Result<(Vec<StoreRole>, Vec<AccountSnap>), StoreError> {
@@ -216,6 +218,7 @@ pub fn parse_account(json: &Value) -> Result<(Vec<StoreRole>, Vec<AccountSnap>),
                     name: name.clone(),
                     store: text(info, "store"),
                     private: info["private"].as_bool().unwrap_or(false),
+                    publisher: text(&info["publisher"], "username"),
                 })
                 .collect()
         })
@@ -476,12 +479,14 @@ mod tests {
                 AccountSnap {
                     name: "hello-global".into(),
                     store: "Global".into(),
-                    private: false
+                    private: false,
+                    publisher: "someone".into()
                 },
                 AccountSnap {
                     name: "hello-team".into(),
                     store: "Example Team Store".into(),
-                    private: true
+                    private: true,
+                    publisher: "test-user".into()
                 },
             ]
         );

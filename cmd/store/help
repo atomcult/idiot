@@ -15,6 +15,11 @@ main() {
 	help_command "remove" "Remove a saved store"
 	help_command "list" "List saved stores"
 	echo >&2
+	help_command "check" "Why a snap can (or can't) be downloaded here"
+	help_command "channels" "A snap's channel map in the active store"
+	help_command "roles" "Your stores and roles"
+	help_command "snaps" "The snaps in the active store"
+	echo >&2
 	help_heading "Environment:"
 	help_env "IDIOT_STORES_DIR" "Stores directory"
 	help_env "UBUNTU_STORE_ID" "Set by use: the active store's ID"

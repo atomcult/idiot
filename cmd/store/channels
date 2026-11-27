@@ -1,0 +1,97 @@
+#!/usr/bin/env sh
+# cmd/store/channels - a snap's channel map in the active store
+# idiot: host
+# Usage: idiot store channels <snap> [--arch <arch>] [--tsv] [--cred <name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+
+usage() {
+	help_heading "Usage:" "idiot store channels <snap> [--arch <arch>] [--tsv] [--cred <name>]"
+	echo >&2
+	say "Prints the snap's channel map in the active store as your credential"
+	say "sees it (anonymously without one): each channel's revision and version"
+	say "per architecture, the target architecture highlighted."
+	echo >&2
+	help_heading "Options:"
+	help_option "--arch <arch>" "Only this architecture"
+	help_option "--tsv" "Tab-separated: channel, arch, revision, version, released"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+}
+
+main() {
+	snap=''
+	only=''
+	tsv=0
+	cred=''
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--tsv) tsv=1 ;;
+		--arch | --cred)
+			[ -n "${2:-}" ] || die "${1} needs a value"
+			case "${1}" in
+			--arch) only="${2}" ;;
+			--cred) cred="${2}" ;;
+			esac
+			shift
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${snap}" ] || die "usage: idiot store channels <snap> [--arch <arch>] [--tsv] [--cred <name>]"
+			snap="${1}"
+			;;
+		esac
+		shift
+	done
+	[ -n "${snap}" ] || die "usage: idiot store channels <snap> [--arch <arch>] [--tsv] [--cred <name>]"
+	query_cred "${cred}" || :
+	helper="$(store_helper)" || exit 1
+	target="${only:-${UBUNTU_STORE_ARCH:-$(uname_to_snap_arch)}}"
+	rc=0
+	lines="$("${helper}" info ${query_file:+--file "${query_file}"} \
+		${UBUNTU_STORE_ID:+--store "${UBUNTU_STORE_ID}"} "${snap}" 2>/dev/null)" || rc=$?
+	if [ "${rc}" -ne 0 ]; then
+		[ "${rc}" -eq 3 ] || die "could not get ${snap}'s channel map (idiot-store exit ${rc})"
+		die "$(store_label "${UBUNTU_STORE_ID:-}") doesn't show ${snap} to you — find out why: idiot store check ${snap}"
+	fi
+	rows="$(printf '%s\n' "${lines}" | awk -F '\t' -v only="${only}" \
+		'$1 == "channel" && (only == "" || $3 == only) { print $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 }')"
+	[ -n "${rows}" ] || die "${snap} has no revision${only:+ for ${only}} in any open channel"
+	if [ "${tsv}" -eq 1 ]; then
+		printf '%s\n' "${rows}"
+		exit 0
+	fi
+	stdout_colors
+	# one row per channel, one column per architecture: "revision version"
+	printf '%s\n' "${rows}" | awk -F '\t' -v t="${target}" -v b="${OUT_BOLD}" -v d="${OUT_DIM}" -v r="${OUT_RESET}" '
+		{
+			if (!($1 in seen_c)) { seen_c[$1] = 1; chans[++nc] = $1 }
+			if (!($2 in seen_a)) { seen_a[$2] = 1; arches[++na] = $2 }
+			cell[$1, $2] = $3 " " $4
+			if (length($1) > cw) cw = length($1)
+			if (length($3 " " $4) > aw[$2]) aw[$2] = length($3 " " $4)
+		}
+		END {
+			# sort arches; target first stays where it sorts, but bold
+			for (i = 1; i <= na; i++) for (j = i + 1; j <= na; j++) if (arches[j] < arches[i]) { x = arches[i]; arches[i] = arches[j]; arches[j] = x }
+			for (i = 1; i <= na; i++) if (length(arches[i]) > aw[arches[i]]) aw[arches[i]] = length(arches[i])
+			printf "%s%-" cw "s%s", d, "channel", r
+			for (i = 1; i <= na; i++) printf "  %s%-" (i < na ? aw[arches[i]] : 0) "s%s", (arches[i] == t ? b : d), arches[i], r
+			printf "\n"
+			for (n = 1; n <= nc; n++) {
+				printf "%-" cw "s", chans[n]
+				for (i = 1; i <= na; i++) {
+					c = cell[chans[n], arches[i]]; if (c == "") c = "-"
+					printf "  %s%-" (i < na ? aw[arches[i]] : 0) "s%s", (arches[i] == t ? b : ""), c, (arches[i] == t ? r : "")
+				}
+				printf "\n"
+			}
+		}'
+}
+main "$@"

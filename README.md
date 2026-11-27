@@ -287,6 +287,41 @@ then downloads anonymously, so private and brand-store snaps fail with a
 (`Repaired credentials 'work'`), and `idiot doctor` lists any still
 affected.
 
+### Checking a store
+
+When a snap won't download, the store answers 404 for many reasons. `idiot
+store check` works out which one:
+
+```
+$ idiot store check ce-dummy --arch arm64
+Checking ce-dummy in store 'ce-team-test' for arm64, latest/stable
+
+  ✓ credential 'work'
+  ✓ member of store 'ce-team-test' (view)
+  ✓ ce-dummy is visible with your credential (private to anonymous users)
+  ✗ no arm64 revision in latest/stable
+
+✗ ce-dummy isn't released for arm64 in latest/stable; arm64 revisions are in: latest/edge
+```
+
+It looks the snap up as snapd does, tries the download without and with
+the credential (downloading nothing), and checks your role in the store
+and the credential itself: expiry, `package_access`, and padding snapd
+can't read. It exits 0 when the snap can be downloaded.
+
+```
+$ idiot store channels ce-dummy          # revisions per channel and arch (--tsv)
+$ idiot store roles                      # your stores and roles, the active one marked
+$ idiot store snaps                      # the snaps in the active store (--pick: fzf)
+$ idiot store snaps --cred ce-admin      # with another saved credential, once
+```
+
+`store snaps` lists a whole brand store only for its admins, with a
+credential that has `store_admin` (`idiot auth add ce-admin --permissions
+store_admin,package_access`); otherwise it lists the snaps you publish or
+collaborate on there and says what the full list needs. `--cred <name>`
+works on all four and never changes the active credential.
+
 idiot also knows when each credential expires, read offline from the
 credential itself when it's added or imported (or from the store, the
 first time `idiot auth status` runs for an older one). `idiot status`,

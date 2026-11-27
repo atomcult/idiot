@@ -45,7 +45,13 @@ pub fn run_account(args: CredArgs) -> Result<(), Failure> {
         println!("store\t{}\t{}\t{}", s.id, s.name, s.roles.join(","));
     }
     for s in snaps {
-        println!("snap\t{}\t{}\t{}", s.name, s.store, flag(s.private));
+        println!(
+            "snap\t{}\t{}\t{}\t{}",
+            s.name,
+            s.store,
+            flag(s.private),
+            s.publisher
+        );
     }
     Ok(())
 }

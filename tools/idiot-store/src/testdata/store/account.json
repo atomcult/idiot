@@ -7,7 +7,7 @@
   "username": "test-user",
   "validation": "unproven",
   "stores": [
-    {"id": "Global", "name": "Global", "roles": ["access", "view"]},
+    {"id": "ubuntu", "name": "Global", "roles": ["access", "view"]},
     {"id": "abc123StoreIdXXXXXXX", "name": "Example Team Store", "roles": ["admin", "access", "review", "view"]},
     {"id": "def456StoreIdXXXXXXX", "name": "Example Brand Store", "roles": ["view"]}
   ],

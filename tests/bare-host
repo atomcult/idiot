@@ -13,6 +13,8 @@
 #   assertion  inspect assertion on store models, file/stdin/--remote
 #   prompt   idiot prompt confined, IDIOT_PROMPT from the snap's integration
 #   expiry   credential expiry recorded, shown and warned about
+#   store    store check/roles/snaps/channels: usage, --cred, and the
+#            causes decided offline (expired, permissions, padding)
 #   run      idiot run --list/--sudo/--shell, missing-component errors
 #            (as an unprivileged user)
 #   profile  profiles and auth bind run confined, as that user
@@ -158,7 +160,7 @@ on sh -c 'e="$(mktemp)"; for p in /usr/bin/python3*; do
 	[ -f "${p}" ] && [ ! -L "${p}" ] && mount --bind "${e}" "${p}"; done; :'
 
 d=/root/bare-host/bare-host.d
-for check in no-python tools data inspect assertion prompt expiry; do
+for check in no-python tools data inspect assertion prompt expiry store; do
 	say "${check}"
 	on bash "${d}/${check}" | tee -a "${log}"
 done

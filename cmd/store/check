@@ -1,0 +1,233 @@
+#!/usr/bin/env sh
+# cmd/store/check - why a snap can (or can't) be downloaded from the active store
+# idiot: host
+# Usage: idiot store check <snap> [--channel <channel>] [--arch <arch>] [--cred <name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+
+usage() {
+	help_heading "Usage:" "idiot store check <snap> [--channel <channel>] [--arch <arch>] [--cred <name>]"
+	echo >&2
+	say "Checks whether your credential can download <snap> from the active store"
+	say "for the target architecture and channel, as snapd would, and if not, why:"
+	say "membership, the store's contents, releases, the credential's expiry,"
+	say "permissions and format. Nothing is downloaded. Exit 0 when it can be."
+	echo >&2
+	help_heading "Options:"
+	help_option "--channel <channel>" "Channel (default: stable)"
+	help_option "--arch <arch>" "Architecture (default: UBUNTU_STORE_ARCH, else the host's)"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+}
+
+_ok() { say "  ${GREEN}✓${RESET} ${1}${2:+ ${DIM}${2}${RESET}}"; }
+_warn() { say "  ${YELLOW}!${RESET} ${1}"; }
+_bad() { say "  ${RED}✗${RESET} ${1}"; }
+
+# Print the conclusion and exit: $1 0 (downloadable) or 1, $2 the verdict.
+_conclude() {
+	echo >&2
+	if [ "${1}" -eq 0 ]; then
+		say "${GREEN}✓${RESET} ${2}"
+	else
+		say "${RED}✗${RESET} ${2}"
+	fi
+	exit "${1}"
+}
+
+# Whether HTTP status $1 means the store let the download start.
+_allowed() {
+	case "${1}" in
+	200 | 302 | 303 | 307) return 0 ;;
+	esac
+	return 1
+}
+
+# Whether credential (file $1, or UBUNTU_STORE_AUTH when empty) is padded.
+# The environment's value goes through a private temporary file, removed
+# straight after; idiot-store prints only a status word.
+_padded() {
+	if [ -n "${1}" ]; then
+		[ "$("${helper}" repair --check "${1}" 2>/dev/null)" = padded ]
+		return
+	fi
+	_pd_tmp="$(umask 077 && mktemp)" || return 1
+	printf '%s' "${UBUNTU_STORE_AUTH}" >"${_pd_tmp}"
+	_pd_out="$("${helper}" repair --check "${_pd_tmp}" 2>/dev/null)"
+	rm -f "${_pd_tmp}"
+	[ "${_pd_out}" = padded ]
+}
+
+main() {
+	snap=''
+	channel=stable
+	arch=''
+	cred=''
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--channel | --arch | --cred)
+			[ -n "${2:-}" ] || die "${1} needs a value"
+			case "${1}" in
+			--channel) channel="${2}" ;;
+			--arch) arch="${2}" ;;
+			--cred) cred="${2}" ;;
+			esac
+			shift
+			;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${snap}" ] || die "usage: idiot store check <snap> [--channel <channel>] [--arch <arch>] [--cred <name>]"
+			snap="${1}"
+			;;
+		esac
+		shift
+	done
+	[ -n "${snap}" ] || die "usage: idiot store check <snap> [--channel <channel>] [--arch <arch>] [--cred <name>]"
+	has_cred=1
+	query_cred "${cred}" || has_cred=0
+	helper="$(store_helper)" || exit 1
+	arch="${arch:-${UBUNTU_STORE_ARCH:-$(uname_to_snap_arch)}}"
+	case "${channel}" in
+	*/*) ;;
+	*) channel="latest/${channel}" ;;
+	esac
+	store="${UBUNTU_STORE_ID:-}"
+	label="$(store_label "${store}")"
+	fileargs=''
+	[ -z "${query_file}" ] || fileargs=1
+
+	say "Checking ${BOLD}${snap}${RESET} in ${label} for ${BOLD}${arch}${RESET}, ${channel}"
+	echo >&2
+
+	# the credential, offline
+	# shellcheck disable=SC2154 # set by query_cred (creds.sh)
+	name="${query_cred}"
+	expired=0 noaccess=0 padded=0
+	if [ "${has_cred}" -eq 0 ]; then
+		_warn "no active credential: only anonymous access is checked (idiot auth login, or --cred <name>)"
+	else
+		if [ -n "${name}" ]; then
+			_ok "credential '${name}'"
+		else
+			_warn "credential set by hand (not a saved one): expiry and pairing not checked"
+		fi
+		if [ -n "${name}" ] && exp="$(read_expiry "${name}")"; then
+			if [ "${exp}" -le "$(date +%s)" ]; then
+				expired=1
+				_bad "credential '${name}' has expired"
+			fi
+		fi
+		perms="$("${helper}" permissions ${fileargs:+--file "${query_file}"} 2>/dev/null)" ||
+			_conclude 1 "the credential can't be read (not the format snapcraft export-login writes) — add a new one: idiot auth add <name>"
+		perms="$(printf '%s\n' "${perms}" | paste -sd, -)"
+		case ",${perms}," in
+		*,package_access,*) ;;
+		*)
+			noaccess=1
+			_bad "the credential lacks package_access, which downloads need (has: ${perms:-none})"
+			;;
+		esac
+		if _padded "${query_file}"; then
+			padded=1
+			_bad "the credential has base64 padding snapd can't read: snapd would download anonymously"
+		fi
+		if [ -z "${query_file}" ] && [ -n "${name}" ] && [ -f "${IDIOT_AUTH_DIR}/${name}" ] &&
+			[ "${UBUNTU_STORE_AUTH}" != "$(cat "${IDIOT_AUTH_DIR}/${name}")" ]; then
+			_warn "this shell's credential differs from the saved '${name}' — reload it: idiot auth login ${name}"
+		fi
+		if [ -n "${name}" ] && own="$(cred_store_id "${name}")" &&
+			[ "${own}" != "${CRED_ANY_STORE}" ] && [ "${own}" != "${store}" ]; then
+			_warn "credential '${name}' belongs to $(store_label "${own}"), not ${label}"
+		fi
+	fi
+	[ "${expired}" -eq 0 ] ||
+		_conclude 1 "credential '${name}' has expired — renew it: idiot auth add ${name}"
+	[ "${noaccess}" -eq 0 ] ||
+		_conclude 1 "the credential can't download snaps — add one with package_access: idiot auth add <name> --permissions package_access"
+
+	# membership (the global store's ID is "ubuntu")
+	member=-
+	roles=''
+	if [ "${has_cred}" -eq 1 ] && [ -n "${store}" ]; then
+		account="$("${helper}" account ${fileargs:+--file "${query_file}"})" || exit $?
+		roles="$(printf '%s\n' "${account}" | awk -F '\t' -v id="${store}" '$1 == "store" && $2 == id { print $4 }')"
+		if [ -n "${roles}" ]; then
+			member=1
+			_ok "member of ${label}" "(${roles})"
+		else
+			member=0
+			_bad "your account isn't a member of ${label}"
+		fi
+	fi
+
+	# what the store says, as snapd would ask
+	probe="$("${helper}" probe ${fileargs:+--file "${query_file}"} ${store:+--store "${store}"} \
+		--arch "${arch}" --channel "${channel}" "${snap}")" || exit $?
+	field() { printf '%s\n' "${probe}" | awk -F '\t' -v a="${1}" -v b="${2}" '$1 == a && $2 == b { print $3; exit }'; }
+	info_anon="$(field info anon)"
+	info_auth="$(field info auth)"
+	if [ "${info_anon}" = 200 ]; then
+		_ok "${snap} is visible to anyone"
+	elif [ "${info_auth}" = 200 ]; then
+		_ok "${snap} is visible with your credential" "(private to anonymous users)"
+	else
+		_bad "${label} doesn't show ${snap}${info_auth:+ to you}"
+		[ "${member}" != 0 ] ||
+			_conclude 1 "your account isn't a member of ${label} — ask one of its admins to add you, then check again"
+		_conclude 1 "${label} doesn't have ${snap}, or doesn't show it to you — check the name and the active store (idiot store snaps lists what you can see)"
+	fi
+
+	release="$(printf '%s\n' "${probe}" | awk -F '\t' '$1 == "release" { print $2 "\t" $5; exit }')"
+	case "${release}" in
+	found*)
+		_ok "released for ${arch} in ${channel}" "(revision $(printf '%s' "${release}" | cut -f2))"
+		;;
+	*)
+		_bad "no ${arch} revision in ${channel}"
+		others="$("${helper}" info ${fileargs:+--file "${query_file}"} ${store:+--store "${store}"} "${snap}" 2>/dev/null |
+			awk -F '\t' -v a="${arch}" '$1 == "channel" && $3 == a { print $2 }' | paste -sd ' ' -)"
+		if [ -n "${others}" ]; then
+			_conclude 1 "${snap} isn't released for ${arch} in ${channel}; ${arch} revisions are in: ${others}"
+		fi
+		arches="$("${helper}" info ${fileargs:+--file "${query_file}"} ${store:+--store "${store}"} "${snap}" 2>/dev/null |
+			awk -F '\t' '$1 == "channel" { print $3 }' | sort -u | paste -sd ' ' -)"
+		_conclude 1 "${snap} has no ${arch} revision in any open channel (it has: ${arches:-none})"
+		;;
+	esac
+
+	dl_anon="$(field download anon)"
+	dl_auth="$(field download auth)"
+	if _allowed "${dl_anon}"; then
+		_ok "anyone can download it"
+	elif [ "${has_cred}" -eq 1 ]; then
+		_ok "anonymous downloads are refused" "(${dl_anon}: it needs a credential)"
+	else
+		_bad "anonymous downloads are refused (${dl_anon:-no answer})"
+	fi
+	if [ "${has_cred}" -eq 0 ]; then
+		_allowed "${dl_anon}" && _conclude 0 "${snap} can be downloaded without a credential"
+		_conclude 1 "${snap} needs a credential with access to it — log in first: idiot auth login <name>"
+	fi
+	if _allowed "${dl_auth}"; then
+		_ok "your credential can download it"
+		if [ "${padded}" -eq 1 ]; then
+			_allowed "${dl_anon}" &&
+				_conclude 0 "${snap} can be downloaded (snapd would do it anonymously, since it can't read this credential — repair it: idiot auth login ${name:-<name>})"
+			_conclude 1 "idiot can download ${snap}, but snapd can't read this credential and would go anonymous, which the store refuses — repair it: idiot auth login ${name:-<name>}"
+		fi
+		_allowed "${dl_anon}" && _conclude 0 "${snap} can be downloaded"
+		_conclude 0 "${snap} can be downloaded with your credential (snapd reads it from UBUNTU_STORE_AUTH, which idiot auth login sets)"
+	fi
+	_bad "your credential can't download it (${dl_auth:-no answer})"
+	_allowed "${dl_anon}" && _conclude 0 "${snap} can be downloaded anonymously (though not with your credential)"
+	[ "${dl_auth}" != 401 ] ||
+		_conclude 1 "the store rejected the credential (revoked?) — check it: idiot auth status"
+	_conclude 1 "you can see ${snap} but not download it: your role${roles:+ (${roles})} or the credential's permissions don't allow it"
+}
+main "$@"

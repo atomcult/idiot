@@ -1,0 +1,105 @@
+#!/bin/bash
+# tests/bare-host.d/store - idiot store check/channels/roles/snaps, offline
+#
+# Usage: store   (no store account in the container)
+# Fake credentials (V1 macaroons with dummy signatures and an acl caveat)
+# exercise what store check decides before it contacts the store: an
+# unknown --cred, an expired credential, one without package_access, one
+# that can't be read, and padding snapd can't read (reported, then the
+# store refuses the fake). Plus usage errors, and roles/snaps without a
+# credential. Nothing here needs a real account.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+# One V1 macaroon packet: 4 hex digits of length (all of it), key, value.
+_pkt() {
+	_b="${1} ${2}"
+	printf '%04x%s\n' $((${#_b} + 5)) "${_b}"
+}
+# A base64url V1 macaroon: location, identifier, first-party caveats;
+# padded when $1 is "pad" (as older idiot-store wrote them), else not.
+_mac() {
+	_pad="${1}"
+	shift
+	{
+		_pkt location "${1}"
+		_pkt identifier "${2}"
+		shift 2
+		for _c in "$@"; do _pkt cid "${_c}"; done
+		printf '002fsignature '
+		head -c 32 /dev/zero
+		printf '\n'
+	} | base64 -w0 | tr '+/' '-_' | if [ "${_pad}" = pad ]; then cat; else tr -d '='; fi
+}
+# A credential with permissions $1 (comma-separated); its root padded when
+# $2 is "pad" (an identifier length is chosen so that it pads).
+_cred() {
+	_loc=myapps.developer.ubuntu.com
+	_acl="[\"$(printf '%s' "${1}" | sed 's/,/", "/g')\"]"
+	for _id in root-id root-id1 root-id12; do
+		_r="$(_mac "${2:-nopad}" "${_loc}" "${_id}" "${_loc}|acl|${_acl}")"
+		case "${2:-}:${_r}" in
+		pad:*=) break ;;
+		pad:*) ;;
+		*) break ;;
+		esac
+	done
+	_d="$(_mac nopad login.ubuntu.com dis-id 'login.ubuntu.com|account|eyJ4IjogMX0=')"
+	printf '{"t":"u1-macaroon","v":{"r":"%s","d":"%s"}}' "${_r}" "${_d}" | base64 -w0
+}
+
+auth="${HOME}/snap/idiot/common/auth"
+mkdir -p "${auth}" && chmod 700 "${auth}"
+(umask 077 && _cred package_access >"${auth}/st-old" && date -d '-2 days' +%s >"${auth}/.expires.st-old")
+(umask 077 && _cred package_push >"${auth}/st-push")
+(umask 077 && _cred package_access pad >"${auth}/st-pad")
+(umask 077 && printf 'not a credential' >"${auth}/st-junk")
+idiot auth logout 2>/dev/null
+
+out="$(idiot store check 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store check <snap>' &&
+	ok "store check: usage without a snap" || fail "store check usage: rc=${rc} ${out}"
+out="$(idiot store check hello --cred nope 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q "credentials 'nope' not found" &&
+	ok "store check: unknown --cred refused" || fail "store check --cred nope: ${out}"
+out="$(idiot store check hello --cred st-old 2>&1)"
+rc=$?
+[ "${rc}" -eq 1 ] && printf '%s' "${out}" | grep -q "credential 'st-old' has expired — renew it: idiot auth add st-old" &&
+	ok "store check: expired credential is the cause" || fail "store check expired: ${out}"
+out="$(idiot store check hello --cred st-push 2>&1)"
+rc=$?
+[ "${rc}" -eq 1 ] && printf '%s' "${out}" | grep -q 'lacks package_access, which downloads need (has: package_push)' &&
+	ok "store check: missing package_access" || fail "store check push-only: ${out}"
+out="$(idiot store check hello --cred st-junk 2>&1)"
+rc=$?
+[ "${rc}" -eq 1 ] && printf '%s' "${out}" | grep -q "the credential can't be read" &&
+	ok "store check: unreadable credential" || fail "store check junk: ${out}"
+base64 -d "${auth}/st-pad" | grep -q '"r":"[^"]*=",' &&
+	ok "store check: the fake padded credential is padded" || fail "store check: st-pad isn't padded"
+out="$(idiot store check hello --cred st-pad 2>&1)"
+printf '%s' "${out}" | grep -q "base64 padding snapd can't read" &&
+	ok "store check: padded credential reported" || fail "store check padded: ${out}"
+[ "$(cat "${auth}/st-pad")" = "$(_cred package_access pad)" ] &&
+	ok "store check: the padded credential is left as it is" || fail "store check changed st-pad"
+
+out="$(idiot store roles 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'no active credential' &&
+	ok "store roles: needs a credential" || fail "store roles: ${out}"
+out="$(idiot store snaps 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'no active credential' &&
+	ok "store snaps: needs a credential" || fail "store snaps: ${out}"
+out="$(idiot store channels 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store channels <snap>' &&
+	ok "store channels: usage without a snap" || fail "store channels usage: ${out}"
+n="$(idiot store check hello --cred st-old 2>/dev/null | wc -c)"
+[ "${n}" -eq 0 ] && ok "store check: nothing on stdout" || fail "store check: ${n} bytes on stdout"
+[ "$(stat -c %a "${auth}/st-pad")" = 600 ] && ok "store check: credentials stay private" ||
+	fail "store check: st-pad mode $(stat -c %a "${auth}/st-pad")"
+
+rm -f "${auth}"/st-old "${auth}"/.expires.st-old "${auth}"/st-push "${auth}"/st-pad "${auth}"/st-junk

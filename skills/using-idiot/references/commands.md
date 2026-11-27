@@ -30,6 +30,10 @@ in the same shell (see SKILL.md). They run confined under the snap.
 | `idiot auth bind [--any] [<name>]` | Re-pair a credential with the active store; `--any`: for any store, never warned about |
 | `idiot auth remove <name>` | Delete a saved credential (confirm first) |
 | `idiot store add <name> <id>` / `use <name>` / `unset` / `list` / `remove` | Saved stores; `use` sets `UBUNTU_STORE_ID` and `IDIOT_ACTIVE_STORE` |
+| `idiot store check <snap> [--channel c] [--arch a] [--cred n]` | Why a snap can (exit 0) or can't (exit 1) be downloaded from the active store: membership, release, credential (expiry, permissions, padding). Downloads nothing. Host command |
+| `idiot store channels <snap> [--arch a] [--tsv]` | The snap's channel map (stdout) |
+| `idiot store roles [--tsv]` | Your stores and roles (stdout), the active one marked `*` |
+| `idiot store snaps [--tsv \| --pick] [--cred n]` | Snaps in the active store (stdout); the full list only for admins with a `store_admin` credential |
 | `idiot arch set <arch>` / `unset` / `status` | Sets `UBUNTU_STORE_ARCH` (amd64, arm64, armhf, riscv64, …) |
 | `idiot lp set <user>` / `unset` / `status` | Launchpad username (also the VM guest user for `vm ssh`) |
 | `idiot profile save <name> [--fields auth,store,arch,lp]` | Record the current setup (names only, never credential contents) |

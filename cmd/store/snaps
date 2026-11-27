@@ -1,0 +1,115 @@
+#!/usr/bin/env sh
+# cmd/store/snaps - the snaps in the active store
+# idiot: host
+# Usage: idiot store snaps [--tsv | --pick] [--cred <name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
+include stores.sh
+include fzf.sh
+
+usage() {
+	help_heading "Usage:" "idiot store snaps [--tsv | --pick] [--cred <name>]"
+	echo >&2
+	say "Lists the snaps in the active store: all of them for a store admin"
+	say "using a credential with store_admin, otherwise the ones you publish or"
+	say "collaborate on there (and says why the list is partial)."
+	echo >&2
+	help_heading "Options:"
+	help_option "--tsv" "Tab-separated: name, owner, private|public"
+	help_option "--pick" "Pick one in fzf and print its name"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+}
+
+# Say on stderr why the list is partial and what the full one needs: $1 is
+# "role" (not an admin) or "permission" (an admin, without store_admin).
+_partial_note() {
+	_pn_store="$(store_label "${UBUNTU_STORE_ID}")"
+	say "${DIM}Only the snaps you publish or collaborate on in ${_pn_store}:${RESET}"
+	if [ "${1}" = role ]; then
+		say "${DIM}the full list needs an admin of the store.${RESET}"
+		return 0
+	fi
+	_pn_have="$(creds_with_permission store_admin | paste -sd ' ' -)"
+	if [ -n "${_pn_have}" ]; then
+		say "${DIM}the full list needs store_admin, which $(printf '%s' "${_pn_have}" | sed 's/ /, /g') has: idiot store snaps --cred ${_pn_have%% *}${RESET}"
+	else
+		say "${DIM}the full list needs a credential with store_admin: idiot auth add <name> --permissions store_admin,package_access${RESET}"
+	fi
+}
+
+main() {
+	mode=table
+	cred=''
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--tsv) mode=tsv ;;
+		--pick) mode=pick ;;
+		--cred)
+			[ -n "${2:-}" ] || die "--cred needs a credential name"
+			cred="${2}"
+			shift
+			;;
+		*) die "usage: idiot store snaps [--tsv | --pick] [--cred <name>]" ;;
+		esac
+		shift
+	done
+	[ "${mode}" != pick ] || require fzf
+	query_cred "${cred}" ||
+		die "no active credential — log in first (idiot auth login), or use --cred <name>"
+	helper="$(store_helper)" || exit 1
+	account="$("${helper}" account ${query_file:+--file "${query_file}"})" || exit $?
+
+	rows=''
+	if [ -n "${UBUNTU_STORE_ID:-}" ]; then
+		# store <id> <display name> <roles>
+		store_line="$(printf '%s\n' "${account}" | awk -F '\t' -v id="${UBUNTU_STORE_ID}" '$1 == "store" && $2 == id')"
+		display="$(printf '%s' "${store_line}" | cut -f3)"
+		[ -n "${store_line}" ] ||
+			die "your account isn't a member of $(store_label "${UBUNTU_STORE_ID}") — ask one of its admins to add you"
+		why=role
+		if printf '%s' "${store_line}" | cut -f4 | tr ',' '\n' | grep -qx admin; then
+			why=permission
+			if "${helper}" permissions ${query_file:+--file "${query_file}"} | grep -qx store_admin; then
+				full="$("${helper}" store-snaps ${query_file:+--file "${query_file}"} --store "${UBUNTU_STORE_ID}")" || exit $?
+				# a "refused" line keeps the partial list (and its note)
+				case "${full}" in
+				refused*) ;;
+				*)
+					rows="$(printf '%s\n' "${full}" | awk -F '\t' '$1 == "snap" { print $2 "\t" $3 "\t" $4 }')"
+					why=''
+					;;
+				esac
+			fi
+		fi
+	else
+		display=Global
+		why=''
+	fi
+	if [ -n "${why}" ] || [ -z "${UBUNTU_STORE_ID:-}" ]; then
+		# snap <name> <store display name> <private|public> <publisher>
+		rows="$(printf '%s\n' "${account}" | awk -F '\t' -v s="${display}" '$1 == "snap" && $3 == s { print $2 "\t" $5 "\t" $4 }')"
+		[ -z "${why}" ] || _partial_note "${why}"
+	fi
+	[ -n "${rows}" ] || {
+		say "${DIM}No snaps to list.${RESET}"
+		exit 0
+	}
+	case "${mode}" in
+	tsv) printf '%s\n' "${rows}" ;;
+	pick)
+		printf '%s\n' "${rows}" | fzf --delimiter='	' --with-nth=1,2,3 --prompt='snap> ' | cut -f1
+		;;
+	*)
+		stdout_colors
+		printf '%s\n' "${rows}" | awk -F '\t' -v d="${OUT_DIM}" -v r="${OUT_RESET}" '
+			{ if (length($1) > w1) w1 = length($1); if (length($2) > w2) w2 = length($2); row[NR] = $0 }
+			END { for (n = 1; n <= NR; n++) { split(row[n], f, "\t"); printf "%-" w1 "s  %-" w2 "s  %s%s%s\n", f[1], f[2], d, f[3], r } }'
+		;;
+	esac
+}
+main "$@"

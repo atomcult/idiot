@@ -288,6 +288,39 @@ store_helper_path() {
     helper_path idiot-store
 }
 
+# Pick the credential a store query uses: the saved one named $1 (from
+# --cred), else the active one (UBUNTU_STORE_AUTH, as snapd would use it).
+# Sets query_cred (its name; empty for one set by hand) and query_file (its
+# file, for idiot-store --file; empty to use the environment). Dies on an
+# unknown name; returns 1 when there is no credential at all.
+# shellcheck disable=SC2034 # query_cred and query_file are read by the caller
+query_cred() {
+    query_cred=''
+    query_file=''
+    if [ -n "${1:-}" ]; then
+        validate_cred_name "${1}"
+        require_cred "${1}"
+        query_cred="${1}"
+        query_file="${IDIOT_AUTH_DIR}/${1}"
+        return 0
+    fi
+    [ -n "${UBUNTU_STORE_AUTH:-}" ] || return 1
+    query_cred="${IDIOT_ACTIVE_CRED:-}"
+    return 0
+}
+
+# Print the names of saved credentials whose permissions include $1, one per
+# line (read offline by idiot-store; nothing without it).
+creds_with_permission() {
+    _cwp_h="$(store_helper_path)" || return 0
+    for _cwp_f in "${IDIOT_AUTH_DIR}"/*; do
+        [ -f "${_cwp_f}" ] || continue
+        "${_cwp_h}" permissions --file "${_cwp_f}" 2>/dev/null | grep -qx -- "${1}" &&
+            printf '%s\n' "${_cwp_f##*/}"
+    done
+    return 0
+}
+
 # Store permissions idiot knows: name, then what it lets a credential do.
 # The first seven (package_*) are what `snapcraft export-login` grants by
 # default, and what `idiot auth add` grants unless told otherwise.

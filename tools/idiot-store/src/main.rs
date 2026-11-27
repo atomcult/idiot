@@ -45,7 +45,7 @@ enum Commands {
     /// A credential's permissions (offline), one per line
     Permissions(CredArgs),
     /// The account's stores (`store <id> <name> <roles>`) and snaps
-    /// (`snap <name> <store name> <private|public>`)
+    /// (`snap <name> <store name> <private|public> <publisher>`)
     Account(CredArgs),
     /// A brand store's snaps (store admins with store_admin):
     /// `snap <name> <owner> <private|public>`, or `refused ...`
