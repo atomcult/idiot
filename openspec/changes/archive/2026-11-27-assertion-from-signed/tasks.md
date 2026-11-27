@@ -52,3 +52,9 @@
 - [x] 4.2 Run `openspec validate assertion-from-signed --strict`.
 - [x] 4.3 Run `snapcraft clean idiot`, `snapcraft pack` (into the tree; the snap and components are gitignored), and `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass.
 - [ ] 4.4 With the user, on a terminal under the snap: `idiot assertion edit model <their-brand>/<their-model>` offers the next revision and writes `<model>.json`; `idiot assertion sign` on it gives a model that `idiot inspect assertion` verifies.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 4.4 open: editing the user's own
+published model on a terminal under the snap and signing it with their key.
+Bare-host on local: passed 354 of 354, including the new checks.
