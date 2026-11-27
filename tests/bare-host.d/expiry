@@ -55,8 +55,8 @@ idiot auth list 2>&1 | grep -q '^bare-soon  *expires in 3d' &&
 	ok "expiry: auth list (confined) shows it" ||
 	fail "expiry: auth list: $(idiot auth list 2>&1 | tr '\n' ' ')"
 
-out="$(idiot auth login bare-soon 2>&1 >/dev/null)"
-idiot auth login bare-soon 2>/dev/null
+out="$(idiot auth use bare-soon 2>&1 >/dev/null)"
+idiot auth use bare-soon 2>/dev/null
 [ "${IDIOT_CRED_EXPIRES:-}" = "$(cat "${auth}/.expires.bare-soon" 2>/dev/null)" ] &&
 	printf '%s' "${out}" | grep -q "credential 'bare-soon' expires in 3d" &&
 	ok "expiry: login exports IDIOT_CRED_EXPIRES and warns" ||
@@ -73,13 +73,13 @@ n="$(idiot run true 2>&1 | grep -c "credential 'bare-soon'")"
 	fail "expiry: warned again (${n})"
 
 install -m 600 "${work}/old.cred" "${auth}/bare-old"
-out="$(idiot auth login bare-old 2>&1 >/dev/null)"
-idiot auth login bare-old 2>/dev/null
+out="$(idiot auth use bare-old 2>&1 >/dev/null)"
+idiot auth use bare-old 2>/dev/null
 [ -z "${IDIOT_CRED_EXPIRES+set}" ] &&
 	printf '%s' "${out}" | grep -q 'expiry unknown' &&
 	ok "expiry: no record under the snap: unknown, IDIOT_CRED_EXPIRES unset" ||
 	fail "expiry: no record: IDIOT_CRED_EXPIRES=[${IDIOT_CRED_EXPIRES:-}] stderr=[${out}]"
-idiot auth logout 2>/dev/null
+idiot auth unset 2>/dev/null
 
 bad="$(find "${auth}" -mindepth 1 \( -type f ! -perm 600 \) -o \( ! -type f \) | head -3)"
 [ "$(stat -c %a "${auth}")" = 700 ] && [ -z "${bad}" ] &&

@@ -1,11 +1,11 @@
 #!/bin/bash
-# tests/bare-host.d/assertion - inspect assertion through the host handoff
+# tests/bare-host.d/assertion - assertion show through the host handoff
 #
 # Usage: assertion   (needs network access for snap known --remote)
 # Fetches Canonical's UC24 model from the store and takes brand.model (a
 # brand model from Canonical's public models repository, whose key is in
 # the store but not in a fresh snapd's database), then
-# checks idiot inspect assertion verifies them from a file and from stdin
+# checks idiot assertion show verifies them from a file and from stdin
 # with a clean stdout, that a brand key is only fetched with --remote, that
 # the container's snapd database is left as it was, and that the store
 # cross-check reads the snap's own data directory.
@@ -24,38 +24,38 @@ else
 fi
 before="$(snap known account-key | sha256sum)"
 
-out="$(idiot inspect assertion "${work}/pc.model" 2>"${work}/err" | cat)"
+out="$(idiot assertion show "${work}/pc.model" 2>"${work}/err" | cat)"
 printf '%s' "${out}" | grep -q '^signature: *verified (canonical/root)' &&
-	ok "inspect assertion: Canonical model verified" ||
-	fail "inspect assertion: $(printf '%s' "${out}" | grep '^signature') $(head -n 2 "${work}/err" | tr '\n' ' ')"
+	ok "assertion show: Canonical model verified" ||
+	fail "assertion show: $(printf '%s' "${out}" | grep '^signature') $(head -n 2 "${work}/err" | tr '\n' ' ')"
 printf '%s' "${out}" | grep -q "$(printf '\033')" &&
-	fail "inspect assertion: escape codes on a piped stdout" ||
-	ok "inspect assertion: piped stdout is plain"
+	fail "assertion show: escape codes on a piped stdout" ||
+	ok "assertion show: piped stdout is plain"
 
-out="$(idiot inspect assertion - <"${work}/pc.model" 2>&1)"
+out="$(idiot assertion show - <"${work}/pc.model" 2>&1)"
 printf '%s' "${out}" | grep -q '^signature: *verified' &&
-	ok "inspect assertion -: stdin reaches the host command" ||
-	fail "inspect assertion -: $(printf '%s' "${out}" | tail -n 2 | tr '\n' ' ')"
+	ok "assertion show -: stdin reaches the host command" ||
+	fail "assertion show -: $(printf '%s' "${out}" | tail -n 2 | tr '\n' ' ')"
 
-out="$(idiot inspect assertion "${work}/brand.model" 2>&1)"
+out="$(idiot assertion show "${work}/brand.model" 2>&1)"
 printf '%s' "${out}" | grep -q '^signature: *unverified: .*try --remote' &&
-	ok "inspect assertion: brand key not fetched without --remote" ||
-	fail "inspect assertion: brand model: $(printf '%s' "${out}" | grep '^signature')"
-out="$(idiot inspect assertion --remote "${work}/brand.model" 2>&1)"
+	ok "assertion show: brand key not fetched without --remote" ||
+	fail "assertion show: brand model: $(printf '%s' "${out}" | grep '^signature')"
+out="$(idiot assertion show --remote "${work}/brand.model" 2>&1)"
 printf '%s' "${out}" | grep -q '^signature: *verified' &&
-	ok "inspect assertion --remote: brand key fetched and verified" ||
-	fail "inspect assertion --remote: $(printf '%s' "${out}" | grep '^signature')"
+	ok "assertion show --remote: brand key fetched and verified" ||
+	fail "assertion show --remote: $(printf '%s' "${out}" | grep '^signature')"
 
 [ "$(snap known account-key | sha256sum)" = "${before}" ] &&
-	ok "inspect assertion: snapd's assertion database unchanged" ||
-	fail "inspect assertion: snapd's account-keys changed"
+	ok "assertion show: snapd's assertion database unchanged" ||
+	fail "assertion show: snapd's account-keys changed"
 
 idiot store add bare-test bare-test-id 2>/dev/null
 idiot store use bare-test 2>/dev/null
-out="$(idiot inspect assertion "${work}/pc.model" 2>&1 >/dev/null)"
+out="$(idiot assertion show "${work}/pc.model" 2>&1 >/dev/null)"
 printf '%s' "${out}" | grep -q "names no store.*store 'bare-test' is active" &&
-	ok "inspect assertion: store check uses the snap's saved stores" ||
-	fail "inspect assertion: store check: ${out}"
+	ok "assertion show: store check uses the snap's saved stores" ||
+	fail "assertion show: store check: ${out}"
 idiot store unset 2>/dev/null
 idiot store remove bare-test 2>/dev/null
 

@@ -101,14 +101,14 @@ cdir="${HOME}/snap/idiot/common/auth"
 (umask 077 && mkdir -p "${cdir}" && printf '{"t":"u1-macaroon","v":{"r":"abc=","d":"def"}}' | base64 -w0 >"${cdir}/oldpad")
 sum="$(md5sum <"${cdir}/oldpad")"
 out="$(idiot doctor 2>&1)"
-printf '%s\n' "${out}" | grep -q "! credential 'oldpad' has padding snapd can't read .* idiot auth login oldpad" &&
+printf '%s\n' "${out}" | grep -q "! credential 'oldpad' has padding snapd can't read .* idiot auth use oldpad" &&
 	[ "$(md5sum <"${cdir}/oldpad")" = "${sum}" ] &&
 	ok "doctor: padded credential flagged, file unchanged" || fail "doctor: padded: $(printf '%s\n' "${out}" | grep -i oldpad)"
-idiot auth login oldpad 2>/dev/null
+idiot auth use oldpad 2>/dev/null
 out="$(idiot doctor 2>&1)"
 printf '%s\n' "${out}" | grep -q "credential 'oldpad' has padding" &&
-	fail "doctor: still flagged after login" || ok "doctor: repaired by auth login"
-idiot auth logout 2>/dev/null
+	fail "doctor: still flagged after login" || ok "doctor: repaired by auth use"
+idiot auth unset 2>/dev/null
 rm -f "${cdir}/oldpad"
 
 # a missing component: its tools and the firmware, with what to install

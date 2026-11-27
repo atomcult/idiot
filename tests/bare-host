@@ -10,12 +10,14 @@
 #   tools    every tool the bundled-tools spec promises executes
 #   data     tools that need data files, helpers or wrappers really work
 #   inspect  inspect image and diff on images built with core's tools
-#   assertion  inspect assertion on store models, file/stdin/--remote
+#   assertion  assertion show on store models, file/stdin/--remote
 #   assertion-writer  idiot assertion new/check/edit/sign: drafts for public
 #            snaps, offline checks, signing with a throwaway key
 #   prompt   idiot prompt confined, IDIOT_PROMPT from the snap's integration
 #   expiry   credential expiry recorded, shown and warned about
-#   store    store check/roles/snaps/channels: usage, --cred, and the
+#   help     help for every command works without the shell integration
+#   aliases  old command names: the note, the same help, stdout and handoff
+#   store    store check/list --account/snaps/channels: usage, --cred, and the
 #            causes decided offline (expired, permissions, padding)
 #   vm-install  vm install's argument errors, and idiot-store download of
 #            a public snap: digest, assertions, cache
@@ -168,7 +170,7 @@ on sh -c 'e="$(mktemp)"; for p in /usr/bin/python3*; do
 	[ -f "${p}" ] && [ ! -L "${p}" ] && mount --bind "${e}" "${p}"; done; :'
 
 d=/root/bare-host/bare-host.d
-for check in no-python tools data help inspect assertion assertion-writer prompt expiry store vm-install; do
+for check in no-python tools data help aliases inspect assertion assertion-writer prompt expiry store vm-install; do
 	say "${check}"
 	on bash "${d}/${check}" | tee -a "${log}"
 done

@@ -35,7 +35,7 @@ printf 'FAKE-CI-CRED\n' >/tmp/ci.cred
 idiot auth import ci /tmp/ci.cred 2>/dev/null
 idiot store add staging abc123 2>/dev/null
 idiot store add prod xyz789 2>/dev/null
-idiot auth login ci 2>/dev/null
+idiot auth use ci 2>/dev/null
 idiot store use staging 2>/dev/null
 idiot arch set arm64 2>/dev/null
 
@@ -45,7 +45,7 @@ confined profile save sc
 grep -q FAKE-CI-CRED "${data}/profiles/sc" 2>/dev/null &&
 	fail "profile: credential contents in the profile" || ok "profile: holds names only"
 
-idiot auth logout 2>/dev/null
+idiot auth unset 2>/dev/null
 idiot store unset 2>/dev/null
 idiot arch unset 2>/dev/null
 confined profile use sc
@@ -64,10 +64,10 @@ printf '%s' "${out}" | grep -q 'arm64 in the profile, amd64 now' &&
 # a pairing as host-side `auth add` writes it, seen by the confined login
 (umask 077 && printf 'store: abc123\n' >"${data}/auth/.store.ci") # as idiot writes it
 idiot store use prod 2>/dev/null
-confined auth login ci
+confined auth use ci
 printf '%s' "${out}" | grep -q "belong to store 'staging'" &&
-	ok "auth login: confined command sees a host-written pairing" ||
-	fail "auth login: no mismatch warning: ${out}"
+	ok "auth use: confined command sees a host-written pairing" ||
+	fail "auth use: no mismatch warning: ${out}"
 
 confined auth bind
 grep -qx 'store: xyz789' "${data}/auth/.store.ci" &&
@@ -83,7 +83,7 @@ grep -qx 'store: \*' "${data}/auth/.store.ci" &&
 	ok "auth bind --any: marked for any store" || fail "auth bind --any: ${out} $(cat "${data}/auth/.store.ci")"
 confined store use prod
 w="${out}"
-confined auth login ci
+confined auth use ci
 printf '%s%s' "${w}" "${out}" | grep -q 'warning: credentials' &&
 	fail "auth bind --any: still warned: ${w}${out}" || ok "auth bind --any: no warning in any store"
 confined auth bind
@@ -99,16 +99,16 @@ printf '%s\n' "${out}" | grep -q '^ci .* prod$' &&
 
 # a padded credential (as older idiot-store wrote) is repaired by a confined login
 (umask 077 && printf '{"t":"u1-macaroon","v":{"r":"abc=","d":"def"}}' | base64 -w0 >"${data}/auth/padded")
-confined auth login padded
+confined auth use padded
 fixed="$(printf '{"t":"u1-macaroon","v":{"r":"abc","d":"def"}}' | base64 -w0)"
 [ "$(cat "${data}/auth/padded")" = "${fixed}" ] && [ "${UBUNTU_STORE_AUTH:-}" = "${fixed}" ] &&
 	[ "$(stat -c %a "${data}/auth/padded")" = 600 ] &&
 	printf '%s' "${out}" | grep -q "Repaired credentials 'padded'" &&
-	ok "auth login: repaired a padded credential (file, export, 0600)" ||
-	fail "auth login padded: $(stat -c %a "${data}/auth/padded") ${out}"
-confined auth login padded
-printf '%s' "${out}" | grep -q Repaired && fail "auth login: repaired twice: ${out}" ||
-	ok "auth login: a repaired credential is left alone"
+	ok "auth use: repaired a padded credential (file, export, 0600)" ||
+	fail "auth use padded: $(stat -c %a "${data}/auth/padded") ${out}"
+confined auth use padded
+printf '%s' "${out}" | grep -q Repaired && fail "auth use: repaired twice: ${out}" ||
+	ok "auth use: a repaired credential is left alone"
 
 confined profile remove sc
 [ ! -f "${data}/profiles/sc" ] && ok "profile remove" || fail "profile remove: ${out}"

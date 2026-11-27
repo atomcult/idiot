@@ -148,7 +148,7 @@ idiot assertion sign dmodel.json -k bare-host 2>"${work}/err" </dev/null
 idiot assertion sign dmodel.json -k bare-host -o - 2>/dev/null </dev/null >signed.out
 [ "$(head -n 1 signed.out)" = "type: model" ] && [ "$(grep -c '^type: ' signed.out)" -eq 1 ] &&
 	! grep -qE '^(Wrote|Signature)' signed.out &&
-	idiot inspect assertion --no-verify - <signed.out 2>/dev/null | grep -q 'dmodel' &&
+	idiot assertion show --no-verify - <signed.out 2>/dev/null | grep -q 'dmodel' &&
 	ok "assertion sign -o -: only the assertion on stdout" ||
 	fail "assertion sign -o -: $(head -n 3 signed.out | tr '\n' ' ')"
 : >"${work}/sign.args"

@@ -1,0 +1,88 @@
+#!/bin/bash
+# tests/bare-host.d/aliases - renamed commands under their old names
+#
+# Usage: aliases
+# Checks each old name (share/aliases.sh, and vm console-log) says what it
+# is now on stderr and runs the new command: the same help, the same
+# stdout, and under the snap a handoff line with the new words. Checks the
+# main help lists every command once and no help lists an old name.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+work="$(mktemp -d)"
+trap 'rm -rf "${work}"' EXIT
+cp "$(dirname "$0")/brand.model" "${work}/brand.model"
+
+# old|new: the old name's help is the new one's, after the note
+while IFS='|' read -r old new; do
+	# shellcheck disable=SC2086 # the words split on purpose
+	idiot ${old} --help >"${work}/old.out" 2>"${work}/old.err"
+	# shellcheck disable=SC2086
+	idiot ${new} --help >/dev/null 2>"${work}/new.err"
+	grep -q "note: 'idiot ${old}' is now 'idiot ${new}'" "${work}/old.err" &&
+		[ "$(grep -v '^note:' "${work}/old.err")" = "$(cat "${work}/new.err")" ] &&
+		ok "aliases: ${old} → ${new}: note, then the same help" ||
+		fail "aliases: ${old}: $(head -n 2 "${work}/old.err" | tr '\n' ' ')"
+done <<'EOF'
+store assertion|assertion fetch
+inspect assertion|assertion show
+model pick|assertion pick
+model list|assertion repos list
+model update|assertion repos update
+auth login|auth use
+auth logout|auth unset
+clean all|clean
+store roles|store list --account
+vm console-log|vm logs --console
+EOF
+
+# the same stdout, the note only on stderr
+a="$(idiot inspect assertion --no-verify "${work}/brand.model" 2>"${work}/err")"
+b="$(idiot assertion show --no-verify "${work}/brand.model" 2>/dev/null)"
+[ -n "${a}" ] && [ "${a}" = "${b}" ] && grep -q '^note:' "${work}/err" &&
+	ok "aliases: inspect assertion's stdout is assertion show's" ||
+	fail "aliases: inspect assertion stdout differs: $(printf '%s' "${a}" | head -n 2 | tr '\n' ' ')"
+a="$(idiot model list 2>&1 | grep -v '^note:')"
+b="$(idiot assertion repos list 2>&1)"
+[ "${a}" = "${b}" ] &&
+	ok "aliases: model list prints what assertion repos list does" ||
+	fail "aliases: model list: ${a}"
+out="$(idiot auth login bare-no-such 2>&1)"
+case "${out}" in
+*"is now 'idiot auth use'"*"credentials 'bare-no-such' not found"*)
+	ok "aliases: auth login fails as auth use does"
+	;;
+*) fail "aliases: auth login bare-no-such: ${out}" ;;
+esac
+
+# under the snap, the host side gets the new words (and prints no note)
+ef="$(mktemp -p "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/snap.idiot")"
+IDIOT_EVAL_FILE="${ef}" /snap/bin/idiot store assertion account canonical >/dev/null 2>&1
+grep -q "'assertion' 'fetch' 'account' 'canonical'" "${ef}" &&
+	ok "aliases: the handoff carries the new words" ||
+	fail "aliases: handoff line: $(cat "${ef}")"
+rm -f "${ef}"
+
+# the main help lists every command once; no help lists an old name
+help="$(idiot help 2>&1)"
+missing=''
+for c in /snap/idiot/current/lib/idiot/cmd/*; do
+	c="${c##*/}"
+	[ "$(printf '%s\n' "${help}" | grep -c "^  ${c} ")" -eq 1 ] || missing="${missing} ${c}"
+done
+[ "$(printf '%s\n' "${help}" | grep -c '^  version ')" -eq 1 ] || missing="${missing} version"
+[ -z "${missing}" ] &&
+	ok "aliases: idiot help lists every command once" ||
+	fail "aliases: idiot help is missing or repeats:${missing}"
+stale=''
+for g in "" store inspect auth clean vm assertion; do
+	# shellcheck disable=SC2086 # an empty group is the main help
+	idiot ${g} help 2>&1 | grep -qE '^  (model|roles|login|logout|console-log|all) ' && stale="${stale} ${g:-main}"
+done
+for g in store inspect; do
+	idiot "${g}" help 2>&1 | grep -qE '^  assertion ' && stale="${stale} ${g}"
+done
+[ -z "${stale}" ] &&
+	ok "aliases: no help lists an old name" ||
+	fail "aliases: old names in the help of:${stale}"

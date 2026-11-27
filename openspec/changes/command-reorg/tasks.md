@@ -63,11 +63,11 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Move `tests/bare-host.d/*` and `tests/bare-host` to the new names. Add `tests/bare-host.d/aliases`, which checks for each alias:
+- [x] 5.1 Move `tests/bare-host.d/*` and `tests/bare-host` to the new names. Add `tests/bare-host.d/aliases`, which checks for each alias:
   - the note is on stderr and names the new form;
   - stdout matches the new command (`store roles --tsv` against `store list --account --tsv`, `model list`, `inspect assertion --no-verify` of `brand.model`);
   - under the snap, the eval file's handoff line carries the new words.
 
   Also add a help check that every command under `cmd/` appears once in `idiot help`, and that no old name appears in any group's help.
-- [ ] 5.2 Run `openspec validate command-reorg --strict`.
+- [x] 5.2 Run `openspec validate command-reorg --strict`.
 - [ ] 5.3 Run `snapcraft clean idiot` and `snapcraft pack`, then `tests/bare-host --image local:8257342f834e <snap> <comps>` on `local:`. All checks pass.
