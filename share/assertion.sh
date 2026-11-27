@@ -215,10 +215,9 @@ as_track() {
 # dies on another error.
 as_lookup() {
     _al_f="${work}/info.${1}"
-    [ ! -s "${_al_f}" ] && [ ! -f "${_al_f}.none" ] || {
-        [ -s "${_al_f}" ]
-        return $?
-    }
+    # looked up already: found, or the store doesn't show it
+    [ ! -s "${_al_f}" ] || return 0
+    [ ! -f "${_al_f}.none" ] || return 4
     _al_h="$(store_helper)" || exit 1
     query_cred "${cred:-}" || :
     _al_rc=0
