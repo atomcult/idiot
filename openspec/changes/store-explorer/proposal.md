@@ -97,7 +97,8 @@ None.
   snaps per run), `releases` (`GET /api/v2/snaps/<name>/releases`, paged),
   extra fields on `store-snaps` lines; test fixtures for the new responses.
 - `cmd/store/browse` (new), `cmd/store/help`. `share/stores.sh`: the snap
-  list `store snaps` builds, moved there so both commands share it.
+  list `store snaps` builds, moved there (on store-members'
+  `store_admin_check`) so both commands share it.
   `cmd/store/snaps` uses it unchanged in behaviour.
 - `tests/bare-host.d/store`: usage, filter parsing, the non-terminal rule
   and no-credential paths (offline).

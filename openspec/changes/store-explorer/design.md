@@ -8,7 +8,8 @@ What exists (from add-store-commands and store-import):
   lines. sh decides and formats.
 - `cmd/store/snaps` builds a store's snap list: the full list for an admin
   with `store_admin`, else the account's snaps there, with a partial-list
-  note. `cmd/store/channels` formats one channel map.
+  note. Its admin pre-check is `store_admin_check` in `share/stores.sh`
+  (from store-members). `cmd/store/channels` formats one channel map.
 - `query_cred` (creds.sh) resolves the active credential or `--cred`.
   Authorised calls send snapd's header and refresh the discharge in memory.
 - fzf 0.44.1 is bundled (Ubuntu 24.04's package; `host/bin/fzf` for host
@@ -59,12 +60,21 @@ simple list command into the explorer and blur `--pick`, which `store check
 contracts. `browse` (not `explore`) matches `idiot inspect changes`'s
 browser and is short. It is a host command (network).
 
-**The snap list moves to `share/stores.sh`.** `store_snap_rows [<query
-args>]` prints `name<TAB>publisher<TAB>private|public` and leaves the
-partial reason in a variable for `_partial_note`, which moves with it. The
-code is lifted from `cmd/store/snaps` unchanged, and `store snaps` calls
-it. Its output, notes and exits stay the same, checked by the existing
-bare-host cases.
+**The snap list moves to `share/stores.sh`.** store-members, applied
+first, already moved the admin pre-check there: `store_admin_check <id>`
+prints `ok`, `role` or `permission`, and `store_admin_alternatives` words
+the `--cred` hint. The list is built on them, not on a copy:
+`store_snap_list` sets `store_snap_rows` (name, publisher,
+private|public, then the latest release's channel, revision and version,
+`-` outside the full list) and `store_snap_partial` (`""`, `role` or
+`permission`); `store_partial_note <why> <command>` says why the list is
+partial. It sets variables rather than printing, since a function run in
+`$(…)` can't hand back the partial reason. `store snaps` calls it and cuts
+the first three fields. Its output, notes and exits stay the same,
+checked against the previous version with a stub and by the existing
+bare-host cases. (Adapted while applying: this decision first named a
+printing `store_snap_rows` with `_partial_note` lifted unchanged from
+`cmd/store/snaps`.)
 
 **idiot-store `channel-maps [--file] [--store <id>] <snap>...`, a new
 subcommand, not a change to `info`.** `info`'s line format is read by

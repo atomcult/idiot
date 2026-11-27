@@ -21,18 +21,6 @@ usage() {
 	help_option "--cred <name>" "Use this saved credential instead of the active one"
 }
 
-# Say on stderr why the list is partial and what the full one needs: $1 is
-# "role" (not an admin) or "permission" (an admin, without store_admin).
-_partial_note() {
-	_pn_store="$(store_label "${UBUNTU_STORE_ID}")"
-	say "${DIM}Only the snaps you publish or collaborate on in ${_pn_store}:${RESET}"
-	if [ "${1}" = role ]; then
-		say "${DIM}the full list needs an admin of the store.${RESET}"
-		return 0
-	fi
-	say "${DIM}$(store_admin_alternatives "the full list" "store snaps")${RESET}"
-}
-
 main() {
 	mode=table
 	cred=''
@@ -56,35 +44,9 @@ main() {
 	[ "${mode}" != pick ] || require fzf
 	query_cred "${cred}" ||
 		die "no active credential — log in first (idiot auth login), or use --cred <name>"
-	helper="$(store_helper)" || exit 1
-	account="$("${helper}" account ${query_file:+--file "${query_file}"})" || exit $?
-
-	rows=''
-	if [ -n "${UBUNTU_STORE_ID:-}" ]; then
-		# store <id> <display name> <roles>
-		display="$(printf '%s\n' "${account}" | awk -F '\t' -v id="${UBUNTU_STORE_ID}" '$1 == "store" && $2 == id' | cut -f3)"
-		why="$(store_admin_check "${UBUNTU_STORE_ID}" "${account}")" || exit $?
-		if [ "${why}" = ok ]; then
-			why=permission
-			full="$("${helper}" store-snaps ${query_file:+--file "${query_file}"} --store "${UBUNTU_STORE_ID}")" || exit $?
-			# a "refused" line keeps the partial list (and its note)
-			case "${full}" in
-			refused*) ;;
-			*)
-				rows="$(printf '%s\n' "${full}" | awk -F '\t' '$1 == "snap" { print $2 "\t" $3 "\t" $4 }')"
-				why=''
-				;;
-			esac
-		fi
-	else
-		display=Global
-		why=''
-	fi
-	if [ -n "${why}" ] || [ -z "${UBUNTU_STORE_ID:-}" ]; then
-		# snap <name> <store display name> <private|public> <publisher>
-		rows="$(printf '%s\n' "${account}" | awk -F '\t' -v s="${display}" '$1 == "snap" && $3 == s { print $2 "\t" $5 "\t" $4 }')"
-		[ -z "${why}" ] || _partial_note "${why}"
-	fi
+	store_snap_list
+	[ -z "${store_snap_partial:-}" ] || store_partial_note "${store_snap_partial:-}" "store snaps"
+	rows="$(printf '%s\n' "${store_snap_rows:-}" | cut -f1-3)"
 	[ -n "${rows}" ] || {
 		say "${DIM}No snaps to list.${RESET}"
 		exit 0

@@ -14,7 +14,8 @@
 
 ## 3. sh: the shared snap list
 
-- [ ] 3.1 Move the snap-list logic and `_partial_note` from `cmd/store/snaps` into `share/stores.sh` as `store_snap_rows` (and `store_partial_note`), and make `cmd/store/snaps` use them. Verify that `tests/bare-host.d/store`'s snaps cases pass unchanged and that, with a stub `idiot-store` on PATH in a copied tree, `store snaps --tsv` prints the same for an admin, a viewer and the global store. Run `make check`. Commit: `refactor(store): share the store snap list`.
+- [x] 3.1 Move the snap-list logic and `_partial_note` from `cmd/store/snaps` into `share/stores.sh` as `store_snap_rows` (and `store_partial_note`), and make `cmd/store/snaps` use them. Verify that `tests/bare-host.d/store`'s snaps cases pass unchanged and that, with a stub `idiot-store` on PATH in a copied tree, `store snaps --tsv` prints the same for an admin, a viewer and the global store. Run `make check`. Commit: `refactor(store): share the store snap list`.
+  - Done as `store_snap_list` (sets `store_snap_rows`/`store_snap_partial`) on top of store-members' `store_admin_check`; see design.md. Compared with the previous `store snaps` via a stub for admin, admin without `store_admin` (with and without a saved one), viewer, global, not a member, a refused full list, the table and an empty list; the bare-host cases run in 5.2.
 
 ## 4. sh: store browse
 
