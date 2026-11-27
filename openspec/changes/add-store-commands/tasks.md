@@ -21,6 +21,6 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run `openspec validate add-store-commands --strict`.
-- [ ] 4.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
+- [x] 4.1 Run `openspec validate add-store-commands --strict`.
+- [x] 4.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 4.3 With the user, under the snap: `store check`, `channels`, `roles` and `snaps` against `ce-team-test` (admin) and `dsmr6` (viewer) give the expected results, and nothing they print contains a credential.
