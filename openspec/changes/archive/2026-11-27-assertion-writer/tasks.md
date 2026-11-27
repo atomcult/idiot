@@ -78,3 +78,9 @@
   - write a UC24 model for their brand in a brand store they belong to (a private snap's ID filled in with their credential);
   - sign it with their registered key (they type the passphrase);
   - confirm that `idiot inspect assertion --remote` reports it `verified`, and that no output contains any part of a credential or key.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 7.3 open (the interactive run under the
+snap, and signing with the user's key). Bare-host on the lane branch passed
+270 of 270 and 346 of 346 on merged main.

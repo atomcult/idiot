@@ -28,3 +28,10 @@
   - Note: the check is written (tests/bare-host.d/vm) but not run: the user chose no `--boot download` run on 2026-11-27.
 - [ ] 4.4 With the user, on their laptop: snapshot a real Core 24 VM with `--tpm` after first boot, install a snap, restore, and confirm the snap is gone, `idiot vm vars` shows the same keys, and the guest boots without recovery.
   - Note: needs the user and a real Core 24 VM on their laptop.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 4.3 open (the --boot snapshot-restore
+run: the user declined the Core image download) and 4.4 open (a real Core
+24 VM with --tpm). Bare-host without --boot on merged main passed 346 of
+346.

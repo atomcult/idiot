@@ -19,3 +19,10 @@
 - [x] 3.2 Pack the snap (`snapcraft clean idiot`, then pack into a gitignored directory inside the tree), run `snap/local/check-components` on it, and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 3.3 With the user, against a booted Core VM: with the active credential, `idiot vm install ce-dummy=edge` from `ce-team-test` (private) installs asserted; `--cred <other>` leaves the active credential unchanged; an arm64 VM (`--arch arm64`) gets the arm64 revision while `UBUNTU_STORE_ARCH` is amd64. Confirm the design's open assumptions: the authorised redirect, no store header needed on the download, and private snaps' assertions being served.
   - Note: needs the user's credentials, a private brand-store snap and a booted Core VM.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request. 2.1's code is in (bare-host covers its
+refusals) but its check against a running VM wasn't done; 3.3 (a private
+snap, --cred, an arm64 VM, and the design's open assumptions) is open too.
+Bare-host on merged main passed 346 of 346.

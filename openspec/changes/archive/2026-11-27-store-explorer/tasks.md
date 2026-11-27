@@ -32,3 +32,11 @@
 - [x] 5.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 5.3 With the user, under the snap: `idiot store browse` in `ce-team-test` with a `store_admin` credential lists the whole store, opening `ce-dummy` shows its revisions, Enter prints the row; in `dsmr6` as a viewer the list is partial and noted; `--arch arm64 --channel edge --tsv` and `--unreleased --revisions --tsv` give what the dashboard shows; nothing printed or left in the temp dir contains a credential.
   - Open: needs the user (and a `store_admin` credential for the full list).
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 1.1 partly done (fixtures recorded from
+ce-dummy with account details replaced; no store_admin credential, and
+dsmr6 isn't among the user's stores, so the admin and viewer calls weren't
+made) and 5.3 open (the interactive run under the snap). Bare-host on
+merged main passed 346 of 346.

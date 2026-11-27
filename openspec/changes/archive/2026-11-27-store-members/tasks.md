@@ -17,3 +17,10 @@
 - [x] 3.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 3.3 With the user, once they have a `store_admin` credential: `idiot store members --cred <it>` in `ce-team-test` lists the members, confirming the response shape.
   - Open: the user has no `store_admin` credential yet.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 3.3 open: no saved credential has
+store_admin yet, so the members response shape is from the dashboard docs,
+not a live call. Merged into main with the store-lane branch; bare-host on
+merged main passed 346 of 346.

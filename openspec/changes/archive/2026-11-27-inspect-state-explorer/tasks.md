@@ -30,3 +30,10 @@
   Notes: run at b21640a from a clone (a worktree's `.git` file isn't visible in the build instance, so `pull-tracked` copies nothing there): `tests/bare-host --image local:8257342f834e --boot download --kvm <snap>` with every component, 264 passed, 0 failed.
 - [ ] 4.3 With the user, on a running VM with a console-conf user: `idiot inspect state --name <vm>` opens the explorer, `snap login` in the guest followed by a re-run shows `data.auth.users` with the email but every macaroon and discharge `<redacted>`; note how long the stopped-VM conversion takes for the design's open question.
 - [ ] 4.4 With the user, on their machine: `idiot inspect state --local` prompts for sudo and opens the explorer; `idiot inspect state --local --json | grep -c MDAx` prints `0`.
+
+## Archive note (2026-11-27)
+
+Archived at the user's request with 4.3 (a running VM with a console-conf
+user) and 4.4 (--local on the user's machine) open; redaction is tested on
+synthetic state.json only. Bare-host passed with --boot on the lane branch
+and 346 of 346 on merged main.
