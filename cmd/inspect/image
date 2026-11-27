@@ -81,7 +81,7 @@ main() {
 			help_heading "Usage:" "idiot inspect image [options] <disk.img>"
 			echo >&2
 			help_heading "Options:"
-			help_option "--extract-state [<file>]" "Save state.json (default: ./state.json)"
+			help_option "--extract-state [<file>]" "Save state.json, redacted (default: ./state.json)"
 			exit 0
 			;;
 		--extract-state)
@@ -144,9 +144,13 @@ main() {
 	print_changes
 
 	if [ -n "${extract_state}" ]; then
-		cp "${work}/state.json" "${extract_state}"
+		# redacted, as idiot inspect state shows it, and readable by the
+		# user only
+		redacted="$("$(helper_path idiot-helper)" snapd-state --redact \
+			"${work}/state.json" "${extract_state}")" ||
+			die "can't save the state to ${extract_state}"
 		say ""
-		say "State saved to ${BOLD}${extract_state}${RESET}"
+		say "State saved to ${BOLD}${extract_state}${RESET} ${DIM}(${redacted#redacted } values redacted)${RESET}"
 	fi
 }
 main "$@"

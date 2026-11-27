@@ -21,7 +21,7 @@ const USAGE: &str = "usage: idiot-helper <command> [args...]
 commands:
   assertion       summarise and verify a stream of snapd assertions
   uefi-vars       list the variables in an OVMF/AAVMF variable store
-  snapd-state     print snapd state.json records as tab-separated lines
+  snapd-state     read snapd state.json, redacted: records, reports, views
   qmp             send one QMP command to a running qemu
   port-free       succeed if a TCP port can be bound
   swtpm-shutdown  ask swtpm to shut down over its control socket";

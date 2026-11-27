@@ -1,0 +1,164 @@
+{
+  "data": {
+    "patch-level": 6,
+    "patch-sublevel": 3,
+    "seeded": true,
+    "seed-time": "2026-11-20T09:00:00Z",
+    "auth": {
+      "last-id": 1,
+      "users": [
+        {
+          "id": 1,
+          "username": "dev",
+          "email": "dev@example.com",
+          "macaroon": "MKR-USER-MACAROON-0001",
+          "discharges": ["MKR-USER-DISCHARGE-0001", "MKR-USER-DISCHARGE-0002"],
+          "store-macaroon": "MKR-STORE-MACAROON-0001",
+          "store-discharges": ["MKR-STORE-DISCHARGE-0001"],
+          "expiration": "2027-11-20T09:00:00Z"
+        }
+      ],
+      "device": {
+        "brand": "canonical",
+        "model": "ubuntu-core-24-amd64",
+        "serial": "SERIAL-0001",
+        "key-id": "KEYID-0001",
+        "session-macaroon": "MKR-DEVICE-SESSION-0001"
+      },
+      "macaroon-key": "MKR-MACAROON-KEY-0001"
+    },
+    "snap-cookies": {
+      "MKR-COOKIE-0001": "pc",
+      "MKR-COOKIE-0002": "snapd"
+    },
+    "refresh-privacy-key": "MKR-PRIVACY-KEY-0001",
+    "config": {
+      "core": {
+        "proxy": {"http": "http://bob:MKR-PROXY-PASSWORD-0001@proxy:3128"},
+        "refresh": {"timer": "fri,23:00"}
+      },
+      "my-app": {
+        "db": {"password": "MKR-DB-PASSWORD-0001", "host": "db.local"},
+        "colour": "blue"
+      }
+    },
+    "snaps": {
+      "pc": {
+        "type": "gadget",
+        "sequence": [
+          {"name": "pc", "snap-id": "UqFziVZDHLSyO3TqSWgNBoAdHbLI4dAH", "revision": "146", "channel": "24/stable"},
+          {"name": "pc", "snap-id": "UqFziVZDHLSyO3TqSWgNBoAdHbLI4dAH", "revision": "148", "channel": "24/stable"}
+        ],
+        "active": true,
+        "current": "148",
+        "channel": "24/stable"
+      },
+      "pc-kernel": {
+        "type": "kernel",
+        "sequence": [
+          {"name": "pc-kernel", "snap-id": "pYVQrBcKmBa0mZ4CCN7ExT6jH8rY1hza", "revision": "1801", "channel": "24/stable"},
+          {"name": "pc-kernel", "snap-id": "pYVQrBcKmBa0mZ4CCN7ExT6jH8rY1hza", "revision": "1855", "channel": "24/stable"},
+          {"name": "pc-kernel", "snap-id": "pYVQrBcKmBa0mZ4CCN7ExT6jH8rY1hza", "revision": "1900", "channel": "24/stable"}
+        ],
+        "active": true,
+        "current": "1900",
+        "channel": "24/stable",
+        "cohort-key": "MKR-COHORT-KEY-0001"
+      },
+      "snapd": {
+        "type": "snapd",
+        "sequence": [
+          {"name": "snapd", "snap-id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4", "revision": "21759", "channel": "latest/stable"}
+        ],
+        "active": true,
+        "current": "21759",
+        "channel": "latest/stable"
+      },
+      "core24": {
+        "type": "base",
+        "sequence": [
+          {"name": "core24", "snap-id": "dwTAh7MZZ01zyriOZErqd1JynQLiOGvM", "revision": "888", "channel": "latest/stable"}
+        ],
+        "active": true,
+        "current": "888",
+        "channel": "latest/stable"
+      },
+      "my-app": {
+        "type": "app",
+        "sequence": [{"name": "my-app", "snap-id": "", "revision": "x1"}],
+        "active": true,
+        "current": "x1",
+        "devmode": true
+      },
+      "my-app_two": {
+        "type": "app",
+        "sequence": [{"name": "my-app", "snap-id": "", "revision": "x1"}],
+        "current": "x1",
+        "instance-key": "two"
+      }
+    },
+    "conns": {
+      "my-app:network core:network": {"interface": "network", "auto": true},
+      "my-app:home core:home": {"interface": "home", "auto": true, "undesired": true},
+      "my-app:camera core:camera": {"interface": "camera"},
+      "my-app:gpio pc:gpio-1": {"interface": "gpio", "by-gadget": true, "auto": true},
+      "my-app:serial core:usb-serial": {"interface": "serial-port", "hotplug-key": "HOTPLUG-KEY-0001", "slot-static": {"path": "/dev/ttyUSB0"}}
+    }
+  },
+  "changes": {
+    "1": {
+      "id": "1", "kind": "seed", "summary": "Initialize system state", "status": 0,
+      "task-ids": ["1", "2"],
+      "spawn-time": "2026-11-20T09:00:00.1Z", "ready-time": "2026-11-20T09:01:30.5Z"
+    },
+    "7": {
+      "id": "7", "kind": "install-snap", "summary": "Install \"my-app\" snap from file", "status": 0,
+      "task-ids": ["3", "4", "5"],
+      "spawn-time": "2026-11-21T10:00:00Z", "ready-time": "2026-11-21T10:00:09Z"
+    },
+    "10": {
+      "id": "10", "kind": "refresh-snap", "summary": "Refresh \"pc-kernel\" snap", "status": 4,
+      "task-ids": [],
+      "spawn-time": "2026-11-22T10:00:00Z"
+    }
+  },
+  "tasks": {
+    "1": {
+      "id": "1", "kind": "mark-preseeded", "summary": "Mark system pre-seeded", "status": 4,
+      "change": "1", "spawn-time": "2026-11-20T09:00:00.1Z", "ready-time": "2026-11-20T09:00:01Z"
+    },
+    "2": {
+      "id": "2", "kind": "mark-seeded", "summary": "Mark system seeded", "status": 4,
+      "change": "1", "wait-tasks": ["1"],
+      "spawn-time": "2026-11-20T09:00:00.1Z", "ready-time": "2026-11-20T09:01:30.5Z"
+    },
+    "3": {
+      "id": "3", "kind": "prerequisites", "summary": "Ensure prerequisites for \"my-app\" are available", "status": 4,
+      "change": "7", "data": {"snap-setup": {"channel": "", "side-info": {"name": "my-app", "revision": "x1"}}},
+      "log": ["2026-11-21T10:00:01Z INFO fetching https://user:MKR-LOG-URL-PASSWORD-0001@mirror.example.com/snap"],
+      "spawn-time": "2026-11-21T10:00:00Z", "ready-time": "2026-11-21T10:00:02Z"
+    },
+    "4": {
+      "id": "4", "kind": "run-hook", "summary": "Run install hook of \"my-app\" snap if present", "status": 9,
+      "change": "7", "wait-tasks": ["3"],
+      "data": {
+        "hook-setup": {"snap": "my-app", "hook": "install"},
+        "patch": {"db.password": "MKR-PATCH-PASSWORD-0001"},
+        "opaque": "MDAxMKR-MACAROON-SHAPED-0001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "log": [
+        "2026-11-21T10:00:05Z INFO running install hook",
+        "2026-11-21T10:00:08Z ERROR run hook \"install\": exit status 1"
+      ],
+      "spawn-time": "2026-11-21T10:00:00Z", "ready-time": "2026-11-21T10:00:08Z"
+    },
+    "5": {
+      "id": "5", "kind": "link-snap", "summary": "Make snap \"my-app\" available to the system", "status": 1,
+      "change": "7", "wait-tasks": ["4"],
+      "spawn-time": "2026-11-21T10:00:00Z"
+    }
+  },
+  "last-change-id": 10,
+  "last-task-id": 5,
+  "last-lane-id": 0
+}
