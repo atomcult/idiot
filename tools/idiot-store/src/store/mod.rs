@@ -1,3 +1,4 @@
+pub mod assertion;
 pub mod credential;
 pub mod login;
 pub mod query;

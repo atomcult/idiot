@@ -1,7 +1,8 @@
 use std::fmt;
 
 /// Everything the store client can fail with. `exit_code` maps each to the
-/// helper's documented exit status: 2 authentication, 3 network or store.
+/// helper's documented exit status: 2 authentication, 3 network or store,
+/// 4 not found (or hidden from this credential).
 #[derive(Debug)]
 pub enum StoreError {
     /// The credential isn't the `u1-macaroon` format snapcraft writes.
@@ -16,6 +17,8 @@ pub enum StoreError {
     Store(String),
     /// The request never got an answer.
     Network(String),
+    /// The store has no such thing, or doesn't show it to this credential.
+    NotFound(String),
 }
 
 impl StoreError {
@@ -26,6 +29,7 @@ impl StoreError {
             | StoreError::AuthenticationFailed(_)
             | StoreError::Rejected => 2,
             StoreError::Store(_) | StoreError::Network(_) => 3,
+            StoreError::NotFound(_) => 4,
         }
     }
 }
@@ -41,6 +45,7 @@ impl fmt::Display for StoreError {
             }
             StoreError::Store(msg) => write!(f, "store error: {msg}"),
             StoreError::Network(msg) => write!(f, "network error: {msg}"),
+            StoreError::NotFound(msg) => write!(f, "{msg}"),
         }
     }
 }

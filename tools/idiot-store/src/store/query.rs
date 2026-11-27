@@ -16,7 +16,7 @@ use reqwest::StatusCode;
 use serde_json::{json, Value};
 
 const DASHBOARD: &str = "https://dashboard.snapcraft.io";
-const API: &str = "https://api.snapcraft.io";
+pub(crate) const API: &str = "https://api.snapcraft.io";
 const REFRESH_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/refresh";
 const INFO_FIELDS: &str = "download,revision,version,created-at,architectures";
 
@@ -42,12 +42,12 @@ pub struct Reply {
 }
 
 impl Reply {
-    fn json(&self) -> Value {
+    pub(crate) fn json(&self) -> Value {
         serde_json::from_str(&self.body).unwrap_or(Value::Null)
     }
 }
 
-fn client() -> Result<Client, StoreError> {
+pub(crate) fn client() -> Result<Client, StoreError> {
     Ok(Client::builder()
         .user_agent(USER_AGENT)
         .redirect(Policy::none())
@@ -55,7 +55,7 @@ fn client() -> Result<Client, StoreError> {
 }
 
 /// The error codes in a store error body (`error_list` or `error-list`).
-fn error_codes(body: &Value) -> Vec<String> {
+pub(crate) fn error_codes(body: &Value) -> Vec<String> {
     ["error_list", "error-list"]
         .iter()
         .filter_map(|k| body.get(k).and_then(Value::as_array))
@@ -96,7 +96,7 @@ fn reply(resp: reqwest::blocking::Response) -> Reply {
 
 /// Sends `build()` as is, or authorised with `auth`, refreshing the
 /// discharge and retrying once when the store asks for it.
-fn send(
+pub(crate) fn send(
     client: &Client,
     auth: Option<&mut Auth>,
     build: impl Fn() -> RequestBuilder,
@@ -139,7 +139,7 @@ fn refresh(client: &Client, cred: &str) -> Result<String, StoreError> {
     credential::with_discharge(cred, fresh)
 }
 
-fn rejected_or(reply: &Reply) -> StoreError {
+pub(crate) fn rejected_or(reply: &Reply) -> StoreError {
     match reply.status {
         StatusCode::UNAUTHORIZED => StoreError::Rejected,
         _ => StoreError::Store(format!(
@@ -191,7 +191,7 @@ fn strings(v: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn text(v: &Value, k: &str) -> String {
+pub(crate) fn text(v: &Value, k: &str) -> String {
     v.get(k)
         .and_then(Value::as_str)
         .unwrap_or_default()
@@ -310,7 +310,7 @@ pub struct Channel {
     pub url: String,
 }
 
-fn info_request(c: &Client, snap: &str, store: Option<&str>) -> RequestBuilder {
+pub(crate) fn info_request(c: &Client, snap: &str, store: Option<&str>) -> RequestBuilder {
     let mut rq = c
         .get(format!("{API}/v2/snaps/info/{snap}"))
         .query(&[("fields", INFO_FIELDS)])

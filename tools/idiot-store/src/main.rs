@@ -8,9 +8,12 @@
 //! credential file, in place, and prints only `ok`, `repaired` or `padded`.
 //! `permissions`, `account`, `store-snaps`, `info` and `probe` are the
 //! read-only queries behind `idiot store`, printing tab-separated lines.
+//! `assertion` fetches an assertion (and with `--chain` its prerequisites)
+//! and prints the stream, only once every assertion has been fetched.
 //!
 //! Exit status: 0 ok, 1 usage or local error, 2 authentication failed or
-//! credential rejected, 3 network or store error.
+//! credential rejected, 3 network or store error, 4 not found (or hidden
+//! from this credential; `assertion` only).
 
 use clap::{Args, Parser, Subcommand};
 use std::process::ExitCode;
@@ -55,6 +58,29 @@ enum Commands {
     /// Whether a snap revision can be downloaded, anonymously and with the
     /// credential (statuses only; nothing is downloaded)
     Probe(ProbeArgs),
+    /// Fetch an assertion by type and primary-key headers (header=value;
+    /// snap-name= resolves snap-id, with snap-revision= a revision's
+    /// sha3-384) and print the stream; --chain adds its prerequisites
+    Assertion(AssertionArgs),
+}
+
+#[derive(Args)]
+pub struct AssertionArgs {
+    #[command(flatten)]
+    cred: CredArgs,
+    /// The store's ID, sent as Snap-Device-Store (default: the global store)
+    #[arg(long)]
+    store: Option<String>,
+    /// Architecture for revision lookups outside the channel map
+    #[arg(long)]
+    arch: Option<String>,
+    /// Also fetch what snapd needs before it accepts the assertion
+    #[arg(long)]
+    chain: bool,
+    /// The assertion type, e.g. account, snap-revision
+    kind: String,
+    /// Primary-key headers: header=value
+    headers: Vec<String>,
 }
 
 #[derive(Args)]
@@ -166,6 +192,7 @@ fn main() -> ExitCode {
         Commands::StoreSnaps(args) => cmd::query::run_store_snaps(args),
         Commands::Info(args) => cmd::query::run_info(args),
         Commands::Probe(args) => cmd::query::run_probe(args),
+        Commands::Assertion(args) => cmd::query::run_assertion(args),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

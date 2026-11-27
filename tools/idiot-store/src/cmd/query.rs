@@ -3,7 +3,8 @@
 //! are never printed.
 
 use super::Failure;
-use crate::{CredArgs, InfoArgs, ProbeArgs, StoreSnapsArgs};
+use crate::{AssertionArgs, CredArgs, InfoArgs, ProbeArgs, StoreSnapsArgs};
+use idiot_store::store::assertion::{self, Fetcher};
 use idiot_store::store::credential::permissions;
 use idiot_store::store::query::{self, Auth, Refusal};
 
@@ -100,5 +101,15 @@ pub fn run_probe(args: ProbeArgs) -> Result<(), Failure> {
     )? {
         println!("{line}");
     }
+    Ok(())
+}
+
+pub fn run_assertion(args: AssertionArgs) -> Result<(), Failure> {
+    let req = assertion::parse(&args.kind, &args.headers).map_err(Failure::local)?;
+    let mut auth = credential(&args.cred)?.map(|c| Auth::new(&c));
+    let mut fetcher = Fetcher::new(auth.as_mut(), args.store, args.arch)?;
+    let req = fetcher.resolve(req)?;
+    let got = assertion::fetch(&mut fetcher, &assertion::path(&req), args.chain)?;
+    print!("{}", assertion::stream(&got));
     Ok(())
 }
