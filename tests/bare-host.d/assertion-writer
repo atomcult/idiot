@@ -82,8 +82,10 @@ fails "edit: signed input refused" 'signed assertion' edit signed.model --no-edi
 
 # signing with a throwaway key in a private keyring (never root's own);
 # a logging snap first on PATH shows what snap sign is given
-command -v gpg >/dev/null 2>&1 ||
+command -v gpg >/dev/null 2>&1 || {
+	apt-get update -q >/dev/null 2>&1
 	DEBIAN_FRONTEND=noninteractive apt-get install -y -q gnupg >/dev/null 2>&1
+}
 export SNAP_GNUPG_HOME="${work}/gnupg"
 mkdir -m 700 "${SNAP_GNUPG_HOME}" "${work}/nokeys"
 printf 'Key-Type: RSA\nKey-Length: 4096\nName-Real: bare-host\nPreferences: SHA512\n%%no-protection\n%%commit\n' |
