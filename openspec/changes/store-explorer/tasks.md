@@ -3,6 +3,7 @@
 ## 1. Response shapes
 
 - [ ] 1.1 With the user's go-ahead, make the read-only calls once with their credential: `/api/v2/snaps/ce-dummy/releases` (a snap they publish, all pages), the same for a snap they don't collaborate on (as an admin of `ce-team-test` and as a viewer in `dsmr6`), `/api/v2/stores/<ce-team-test>/snaps` (for `id` and `latest-release`), and `/v2/snaps/info/ce-dummy` with the extended `fields` and `Snap-Device-Store`. Save them as fixtures under `tools/idiot-store/src/testdata/store/` with account details replaced. Record in design.md the history's order, the `_links.next` form, the hash field's spelling, and which roles were refused `releases` (and how: 403 or 404). Verify: the fixtures hold no email, account ID or macaroon (grep for `@`, the user's account ID, `Macaroon`).
+  - Open: waits for the user's go-ahead to make the calls with their credential. 2.x were built on synthetic fixtures meanwhile.
 
 ## 2. idiot-store: channel maps and releases
 
@@ -28,5 +29,6 @@
 ## 5. Verification
 
 - [x] 5.1 Run `openspec validate store-explorer --strict`.
-- [ ] 5.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
+- [x] 5.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 5.3 With the user, under the snap: `idiot store browse` in `ce-team-test` with a `store_admin` credential lists the whole store, opening `ce-dummy` shows its revisions, Enter prints the row; in `dsmr6` as a viewer the list is partial and noted; `--arch arm64 --channel edge --tsv` and `--unreleased --revisions --tsv` give what the dashboard shows; nothing printed or left in the temp dir contains a credential.
+  - Open: needs the user (and a `store_admin` credential for the full list).
