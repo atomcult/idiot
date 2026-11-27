@@ -1,0 +1,186 @@
+#!/usr/bin/env sh
+# cmd/assertion/sign - sign an unsigned assertion with snap sign
+# idiot: host
+# shellcheck disable=SC2034,SC2154 # as_* are shared with share/assertion.sh
+
+. "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
+include assertion.sh
+
+USAGE="usage: idiot assertion sign <file.json> [-k <key>] [--chain] [-o <file>|-o -]"
+
+usage() {
+	help_heading "Usage:" "idiot assertion sign <file.json> [-k <key>] [--chain] [-o <file>|-o -]"
+	echo >&2
+	help_heading "Options:"
+	help_option "-k <key>" "The snap key to sign with (default: pick one; without a terminal: default)"
+	help_option "--chain" "Append the account and account-key assertions (snap sign --chain)"
+	help_option "-o <file>" "Write here (- for stdout; default: beside it, .model or .assert)"
+	echo >&2
+	say "Checks the draft, checks in the store which account the key is"
+	say "registered to, signs with snap sign (which asks for the key's"
+	say "passphrase) and reports the signed assertion's signature status."
+	say "idiot only passes the key's name to snap sign: it never reads the key."
+}
+
+_cleanup() {
+	[ -z "${work:-}" ] || rm -rf "${work:?}"
+}
+
+# Prints the keys snap knows: "name<TAB>sha3-384" lines.
+_keys() {
+	snap keys 2>/dev/null | awk 'NR > 1 && NF >= 2 { print $1 "\t" $2 }'
+}
+
+# Sets key_account and key_since for the key with SHA3-384 $1 from its
+# account-key in the store; returns 4 when it isn't registered, 1 when the
+# store can't be asked.
+_key_account() {
+	key_account='' key_since=''
+	_ka_h="$(store_helper)" || return 1
+	_ka_rc=0
+	"${_ka_h}" assertion account-key "public-key-sha3-384=${1}" \
+		>"${work}/account-key" 2>/dev/null || _ka_rc=$?
+	case "${_ka_rc}" in
+	0) ;;
+	4) return 4 ;;
+	*) return 1 ;;
+	esac
+	key_account="$(awk '/^$/ { exit } /^account-id: / { print $2; exit }' "${work}/account-key")"
+	key_since="$(awk '/^$/ { exit } /^since: / { print $2; exit }' "${work}/account-key")"
+}
+
+# Picks the key on the terminal: each key with the account it is
+# registered to, the one registered to $1 first. Prints its name.
+_pick_key() {
+	while IFS="${AS_TAB}" read -r _pk_name _pk_sha; do
+		_pk_rc=0
+		_key_account "${_pk_sha}" || _pk_rc=$?
+		case "${_pk_rc}" in
+		0) _pk_acct="${key_account}" ;;
+		4) _pk_acct="not registered" ;;
+		*) _pk_acct="(couldn't ask the store)" ;;
+		esac
+		if [ "${_pk_acct}" = "${1}" ]; then
+			printf '0\t%s\t%s\n' "${_pk_name}" "${_pk_acct}"
+		else
+			printf '1\t%s\t%s\n' "${_pk_name}" "${_pk_acct}"
+		fi
+	done <"${work}/keys" | sort -t "${AS_TAB}" -k1,1 -s | cut -f 2- >"${work}/key-rows"
+	fzf --delimiter="${AS_TAB}" --no-sort --prompt='key> ' \
+		--header="the key to sign with (registered to ${1}: first)" <"${work}/key-rows" | cut -f 1
+}
+
+main() {
+	file='' key='' chain='' out=''
+	case "${1:-}" in
+	'' | -h | --help | help)
+		usage
+		[ -n "${1:-}" ] || exit 2
+		exit 0
+		;;
+	esac
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		-k | -o)
+			[ -n "${2:-}" ] || die "${1} needs a value"
+			case "${1}" in
+			-k) key="${2}" ;;
+			-o) out="${2}" ;;
+			esac
+			shift
+			;;
+		--chain) chain=--chain ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${file}" ] || die "${USAGE}"
+			file="${1}"
+			;;
+		esac
+		shift
+	done
+	[ -n "${file}" ] || die "${USAGE}"
+	[ -f "${file}" ] || die "file not found: ${file}"
+	work="$(mktemp -d)" || die "can't create a temporary directory"
+	trap _cleanup EXIT
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	trap 'exit 129' HUP
+	as_init
+	h="$(helper idiot-helper)" || exit 1
+
+	"${h}" draft read "${file}" >"${work}/read" 2>"${work}/read.err" ||
+		die "${file}: $(sed 's/^idiot-helper draft: //' "${work}/read.err")"
+	type="$(sed -n '1s/^t\t//p' "${work}/read")"
+	sed 1d "${work}/read" >>"${as_rec}"
+	[ "${type}" != system-user ] || umask 077
+	as_check "${file}" || die "${file} has errors — fix them (idiot assertion edit ${file}); nothing signed"
+
+	if [ -z "${out}" ]; then
+		base="${file%.json}"
+		case "${type}" in
+		model) out="${base}.model" ;;
+		*) out="${base}.assert" ;;
+		esac
+	fi
+	[ "${out}" = - ] || [ ! -e "${out}" ] || die "${out} already exists — pick another with -o <file>"
+
+	require snap "install snapd"
+	_keys >"${work}/keys"
+	[ -s "${work}/keys" ] ||
+		die "snap has no keys — create one with: snap create-key <name>, then register it with: snapcraft register-key <name>"
+	authority="$(as_get authority-id || :)"
+	if [ -z "${key}" ]; then
+		if [ "${as_tty}" -eq 1 ]; then
+			require fzf "install fzf for the key picker"
+			key="$(_pick_key "${authority}")"
+			[ -n "${key}" ] || as_cancel
+		else
+			key=default
+		fi
+	fi
+	sha="$(awk -F '\t' -v k="${key}" '$1 == k { print $2; exit }' "${work}/keys")"
+	[ -n "${sha}" ] || die "snap has no key named '${key}' — see: snap keys"
+
+	rc=0
+	_key_account "${sha}" || rc=$?
+	case "${rc}" in
+	0)
+		if [ "${key_account}" != "${authority}" ]; then
+			say "${YELLOW}!${RESET} key ${BOLD}${key}${RESET} is registered to ${key_account}, not ${authority} (the authority-id) — devices won't accept the signature"
+		fi
+		ts="$(as_get timestamp || as_get since || :)"
+		if [ -n "${ts}" ] && [ -n "${key_since}" ] &&
+			[ "$(date -u -d "${ts}" +%s 2>/dev/null || echo 0)" -lt "$(date -u -d "${key_since}" +%s 2>/dev/null || echo 0)" ]; then
+			say "${YELLOW}!${RESET} the timestamp ${ts} is before the key's registration (${key_since}) — snapd will refuse it; move it on with: idiot assertion edit ${file}"
+		fi
+		;;
+	4) say "${YELLOW}!${RESET} key ${BOLD}${key}${RESET} isn't registered in the store — register it with: snapcraft register-key ${key}" ;;
+	*) say "${YELLOW}!${RESET} couldn't ask the store which account key ${BOLD}${key}${RESET} is registered to — signing anyway" ;;
+	esac
+
+	# on the terminal: gpg asks for the key's passphrase there
+	# shellcheck disable=SC2086 # chain is empty or --chain
+	snap sign -k "${key}" ${chain} "${file}" >"${work}/signed" ||
+		die "snap sign failed — nothing written"
+	if [ "${out}" = - ]; then
+		cat "${work}/signed"
+	else
+		as_write "${work}/signed" "${out}"
+	fi
+
+	# the verdict, as idiot inspect assertion --remote gives it
+	verdict="$("${h}" assertion --name "${out}" --remote --snap "$(command -v snap)" \
+		--trusted "${IDIOT_ROOT}/share/assertions/canonical.account-keys" - \
+		<"${work}/signed" 2>/dev/null | sed -n 's/^signature: *//p' | head -n 1)"
+	case "${verdict}" in
+	verified*) say "Signature: ${GREEN}${verdict}${RESET}" ;;
+	'') say "Signature: ${YELLOW}couldn't check it${RESET}" ;;
+	*) say "Signature: ${YELLOW}${verdict}${RESET}" ;;
+	esac
+}
+main "$@"

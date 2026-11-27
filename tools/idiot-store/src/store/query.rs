@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 pub(crate) const DASHBOARD: &str = "https://dashboard.snapcraft.io";
 pub(crate) const API: &str = "https://api.snapcraft.io";
 pub(crate) const REFRESH_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/refresh";
-const INFO_FIELDS: &str = "download,revision,version,created-at,architectures";
+const INFO_FIELDS: &str = "download,revision,version,created-at,architectures,type";
 
 /// A credential for a run of queries; refreshed in place when needed.
 pub struct Auth {
@@ -385,10 +385,11 @@ pub struct Channel {
     pub version: String,
     pub released_at: String,
     pub url: String,
+    /// The snap type: app, base, core, gadget, kernel, os, snapd
+    /// (`fields=type`; empty when the reply has none).
+    pub kind: String,
     /// The fields below are filled only when asked for (`channel-maps`).
     pub created_at: String,
-    /// The snap type: app, base, core, gadget, kernel, os, snapd.
-    pub kind: String,
     pub base: Option<String>,
     pub confinement: String,
     /// As snapd writes it: `0`, `1*`, else `read=0,1;write=1`.
@@ -420,6 +421,14 @@ pub fn epoch_string(e: &Value) -> String {
     }
 }
 
+/// A snap as the info call shows it: its name, ID and channel map.
+#[derive(Debug, PartialEq, Clone)]
+pub struct SnapInfo {
+    pub name: String,
+    pub id: String,
+    pub channels: Vec<Channel>,
+}
+
 pub(crate) fn info_request(c: &Client, snap: &str, store: Option<&str>) -> RequestBuilder {
     let mut rq = c
         .get(format!("{API}/v2/snaps/info/{snap}"))
@@ -432,19 +441,28 @@ pub(crate) fn info_request(c: &Client, snap: &str, store: Option<&str>) -> Reque
     rq
 }
 
-/// The snap's channel map as `auth` (or anyone, without) sees it; None when
-/// the store doesn't show the snap.
+/// The snap (name, ID, channel map) as `auth` (or anyone, without) sees
+/// it; None when the store doesn't show the snap.
 pub fn info(
     auth: Option<&mut Auth>,
     snap: &str,
     store: Option<&str>,
-) -> Result<Option<Vec<Channel>>, StoreError> {
+) -> Result<Option<SnapInfo>, StoreError> {
     let c = client()?;
     let reply = send(&c, auth, || info_request(&c, snap, store))?;
     match reply.status {
         StatusCode::NOT_FOUND => Ok(None),
-        s if s.is_success() => Ok(Some(parse_info(&reply.json()))),
+        s if s.is_success() => Ok(Some(snap_info(&reply.json()))),
         _ => Err(rejected_or(&reply)),
+    }
+}
+
+/// The name, ID and channel map of an info reply.
+pub fn snap_info(json: &Value) -> SnapInfo {
+    SnapInfo {
+        name: text(json, "name"),
+        id: text(json, "snap-id"),
+        channels: parse_info(json),
     }
 }
 
@@ -720,6 +738,27 @@ mod tests {
             text(&fixture("info-hello-world.json"), "snap-id"),
             "buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ"
         );
+    }
+
+    #[test]
+    fn info_id_and_types() {
+        // a real anonymous reply for a public snap (README.md)
+        let info = snap_info(&fixture("info-pc-kernel.json"));
+        assert_eq!(info.name, "pc-kernel");
+        assert_eq!(info.id, "pYVQrBcKmBa0mZ4CCN7ExT6jH8rY1hza");
+        assert_eq!(info.channels.len(), 8);
+        assert!(info.channels.iter().all(|c| c.kind == "kernel"));
+        let stable: Vec<_> = info
+            .channels
+            .iter()
+            .filter(|c| c.name == "24/stable")
+            .map(|c| (c.arch.as_str(), c.revision))
+            .collect();
+        assert_eq!(stable, [("amd64", 3908), ("arm64", 3909)]);
+        // a reply without types (an older fixture) leaves the field empty
+        assert!(parse_info(&fixture("info.json"))
+            .iter()
+            .all(|c| c.kind.is_empty()));
     }
 
     #[test]

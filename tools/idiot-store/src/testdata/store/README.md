@@ -21,3 +21,7 @@ snap ID were replaced with made-up values.
 
 `info-hello-world.json` is the public channel map of `hello-world`, as
 the store served it anonymously on 2026-11-27.
+
+`info-pc-kernel.json` is a real, anonymous response for the public
+`pc-kernel` snap (`/v2/snaps/info/pc-kernel?fields=download,revision,version,created-at,architectures,type`,
+recorded 2026-11-27), trimmed to its `24` track. It holds no account data.

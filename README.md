@@ -254,6 +254,19 @@ $ idiot inspect image core.img                 # model, first boot, seeded snaps
 $ idiot inspect diff old.img new.img           # only what differs (--tsv, --state)
 $ idiot inspect assertion pc.model             # headers, snaps, and is the signature good?
 $ snap known model | idiot inspect assertion -
+$ idiot inspect state core.img                 # explore snapd's state: snaps, connections, changes
+$ idiot inspect state --name a                 # an idiot vm VM's, running or stopped (--local: this machine's)
+$ idiot inspect state --json st.json | jq .data.snaps
+```
+
+`inspect state` opens an fzf explorer of snapd's `state.json`: each
+snap's kept revisions, how interfaces were connected, every change with
+its tasks and their logs, and the raw tree. Secrets (macaroons,
+discharges, cookies, passwords, URL credentials, anything named like a
+key or token) are always redacted first, in every view and in `--json`
+and `-o` (mode 0600); `inspect image --extract-state` saves the same
+redacted state.
+| idiot inspect assertion -
 ```
 
 `inspect assertion` checks each signature up the chain of account-keys
@@ -264,6 +277,39 @@ needs no root; `--remote` fetches brand keys from the store. It also warns
 when a model's store isn't the active one, or a saved model (`idiot
 model`) with the same name has another revision. It exits 1 when a
 signature is invalid.
+
+---
+
+## Writing assertions
+
+```
+$ idiot assertion new model                    # asks for each header, then opens $EDITOR
+$ idiot assertion new validation-set --snap core24=latest/stable --no-edit
+$ idiot assertion new system-user              # SSH keys from ~/.ssh, an optional password
+$ idiot assertion edit kiosk.json --refresh    # bump the revision, look the snaps up again
+$ idiot assertion check kiosk.json             # snapd's rules, offline
+$ idiot assertion sign kiosk.json -k brand-key # snap sign, then the signature checked
+```
+
+Drafts are the unsigned JSON `snap sign` takes, every scalar a string.
+idiot fills in what it knows: the account behind your credential
+(`authority-id`, `brand-id`, `account-id`), the target architecture, the
+active store, a UC24 model's essential snaps (`snapd`, the base, `pc`/
+`pc-kernel` or `pi`/`pi-kernel` in the base's track), and each snap's ID,
+type and channel, or a validation set's revision, from the store as your
+credential sees it. The draft is checked against snapd's rules (missing
+tracks, essential snaps with `presence`, IDs in a `signed` model, a
+system-user's 365 days…) before it is written, and reopened in the editor
+until it passes. A system-user's password is read twice without echo and
+only its SHA-512 crypt hash (from `openssl passwd -6`) is written, mode
+0600. `--set`, `--add` and `--snap` answer without prompts, for scripts.
+
+`assertion sign` runs the check, looks up in the store which account the
+key is registered to (warning when it isn't the `authority-id`), signs
+with `snap sign` (which asks for the passphrase: idiot only passes the
+key's name) and reports the result's signature as `inspect assertion
+--remote` sees it. It writes `kiosk.model` (or `<name>.assert`) beside
+the draft, or stdout with `-o -`.
 
 ---
 

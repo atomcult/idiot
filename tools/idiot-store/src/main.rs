@@ -65,7 +65,8 @@ enum Commands {
     /// A brand store's members (store admins with store_admin):
     /// `member <username> <roles> <display name> <email>`, or `refused ...`
     StoreMembers(StoreSnapsArgs),
-    /// A snap's channel map: `channel <track/risk> <arch> <revision> <version> <released-at>`
+    /// A snap: `snap <name> <snap-id>`, then its channel map:
+    /// `channel <track/risk> <arch> <revision> <version> <released-at> <type>`
     Info(InfoArgs),
     /// Several snaps' channel maps, in argument order: `snap <name> <snap-id>
     /// <publisher> <private|public> <title>`, `channel <name> <channel>

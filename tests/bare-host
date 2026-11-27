@@ -11,6 +11,8 @@
 #   data     tools that need data files, helpers or wrappers really work
 #   inspect  inspect image and diff on images built with core's tools
 #   assertion  inspect assertion on store models, file/stdin/--remote
+#   assertion-writer  idiot assertion new/check/edit/sign: drafts for public
+#            snaps, offline checks, signing with a throwaway key
 #   prompt   idiot prompt confined, IDIOT_PROMPT from the snap's integration
 #   expiry   credential expiry recorded, shown and warned about
 #   store    store check/roles/snaps/channels: usage, --cred, and the
@@ -141,6 +143,9 @@ for f in "${snap}" "$@"; do
 	lxc file push -q "${f}" "${target}/root/bare-host/"
 done
 lxc file push -q -r "${here}/bare-host.d" "${target}/root/bare-host/"
+# the synthetic snapd state (one of each secret) the inspect check redacts
+lxc file push -q "${here}/../tools/idiot-helper/src/testdata/state.json" \
+	"${target}/root/bare-host/bare-host.d/state.json"
 files="/root/bare-host/$(basename "${snap}")"
 for c in "$@"; do
 	files="${files} /root/bare-host/$(basename "${c}")"
@@ -163,7 +168,7 @@ on sh -c 'e="$(mktemp)"; for p in /usr/bin/python3*; do
 	[ -f "${p}" ] && [ ! -L "${p}" ] && mount --bind "${e}" "${p}"; done; :'
 
 d=/root/bare-host/bare-host.d
-for check in no-python tools data inspect assertion prompt expiry store vm-install; do
+for check in no-python tools data inspect assertion assertion-writer prompt expiry store vm-install; do
 	say "${check}"
 	on bash "${d}/${check}" | tee -a "${log}"
 done

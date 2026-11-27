@@ -68,6 +68,21 @@ pgrep -x swtpm >/dev/null && fail "vm: swtpm left running" || ok "vm: swtpm stop
 [ "$(sha256sum <"${image}")" = "${sum}" ] && ok "vm: image left pristine (overlay)" ||
 	fail "vm: the image was written"
 [ -f "${state}/disk.qcow2" ] && ok "vm: disk overlay in the state dir" || fail "vm: no disk.qcow2 in ${state}"
+
+# the stopped VM's snapd state, read from its overlay without changing it
+# (with a TPM, install mode encrypts ubuntu-data: then it must say so)
+osum="$(sha256sum <"${state}/disk.qcow2")"
+out="$(idiot inspect state --name "${name}" --json 2>"${log}.state")"
+if grep -q encrypted "${log}.state"; then
+	ok "vm: inspect state --name says the stopped VM's ubuntu-data is encrypted"
+else
+	printf '%s' "${out}" | grep -q '"seeded"' &&
+		ok "vm: inspect state --name reads the stopped VM's state" ||
+		fail "vm: inspect state --name: $(head -n 3 "${log}.state" | tr '\n' ' ')"
+fi
+[ "$(sha256sum <"${state}/disk.qcow2")" = "${osum}" ] &&
+	ok "vm: inspect state --name leaves the overlay unchanged" ||
+	fail "vm: inspect state --name changed the overlay"
 grep -aq 'Press enter to configure' "${state}/serial.log" 2>/dev/null &&
 	ok "vm: serial console logged" || fail "vm: no console-conf in ${state}/serial.log"
 

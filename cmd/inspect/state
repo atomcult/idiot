@@ -1,0 +1,329 @@
+#!/usr/bin/env sh
+# cmd/inspect/state - explore snapd's state, with its secrets redacted
+# idiot: host
+
+. "$(dirname "${0}")/../../share/common.sh"
+include image.sh
+include vm.sh
+include lp.sh
+
+USAGE="usage: idiot inspect state [options] <file|-|--name <vm>|--local>"
+
+SNAPD_STATE=/var/lib/snapd/state.json
+
+_cleanup() {
+	[ -z "${work:-}" ] || rm -rf "${work:?}"
+	[ -z "${convert_dir:-}" ] || rm -rf "${convert_dir:?}"
+}
+
+# Redacts state $1 (a file, or - for stdin) into $2, keeping the count in
+# redacted. Dies saying why the input isn't snapd state.
+_redact() {
+	redacted="$("${helper}" snapd-state --redact "${1}" "${2}" 2>"${work}/err")" || {
+		_r_msg="$(sed -n 's/^idiot-helper: //p' "${work}/err" | head -n 1)"
+		[ -n "${_r_msg}" ] || _r_msg="can't read the state"
+		die "${_r_msg}"
+	}
+	redacted="${redacted#redacted }"
+}
+
+# Redacts what command $@ prints on stdout into ${dest}; dies with
+# ${pipe_fail} when the command fails. Nothing raw touches the disk.
+_redact_from() {
+	rm -f "${work}/failed"
+	{ "$@" || : >"${work}/failed"; } |
+		"${helper}" snapd-state --redact - "${dest}" >"${work}/count" 2>"${work}/err"
+	_rf_rc=$?
+	[ ! -f "${work}/failed" ] || die "${pipe_fail}"
+	[ "${_rf_rc}" -eq 0 ] ||
+		die "$(sed -n 's/^idiot-helper: //p' "${work}/err" | head -n 1)"
+	redacted="$(sed 's/^redacted //' "${work}/count")"
+}
+
+# Prints file $1's kind from its first bytes: json, qcow2 or image.
+_kind() {
+	if [ "$(head -c 4 "${1}" | od -An -tx1 | tr -d ' \n')" = 514649fb ]; then
+		printf 'qcow2'
+	elif [ "$(head -c 4096 "${1}" | tr -d ' \t\r\n' | head -c 1)" = '{' ]; then
+		printf 'json'
+	else
+		printf 'image'
+	fi
+}
+
+# Reads the snapd state of Ubuntu Core image $1 into ${dest}; the raw copy
+# lives in the work directory only until it is redacted.
+_from_image() {
+	require sfdisk
+	require debugfs "install e2fsprogs"
+	require mcopy "install mtools"
+	require mdir "install mtools"
+	image_load "${1}" "${work}/image"
+	case "$(cat "${work}/image/first-boot")" in
+	encrypted) die "ubuntu-data in ${2:-${1}} is encrypted — its snapd state can't be read" ;;
+	esac
+	[ -s "${work}/image/state.json" ] ||
+		die "${2:-${1}} has no snapd state yet — it hasn't completed its first boot"
+	_redact "${work}/image/state.json" "${dest}"
+	rm -rf "${work:?}/image"
+}
+
+# Reads the snapd state of qcow2 disk $1 (overlay and backing image) into
+# ${dest}, through a raw copy under the cache directory. $2 names it.
+_from_qcow2() {
+	tool_path qemu-img >/dev/null ||
+		missing_tool qemu-img "install the qemu-utils package"
+	mkdir -p "${IDIOT_CACHE_DIR}" ||
+		die "can't create ${IDIOT_CACHE_DIR}"
+	convert_dir="$(mktemp -d "${IDIOT_CACHE_DIR}/inspect-state.XXXXXX")" ||
+		die "can't create a directory in ${IDIOT_CACHE_DIR}"
+	say "${DIM}Reading ${2}'s disk…${RESET}"
+	# read-only: qemu-img's lock fails this if the VM boots meanwhile
+	tool qemu-img convert -q -O raw "${1}" "${convert_dir}/disk.raw" ||
+		die "can't read ${1} — is the VM running?"
+	_from_image "${convert_dir}/disk.raw" "${2}"
+	rm -rf "${convert_dir:?}"
+	convert_dir=''
+}
+
+# Reads this machine's snapd state into ${dest}.
+_from_local() {
+	source_label="this machine"
+	if [ "$(id -u)" -eq 0 ]; then
+		[ -f "${SNAPD_STATE}" ] || die "no snapd state on this machine (${SNAPD_STATE})"
+		_redact "${SNAPD_STATE}" "${dest}"
+		return 0
+	fi
+	[ -e "${SNAPD_STATE}" ] || die "no snapd state on this machine (${SNAPD_STATE})"
+	require sudo
+	pipe_fail="can't read ${SNAPD_STATE} with sudo"
+	_redact_from sudo cat "${SNAPD_STATE}"
+}
+
+# Runs a command in the VM as the Launchpad user, never prompting.
+_guest() {
+	VM_SSH_EXTRA='-o BatchMode=yes -o ConnectTimeout=5' vm_ssh "${port}" "${lp_user}" "$@"
+}
+
+# Reads VM ${name}'s snapd state into ${dest}: over ssh while it runs,
+# else from its disk.
+_from_vm() {
+	name="$(vm_resolve "${name}")" || exit 1
+	source_label="VM ${name}"
+	if ! vm_running "${name}"; then
+		disk="$(vm_dir "${name}")/disk.qcow2"
+		[ -f "${disk}" ] || die "VM '${name}' has no disk yet — boot it: idiot vm --name ${name}"
+		_from_qcow2 "${disk}" "VM ${name}"
+		return 0
+	fi
+	lp_user="$(require_lp_user)" || exit 1
+	port="$(vm_conf_get "${name}" ssh_port)"
+	require ssh "install openssh-client"
+	_rc=0
+	_guest sudo -n true 2>/dev/null || _rc=$?
+	if [ "${_rc}" -eq 255 ]; then
+		die "can't reach VM '${name}' over ssh as ${lp_user} (port ${port}) — is the guest up, with your key for ${lp_user}?"
+	elif [ "${_rc}" -ne 0 ]; then
+		die "sudo in VM '${name}' asks ${lp_user} for a password — idiot inspect state needs passwordless sudo"
+	fi
+	pipe_fail="can't read ${SNAPD_STATE} in VM '${name}'"
+	_redact_from _guest sudo -n cat "${SNAPD_STATE}"
+}
+
+# Reads the state from the source given into ${dest}.
+_read_source() {
+	if [ "${from_local}" -eq 1 ]; then
+		_from_local
+	elif [ -n "${name}" ]; then
+		_from_vm
+	elif [ "${file}" = - ]; then
+		source_label="stdin"
+		_redact - "${dest}"
+	else
+		source_label="${file}"
+		case "$(_kind "${file}")" in
+		json) _redact "${file}" "${dest}" ;;
+		qcow2) _from_qcow2 "${file}" "${file}" ;;
+		*) _from_image "${file}" ;;
+		esac
+	fi
+	say "${DIM}${redacted} values redacted${RESET}"
+}
+
+# Prints JSON Pointer token for member name $1.
+_token() {
+	printf '%s' "${1}" | sed 's/~/~0/g; s|/|~1|g'
+}
+
+# One fzf run of the explorer on view ${view}; sets key and pick.
+_view_once() {
+	case "${view}" in
+	snaps) set -- --list snaps && _show=snap ;;
+	connections) set -- --list connections && _show=connection ;;
+	changes) set -- --list changes && _show=change ;;
+	tasks) set -- --list tasks "${change}" && _show=task ;;
+	tree) set -- --list tree "${pointer}" && _show=path ;;
+	esac
+	_title="${view}"
+	[ "${view}" != tasks ] || _title="tasks of change ${change}"
+	[ "${view}" != tree ] || [ -z "${pointer}" ] || _title="tree at ${pointer}"
+	_back='esc exit'
+	case "${view}" in
+	tasks) _back='esc changes' ;;
+	tree) [ -z "${tree_from}" ] || _back="esc ${tree_from}" ;;
+	esac
+	_header="${_title} · ${source_label} · ${redacted} redacted
+alt-s snaps  alt-c connections  alt-h changes  alt-t tree  enter open  ${_back}"
+	_out="$("${helper}" snapd-state "$@" "${state}" |
+		SHELL=/bin/sh fzf --ansi --no-sort --layout=reverse \
+			--delimiter="$(printf '\t')" --with-nth=2.. \
+			--expect=alt-s,alt-c,alt-h,alt-t,enter \
+			--header="${_header}" --prompt="${view}> " \
+			--preview="[ -z {1} ] || \"\${IDIOT_STATE_HELPER}\" snapd-state --show ${_show} {1} \"\${IDIOT_STATE_FILE}\"" \
+			--preview-window='right:55%:wrap')" || _rc=$?
+	key="$(printf '%s\n' "${_out}" | sed -n 1p)"
+	pick="$(printf '%s\n' "${_out}" | sed -n 2p | cut -f 1)"
+}
+
+# The explorer: one fzf run per view until Escape on a top-level view.
+_explore() {
+	require fzf "install fzf for interactive selection"
+	IDIOT_STATE_HELPER="${helper}" IDIOT_STATE_FILE="${state}"
+	export IDIOT_STATE_HELPER IDIOT_STATE_FILE BOLD CYAN DIM RESET GREEN YELLOW RED
+	view="${view:-snaps}"
+	change=''
+	pointer=''
+	tree_from=''
+	while :; do
+		_rc=0
+		_view_once
+		if [ "${_rc}" -eq 130 ] || { [ "${_rc}" -ne 0 ] && [ -z "${key}" ]; }; then
+			case "${view}" in
+			tasks) view=changes ;;
+			tree)
+				[ -n "${tree_from}" ] || return 0
+				view="${tree_from}"
+				tree_from=''
+				;;
+			*) return 0 ;;
+			esac
+			continue
+		fi
+		case "${key}" in
+		alt-s) view=snaps tree_from='' ;;
+		alt-c) view=connections tree_from='' ;;
+		alt-h) view=changes tree_from='' ;;
+		alt-t) view=tree pointer='' tree_from='' ;;
+		enter)
+			[ -n "${pick}" ] || continue
+			case "${view}" in
+			changes) view=tasks change="${pick}" ;;
+			snaps) tree_from=snaps pointer="/data/snaps/$(_token "${pick}")" view=tree ;;
+			connections) tree_from=connections pointer="/data/conns/$(_token "${pick}")" view=tree ;;
+			tasks) tree_from=tasks pointer="/tasks/$(_token "${pick}")" view=tree ;;
+			esac
+			;;
+		esac
+	done
+}
+
+main() {
+	file=''
+	name=''
+	from_local=0
+	view=''
+	json=0
+	out=''
+	force=0
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			help_heading "Usage:" "idiot inspect state [options] <file|->"
+			say "       idiot inspect state [options] --name <vm>"
+			say "       idiot inspect state [options] --local"
+			echo >&2
+			help_heading "Options:"
+			help_option "--name <vm>" "Read an idiot vm VM's state (running or stopped)"
+			help_option "--local" "Read this machine's state (through sudo)"
+			help_option "--view <view>" "Open on snaps, connections, changes or tree"
+			help_option "--json" "Print the redacted state on stdout"
+			help_option "-o <file>" "Save the redacted state to <file> (mode 0600)"
+			help_option "--force" "Overwrite the -o file"
+			echo >&2
+			say "A file is a state.json or an Ubuntu Core disk image (raw or qcow2);"
+			say "- reads a state.json from stdin. Macaroons, cookies, passwords and"
+			say "other secrets are always redacted before anything is shown or saved."
+			exit 0
+			;;
+		--name)
+			[ -n "${2:-}" ] || die "--name requires an argument"
+			name="${2}"
+			shift
+			;;
+		--local) from_local=1 ;;
+		--view)
+			case "${2:-}" in
+			snaps | connections | changes | tree) view="${2}" ;;
+			*) die "--view takes snaps, connections, changes or tree" ;;
+			esac
+			shift
+			;;
+		--json) json=1 ;;
+		-o)
+			[ -n "${2:-}" ] || die "-o requires a file name"
+			out="${2}"
+			shift
+			;;
+		--force) force=1 ;;
+		-) break ;;
+		-*) die "unknown option: ${1}" ;;
+		*) break ;;
+		esac
+		shift
+	done
+	[ $# -le 1 ] || die "${USAGE}"
+	file="${1:-}"
+	_n=0
+	[ -z "${file}" ] || _n=$((_n + 1))
+	[ -z "${name}" ] || _n=$((_n + 1))
+	[ "${from_local}" -eq 0 ] || _n=$((_n + 1))
+	[ "${_n}" -eq 1 ] || die "${USAGE}"
+	{ [ "${json}" -eq 1 ] && [ -n "${out}" ]; } && die "${USAGE}"
+	{ [ "${json}" -eq 1 ] || [ -n "${out}" ]; } && [ -n "${view}" ] && die "${USAGE}"
+
+	# before reading anything: a script that forgot --json fails here, not
+	# after sudo or ssh
+	if [ "${json}" -eq 0 ] && [ -z "${out}" ]; then
+		if ! [ -t 1 ] || ! [ -t 2 ] || { ! [ -t 0 ] && [ "${file}" != - ]; }; then
+			die "not a terminal — pass --json or -o <file>"
+		fi
+	fi
+	[ -z "${out}" ] || [ ! -e "${out}" ] || [ "${force}" -eq 1 ] ||
+		die "${out} already exists — pass --force to overwrite it"
+	[ -z "${file}" ] || [ "${file}" = - ] || [ -f "${file}" ] ||
+		die "file not found: ${file}"
+
+	helper="$(helper idiot-helper)" || exit 1
+	work="$(mktemp -d)" || die "can't create a temporary directory"
+	convert_dir=''
+	trap _cleanup EXIT
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	trap 'exit 129' HUP
+
+	if [ -n "${out}" ]; then
+		dest="${out}"
+		_read_source
+		say "State saved to ${BOLD}${out}${RESET}"
+	elif [ "${json}" -eq 1 ]; then
+		dest="${work}/state.json"
+		_read_source
+		cat "${dest}"
+	else
+		dest="${work}/state.json"
+		state="${dest}"
+		_read_source
+		_explore
+	fi
+}
+main "$@"

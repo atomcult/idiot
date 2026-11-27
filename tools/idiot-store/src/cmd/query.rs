@@ -139,8 +139,9 @@ pub fn run_store_members(args: StoreSnapsArgs) -> Result<(), Failure> {
 pub fn run_info(args: InfoArgs) -> Result<(), Failure> {
     let mut auth = credential(&args.cred)?.map(|c| Auth::new(&c));
     match query::info(auth.as_mut(), &args.snap, args.store.as_deref())? {
-        Some(map) => {
-            for c in &map {
+        Some(info) => {
+            println!("snap\t{}\t{}", info.name, info.id);
+            for c in &info.channels {
                 println!("{}", info_line(c));
             }
             Ok(())
@@ -155,8 +156,8 @@ pub fn run_info(args: InfoArgs) -> Result<(), Failure> {
 /// An `info` line, as `store channels` and `store check` read it.
 fn info_line(c: &Channel) -> String {
     format!(
-        "channel\t{}\t{}\t{}\t{}\t{}",
-        c.name, c.arch, c.revision, c.version, c.released_at
+        "channel\t{}\t{}\t{}\t{}\t{}\t{}",
+        c.name, c.arch, c.revision, c.version, c.released_at, c.kind
     )
 }
 
@@ -339,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn info_lines_unchanged() {
+    fn info_lines() {
         let lines: Vec<String> = query::parse_info(&json("info.json"))
             .iter()
             .map(info_line)
@@ -347,8 +348,9 @@ mod tests {
         assert_eq!(
             lines,
             [
-                "channel\tlatest/edge\tarm64\t4\t0.4\t2026-10-03T10:00:00.000000+00:00",
-                "channel\tlatest/stable\tamd64\t3\t0.3\t2026-10-02T10:00:00.000000+00:00",
+                // info.json predates fields=type: the type column is empty
+                "channel\tlatest/edge\tarm64\t4\t0.4\t2026-10-03T10:00:00.000000+00:00\t",
+                "channel\tlatest/stable\tamd64\t3\t0.3\t2026-10-02T10:00:00.000000+00:00\t",
             ]
         );
     }

@@ -1,0 +1,143 @@
+#!/usr/bin/env sh
+# cmd/assertion/edit - edit an unsigned model, system-user or validation-set
+# idiot: host
+# shellcheck disable=SC2034,SC2154 # as_* and no_edit are shared with share/assertion.sh
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include models.sh
+include assertion.sh
+
+USAGE="usage: idiot assertion edit <file.json> [options]"
+
+usage() {
+	help_heading "Usage:" "idiot assertion edit <file.json> [options]"
+	echo >&2
+	help_heading "Options:"
+	help_option "--refresh" "Look every snap's ID (and type, or revision) up again"
+	help_option "--snap <name>[=<channel>]" "Update a snap from that channel, or add it"
+	help_option "--set <header>=<value>" "Give a header (never asked)"
+	help_option "--add <header>=<value>" "Add to a list header"
+	help_option "--arch <arch>" "Target architecture (default: the model's, else UBUNTU_STORE_ARCH or the host's)"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+	help_option "--no-edit" "Don't open the draft in an editor"
+	help_option "-o <file>" "Write here instead of back to <file.json> (- for stdout)"
+	echo >&2
+	say "Asks for the headers as idiot assertion new does, the file's values as"
+	say "defaults, offers to raise a model's revision (or a validation set's"
+	say "revision or sequence), and moves the timestamp on. Fields idiot doesn't"
+	say "know (modes, components…) are kept as they are."
+}
+
+_cleanup() {
+	as_restore_tty
+	[ -z "${work:-}" ] || rm -rf "${work:?}"
+}
+
+main() {
+	file=''
+	refresh=0
+	arch='' cred='' no_edit=0 out=''
+	case "${1:-}" in
+	'' | -h | --help | help)
+		usage
+		[ -n "${1:-}" ] || exit 2
+		exit 0
+		;;
+	esac
+	work="$(mktemp -d)" || die "can't create a temporary directory"
+	trap _cleanup EXIT
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+	trap 'exit 129' HUP
+	as_init
+	as_snaps_given=''
+	# --set/--add are applied once the file is read, so they win
+	: >"${work}/opts"
+	while [ $# -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--refresh) refresh=1 ;;
+		--set | --add)
+			[ -n "${2:-}" ] || die "${1} needs <header>=<value>"
+			printf '%s\t%s\n' "${1}" "${2}" >>"${work}/opts"
+			shift
+			;;
+		--snap)
+			[ -n "${2:-}" ] || die "--snap needs <name>[=<channel>]"
+			as_snaps_given="${as_snaps_given}${2}
+"
+			shift
+			;;
+		--arch | --cred | -o)
+			[ -n "${2:-}" ] || die "${1} needs a value"
+			case "${1}" in
+			--arch) arch="${2}" ;;
+			--cred) cred="${2}" ;;
+			-o) out="${2}" ;;
+			esac
+			shift
+			;;
+		--no-edit) no_edit=1 ;;
+		-*) die "unknown option: ${1}" ;;
+		*)
+			[ -z "${file}" ] || die "${USAGE}"
+			file="${1}"
+			;;
+		esac
+		shift
+	done
+	[ -n "${file}" ] || die "${USAGE}"
+	[ -f "${file}" ] || die "file not found: ${file}"
+	[ -z "${cred}" ] || {
+		validate_cred_name "${cred}"
+		require_cred "${cred}"
+	}
+	h="$(helper idiot-helper)" || exit 1
+	"${h}" draft read "${file}" >"${work}/read" 2>"${work}/read.err" ||
+		die "${file}: $(sed 's/^idiot-helper draft: //' "${work}/read.err")"
+	type="$(sed -n '1s/^t\t//p' "${work}/read")"
+	sed 1d "${work}/read" >>"${as_rec}"
+	[ "${type}" != system-user ] || umask 077
+	while IFS="${AS_TAB}" read -r _o _v; do
+		as_option "${_o}" "${_v}"
+	done <"${work}/opts"
+	as_arch=''
+	if as_has architecture; then
+		as_arch="$(as_get architecture)"
+	fi
+	as_arch="${arch:-${as_arch:-${UBUNTU_STORE_ARCH:-$(uname_to_snap_arch)}}}"
+	[ "${as_tty}" -eq 0 ] || [ "${type}" = system-user ] || require fzf "install fzf for the snap pickers"
+
+	as_mode=edit
+	case "${type}" in
+	model)
+		as_model_headers
+		as_model_snaps
+		;;
+	system-user) as_system_user_headers ;;
+	validation-set)
+		as_vs_headers
+		as_vs_snaps
+		;;
+	esac
+	if [ "${refresh}" -eq 1 ] && [ "${type}" != system-user ]; then
+		as_snap_names >"${work}/names"
+		while IFS= read -r _n; do
+			printf '%s' "${as_snaps_given}" | sed 's/=.*//' | grep -qx -- "${_n}" && continue
+			as_refresh_snap "${_n}" ''
+		done <"${work}/names"
+	fi
+
+	as_build "${type}"
+	if [ -n "${out}" ]; then
+		as_write "${work}/draft.json" "${out}"
+	else
+		as_write "${work}/draft.json" "${file}" 1
+	fi
+}
+main "$@"
