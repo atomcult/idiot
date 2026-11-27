@@ -23,6 +23,22 @@ validate_store_name() {
     esac
 }
 
+# Save store ID $2 as store $1: a valid, unused name, or die. Used by
+# store add and store import, so both follow the same rules.
+store_save() {
+    validate_store_name "${1}"
+    mkdir -p "${IDIOT_STORES_DIR}"
+    require_no_store "${1}"
+    printf '%s' "${2}" >"${IDIOT_STORES_DIR}/${1}"
+}
+
+# Print a store name made from display name $1: lowercased, each run of
+# characters other than a-z and 0-9 replaced by '-', no '-' at either end.
+# Empty when nothing is left (the caller falls back).
+store_default_name() {
+    printf '%s' "${1}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//'
+}
+
 # Print the ID of saved store $1; die if it doesn't exist.
 # Use as `id="$(store_id "${name}")" || exit 1`.
 store_id() {

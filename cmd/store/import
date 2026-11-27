@@ -1,0 +1,137 @@
+#!/usr/bin/env sh
+# cmd/store/import - save the stores the account belongs to
+# idiot: host
+# Usage: idiot store import [--all] [--cred <name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
+include stores.sh
+include fzf.sh
+
+usage() {
+	help_heading "Usage:" "idiot store import [--all] [--cred <name>]"
+	echo >&2
+	say "Saves the stores your account belongs to, so idiot store use can switch"
+	say "to them. The global store and stores already saved are skipped. On a"
+	say "terminal you pick the stores and name each one; --all saves them all"
+	say "under names made from their display names."
+	echo >&2
+	help_heading "Options:"
+	help_option "--all" "Save every unsaved store, without asking"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+}
+
+# Print a free name for store ID $2 with display name $1: the default from
+# the display name, else store-<id>; with a suffix from the ID when the
+# default is saved for another store.
+_free_name() {
+	_fn="$(store_default_name "${1}")"
+	[ -n "${_fn}" ] || _fn="store-$(printf '%.8s' "${2}" | tr '[:upper:]' '[:lower:]')"
+	for _fn_try in "${_fn}" "${_fn}-$(printf '%.4s' "${2}" | tr '[:upper:]' '[:lower:]')" "${_fn}-${2}"; do
+		[ -e "${IDIOT_STORES_DIR}/${_fn_try}" ] || {
+			printf '%s' "${_fn_try}"
+			return 0
+		}
+	done
+	return 1
+}
+
+# Ask on the terminal for store $1's name (display name $2, default $3) and
+# save it, asking again for a name that is invalid or taken.
+_ask_and_save() {
+	while :; do
+		printf '%s' "Name for ${2} (${1}) [${3}]: " >&2
+		IFS= read -r _as_name </dev/tty || return 1
+		_as_name="${_as_name:-${3}}"
+		if (store_save "${_as_name}" "${1}") 2>/dev/null; then
+			say "Saved store '${BOLD}${_as_name}${RESET}' (${1})"
+			return 0
+		fi
+		if [ -e "${IDIOT_STORES_DIR}/${_as_name}" ]; then
+			say "${YELLOW}'${_as_name}' is taken${RESET} — pick another"
+		else
+			say "${YELLOW}'${_as_name}' isn't a valid name${RESET} — letters, digits, '-' and '_' only"
+		fi
+	done
+}
+
+main() {
+	all=0
+	cred=''
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--all) all=1 ;;
+		--cred)
+			[ -n "${2:-}" ] || die "--cred needs a credential name"
+			cred="${2}"
+			shift
+			;;
+		*) die "usage: idiot store import [--all] [--cred <name>]" ;;
+		esac
+		shift
+	done
+	if [ "${all}" -eq 0 ]; then
+		[ -t 0 ] && [ -t 2 ] || die "picking stores needs a terminal — save them all with: idiot store import --all"
+		require fzf
+	fi
+	query_cred "${cred}" ||
+		die "no active credential — log in first (idiot auth login), or use --cred <name>"
+	helper="$(store_helper)" || exit 1
+	account="$("${helper}" account ${query_file:+--file "${query_file}"})" || exit $?
+
+	# store <id> <display name> <roles>, without the global store and saved IDs
+	skipped=0
+	candidates=''
+	nl='
+'
+	while IFS='	' read -r kind id name roles; do
+		[ "${kind}" = store ] && [ "${id}" != ubuntu ] || continue
+		if store_name_for_id "${id}" >/dev/null; then
+			skipped=$((skipped + 1))
+			continue
+		fi
+		candidates="${candidates}${name}	${id}	${roles}${nl}"
+	done <<EOT
+${account}
+EOT
+	if [ -z "${candidates}" ]; then
+		say "Nothing to import: ${skipped} of your stores already saved."
+		exit 0
+	fi
+
+	if [ "${all}" -eq 0 ]; then
+		picked="$(printf '%s' "${candidates}" | fzf --multi --delimiter='	' \
+			--prompt='stores> ' --header='TAB selects, ENTER imports')" || picked=''
+		[ -n "${picked}" ] || {
+			say "Nothing imported."
+			exit 0
+		}
+	else
+		picked="${candidates}"
+	fi
+
+	saved=0
+	while IFS='	' read -r name id _; do
+		[ -n "${id}" ] || continue
+		default="$(_free_name "${name}" "${id}")" || {
+			say "${YELLOW}skipped ${name} (${id}): no free name${RESET}"
+			skipped=$((skipped + 1))
+			continue
+		}
+		if [ "${all}" -eq 1 ]; then
+			store_save "${default}" "${id}"
+			say "Saved store '${BOLD}${default}${RESET}' (${id}) — ${name}"
+		else
+			_ask_and_save "${id}" "${name}" "${default}" || break
+		fi
+		saved=$((saved + 1))
+	done <<EOT
+${picked}
+EOT
+	say "${saved} saved, ${skipped} skipped (already saved, or no free name)."
+}
+main "$@"

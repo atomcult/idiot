@@ -14,6 +14,7 @@ main() {
 	help_command "add" "Save a store"
 	help_command "remove" "Remove a saved store"
 	help_command "list" "List saved stores"
+	help_command "import" "Save the stores your account belongs to"
 	echo >&2
 	help_command "check" "Why a snap can (or can't) be downloaded here"
 	help_command "channels" "A snap's channel map in the active store"

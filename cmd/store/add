@@ -17,13 +17,7 @@ main() {
 
 	[ -n "${name}" ] && [ -n "${store_id}" ] || die "usage: idiot store add <name> <store-id>"
 
-	validate_store_name "${name}"
-
-	mkdir -p "${IDIOT_STORES_DIR}"
-	require_no_store "${name}"
-	store_file="${IDIOT_STORES_DIR}/${name}"
-
-	printf '%s' "${store_id}" >"${store_file}"
+	store_save "${name}" "${store_id}"
 	say "Added store '${BOLD}${name}${RESET}' (${store_id})"
 }
 main "$@"

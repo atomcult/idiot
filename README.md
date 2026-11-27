@@ -314,6 +314,7 @@ $ idiot store channels ce-dummy          # revisions per channel and arch (--tsv
 $ idiot store roles                      # your stores and roles, the active one marked
 $ idiot store snaps                      # the snaps in the active store (--pick: fzf)
 $ idiot store snaps --cred ce-admin      # with another saved credential, once
+$ idiot store import                     # save your stores (pick and name them; --all for all)
 ```
 
 `store snaps` lists a whole brand store only for its admins, with a

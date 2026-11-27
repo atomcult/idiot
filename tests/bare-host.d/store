@@ -7,7 +7,8 @@
 # unknown --cred, an expired credential, one without package_access, one
 # that can't be read, and padding snapd can't read (reported, then the
 # store refuses the fake). Plus usage errors, and roles/snaps without a
-# credential. Nothing here needs a real account.
+# credential, and store import's refusals (no terminal, no credential).
+# Nothing here needs a real account.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
 . "$(dirname "$0")/lib"
@@ -97,6 +98,18 @@ out="$(idiot store channels 2>&1)"
 rc=$?
 [ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store channels <snap>' &&
 	ok "store channels: usage without a snap" || fail "store channels usage: ${out}"
+out="$(idiot store import </dev/null 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'picking stores needs a terminal — save them all with: idiot store import --all' &&
+	ok "store import: needs a terminal or --all" || fail "store import (no tty): ${out}"
+out="$(idiot store import --all 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'no active credential' &&
+	ok "store import: needs a credential" || fail "store import --all: ${out}"
+out="$(idiot store import --bogus 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store import' &&
+	ok "store import: usage" || fail "store import --bogus: ${out}"
 n="$(idiot store check hello --cred st-old 2>/dev/null | wc -c)"
 [ "${n}" -eq 0 ] && ok "store check: nothing on stdout" || fail "store check: ${n} bytes on stdout"
 [ "$(stat -c %a "${auth}/st-pad")" = 600 ] && ok "store check: credentials stay private" ||
