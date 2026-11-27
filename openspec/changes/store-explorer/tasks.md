@@ -1,0 +1,29 @@
+# Tasks
+
+## 1. Response shapes
+
+- [ ] 1.1 With the user's go-ahead, make the read-only calls once with their credential: `/api/v2/snaps/ce-dummy/releases` (a snap they publish, all pages), the same for a snap they don't collaborate on (as an admin of `ce-team-test` and as a viewer in `dsmr6`), `/api/v2/stores/<ce-team-test>/snaps` (for `id` and `latest-release`), and `/v2/snaps/info/ce-dummy` with the extended `fields` and `Snap-Device-Store`. Save them as fixtures under `tools/idiot-store/src/testdata/store/` with account details replaced. Record in design.md the history's order, the `_links.next` form, the hash field's spelling, and which roles were refused `releases` (and how: 403 or 404). Verify: the fixtures hold no email, account ID or macaroon (grep for `@`, the user's account ID, `Macaroon`).
+
+## 2. idiot-store: channel maps and releases
+
+- [ ] 2.1 Extend the v2 info parsing with `created-at`, `type`, `base`, `confinement`, `epoch` (snapd's notation), `download.size`, `download.sha3-384` and the `snap` object, keeping `info`'s output unchanged. Add `channel-maps [--file] [--store <id>] <snap>...` printing the `snap`/`channel`/`hidden` lines in design.md, in argument order, with up to four concurrent requests and at most one discharge refresh per run. Verify with unit tests on the 1.1 fixture and the live-confirmed `hello` shape (an epoch `0`, a `1*`, a base-less snap printing `-`, a title with a tab), a test that `info`'s lines for `info.json` are unchanged, and a local-server test that two 401 `needs_refresh` replies trigger one refresh.
+- [ ] 2.2 Add `releases [--file] <snap>`: all pages via `_links.next`, only on dashboard.snapcraft.io, capped at 20 pages; `revision`/`release`/`refused` lines as in design.md; both spellings of `created_at`, `build_url` and the hash. Verify with unit tests on the 1.1 fixtures (an unreleased revision, a closed channel printing `-`, a progressive release), a 403 `macaroon-permission-required` mapped to `refused permission package_access`, a 404 to `refused not-collaborator`, and a test that a `next` link to another host is not followed.
+- [ ] 2.3 Append `<snap-id> <latest channel|-> <latest revision|-> <latest version|->` to `store-snaps` lines. Verify with the existing `store_snaps_listed` test extended, and that `idiot store snaps --tsv` prints the same as before against the fixture (stub helper).
+- [ ] 2.4 Run `cargo test` and `make check`. Commit: `feat(idiot-store): channel maps and release history`.
+
+## 3. sh: the shared snap list
+
+- [ ] 3.1 Move the snap-list logic and `_partial_note` from `cmd/store/snaps` into `share/stores.sh` as `store_snap_rows` (and `store_partial_note`), and make `cmd/store/snaps` use them. Verify that `tests/bare-host.d/store`'s snaps cases pass unchanged and that, with a stub `idiot-store` on PATH in a copied tree, `store snaps --tsv` prints the same for an admin, a viewer and the global store. Run `make check`. Commit: `refactor(store): share the store snap list`.
+
+## 4. sh: store browse
+
+- [ ] 4.1 `cmd/store/browse` (host): option parsing and validation of every filter before any call, the terminal rule, `query_cred` (required without snap names), the 0700 cache with its trap, the snap list (shared, or the named snaps), snap-level filters, and `--tsv` channel rows (eager `channel-maps`, row filters, the spec's columns). Verify from the source tree with a stub `idiot-store`: each filter in the spec's scenarios narrows the rows as stated, `--since yesterday` and `--revision x` fail without calling the stub, `</dev/null` without `--tsv` fails saying to pass `--tsv`, and the cache dir is gone after exit and after Ctrl-C.
+- [ ] 4.2 `--revisions --tsv`, `--status`, `--unreleased`: fetch `releases` per snap with progress, derive "currently in" from the channel map, report `refused` once per run on stderr with the `package_access` hint (`creds_with_permission`), and skip `releases` without a credential. Verify with the stub: an unreleased revision is listed with `-` channels, `--unreleased` keeps only it, `--status Rejected` keeps only rejected ones, `--status` with `--tsv` but without `--revisions` fails before any call, and a refused history leaves stdout empty and says why.
+- [ ] 4.3 The fzf explorer: the list with lazy previews (`__preview snap`), opening a snap (channel rows, then revision rows), row previews (`__preview row`), Escape back to the list keeping the query, Enter printing the row, `SHELL=/bin/sh`, `--ansi` with the target arch bold, hidden snaps listed and previewed with the `store check` hint. Verify on a terminal against the stub: each spec scenario of "Exploring a store", moving the cursor over a snap twice calls the stub once, and with the login shell set to fish the previews still run.
+- [ ] 4.4 Add `browse` to `cmd/store/help`, its `--help`, the README (Checking a store), and the using-idiot skill reference. Extend `tests/bare-host.d/store`: usage, malformed filters, the non-terminal rule, no credential without names, `--cred` unknown, and named public snaps with `--tsv` if the container has network (skipped cleanly otherwise). Run `make check`. Commit: `feat(store): browse a store's snaps, channel maps and revisions`.
+
+## 5. Verification
+
+- [ ] 5.1 Run `openspec validate store-explorer --strict`.
+- [ ] 5.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
+- [ ] 5.3 With the user, under the snap: `idiot store browse` in `ce-team-test` with a `store_admin` credential lists the whole store, opening `ce-dummy` shows its revisions, Enter prints the row; in `dsmr6` as a viewer the list is partial and noted; `--arch arm64 --channel edge --tsv` and `--unreleased --revisions --tsv` give what the dashboard shows; nothing printed or left in the temp dir contains a credential.
