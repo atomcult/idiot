@@ -15,9 +15,9 @@ use reqwest::redirect::Policy;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
-const DASHBOARD: &str = "https://dashboard.snapcraft.io";
+pub(crate) const DASHBOARD: &str = "https://dashboard.snapcraft.io";
 pub(crate) const API: &str = "https://api.snapcraft.io";
-const REFRESH_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/refresh";
+pub(crate) const REFRESH_ENDPOINT: &str = "https://login.ubuntu.com/api/v2/tokens/refresh";
 const INFO_FIELDS: &str = "download,revision,version,created-at,architectures";
 
 /// A credential for a run of queries; refreshed in place when needed.
@@ -81,7 +81,7 @@ fn header_wants_refresh(resp: &reqwest::blocking::Response) -> bool {
 
 /// A response read into a Reply. Only for answers whose body is small (API
 /// responses and error bodies), never a snap.
-fn reply(resp: reqwest::blocking::Response) -> Reply {
+pub(crate) fn reply(resp: reqwest::blocking::Response) -> Reply {
     let status = resp.status();
     let header = header_wants_refresh(&resp);
     let body = resp.text().unwrap_or_default();
@@ -121,9 +121,18 @@ pub(crate) fn send(
 
 /// The credential with a fresh discharge from Ubuntu SSO.
 fn refresh(client: &Client, cred: &str) -> Result<String, StoreError> {
+    refresh_at(client, REFRESH_ENDPOINT, cred)
+}
+
+/// `refresh`, asking `endpoint` (a local server in tests).
+pub(crate) fn refresh_at(
+    client: &Client,
+    endpoint: &str,
+    cred: &str,
+) -> Result<String, StoreError> {
     let (_, discharge) = credential::decode(cred)?;
     let resp = client
-        .post(REFRESH_ENDPOINT)
+        .post(endpoint)
         .header("Accept", "application/json")
         .json(&json!({ "discharge_macaroon": discharge }))
         .send()?;
@@ -180,7 +189,7 @@ pub fn account(auth: &mut Auth) -> Result<(Vec<StoreRole>, Vec<AccountSnap>), St
     parse_account(&reply.json())
 }
 
-fn strings(v: &Value) -> Vec<String> {
+pub(crate) fn strings(v: &Value) -> Vec<String> {
     v.as_array()
         .map(|a| {
             a.iter()
@@ -233,6 +242,9 @@ pub struct StoreSnap {
     pub name: String,
     pub owner: String,
     pub private: bool,
+    pub snap_id: String,
+    /// `latest-release`: channel, revision and version, when there is one.
+    pub latest: Option<(String, u64, String)>,
 }
 
 /// Why a store's snap list was refused.
@@ -256,12 +268,14 @@ pub fn store_snaps(
     parse_store_snaps(&reply)
 }
 
-pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal>, StoreError> {
-    let json = reply.json();
+/// How the store answered an admin-only store call: `Ok(None)` for a
+/// success, a refusal for a missing permission or (404, other 403) no
+/// rights, an error otherwise.
+fn admin_refusal(reply: &Reply, json: &Value) -> Result<Option<Refusal>, StoreError> {
     match reply.status {
-        s if s.is_success() => {}
+        s if s.is_success() => Ok(None),
         StatusCode::FORBIDDEN
-            if error_codes(&json)
+            if error_codes(json)
                 .iter()
                 .any(|c| c == "macaroon-permission-required") =>
         {
@@ -271,10 +285,17 @@ pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal
                 .flatten()
                 .find_map(|e| e["extra"]["permission"].as_str())
                 .unwrap_or("store_admin");
-            return Ok(Err(Refusal::Permission(perm.to_string())));
+            Ok(Some(Refusal::Permission(perm.to_string())))
         }
-        StatusCode::NOT_FOUND | StatusCode::FORBIDDEN => return Ok(Err(Refusal::NotAdmin)),
-        _ => return Err(rejected_or(reply)),
+        StatusCode::NOT_FOUND | StatusCode::FORBIDDEN => Ok(Some(Refusal::NotAdmin)),
+        _ => Err(rejected_or(reply)),
+    }
+}
+
+pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal>, StoreError> {
+    let json = reply.json();
+    if let Some(r) = admin_refusal(reply, &json)? {
+        return Ok(Err(r));
     }
     let mut snaps: Vec<StoreSnap> = json["snaps"]
         .as_array()
@@ -292,10 +313,66 @@ pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal
                 .map(|u| text(u, "username"))
                 .unwrap_or_default(),
             private: s["private"].as_bool().unwrap_or(false),
+            snap_id: text(s, "id"),
+            latest: s["latest-release"].as_object().map(|l| {
+                (
+                    l.get("channel")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    l.get("revision").and_then(Value::as_u64).unwrap_or(0),
+                    l.get("version")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                )
+            }),
         })
         .collect();
     snaps.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(Ok(snaps))
+}
+
+/// A member of a brand store (store admins). The account ID the store
+/// sends is not kept: idiot has no use for it.
+#[derive(Debug, PartialEq)]
+pub struct StoreMember {
+    pub username: String,
+    pub roles: Vec<String>,
+    pub displayname: String,
+    pub email: String,
+}
+
+pub fn store_members(
+    auth: &mut Auth,
+    store: &str,
+) -> Result<Result<Vec<StoreMember>, Refusal>, StoreError> {
+    let c = client()?;
+    let reply = send(&c, Some(auth), || {
+        c.get(format!("{DASHBOARD}/api/v2/stores/{store}/users"))
+            .header("Accept", "application/json")
+    })?;
+    parse_store_members(&reply)
+}
+
+pub fn parse_store_members(reply: &Reply) -> Result<Result<Vec<StoreMember>, Refusal>, StoreError> {
+    let json = reply.json();
+    if let Some(r) = admin_refusal(reply, &json)? {
+        return Ok(Err(r));
+    }
+    let mut members: Vec<StoreMember> = json["users"]
+        .as_array()
+        .ok_or_else(|| StoreError::Store("unexpected store users response".into()))?
+        .iter()
+        .map(|u| StoreMember {
+            username: text(u, "username"),
+            roles: strings(&u["roles"]),
+            displayname: text(u, "displayname"),
+            email: text(u, "email"),
+        })
+        .collect();
+    members.sort_by(|a, b| a.username.cmp(&b.username));
+    Ok(Ok(members))
 }
 
 /// One channel and architecture in a snap's channel map.
@@ -308,6 +385,39 @@ pub struct Channel {
     pub version: String,
     pub released_at: String,
     pub url: String,
+    /// The fields below are filled only when asked for (`channel-maps`).
+    pub created_at: String,
+    /// The snap type: app, base, core, gadget, kernel, os, snapd.
+    pub kind: String,
+    pub base: Option<String>,
+    pub confinement: String,
+    /// As snapd writes it: `0`, `1*`, else `read=0,1;write=1`.
+    pub epoch: String,
+    pub size: u64,
+    pub sha3_384: String,
+}
+
+/// An epoch object (`{"read": [..], "write": [..]}`) as snapd prints it:
+/// `n` when both are `[n]`, `n*` when read is `[n-1, n]` and write `[n]`,
+/// else `read=…;write=…`. Empty when absent.
+pub fn epoch_string(e: &Value) -> String {
+    if e.is_null() {
+        return String::new();
+    }
+    let nums = |k: &str| -> Vec<u64> {
+        e[k].as_array()
+            .map(|a| a.iter().filter_map(Value::as_u64).collect())
+            .unwrap_or_default()
+    };
+    let (r, w) = (nums("read"), nums("write"));
+    match (r.as_slice(), w.as_slice()) {
+        ([a], [b]) if a == b => a.to_string(),
+        ([a, b], [c]) if a + 1 == *b && b == c => format!("{b}*"),
+        _ => {
+            let join = |v: &[u64]| v.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
+            format!("read={};write={}", join(&r), join(&w))
+        }
+    }
 }
 
 pub(crate) fn info_request(c: &Client, snap: &str, store: Option<&str>) -> RequestBuilder {
@@ -356,6 +466,16 @@ pub fn parse_info(json: &Value) -> Vec<Channel> {
                         version: text(e, "version"),
                         released_at: text(ch, "released-at"),
                         url: text(&e["download"], "url"),
+                        created_at: text(e, "created-at"),
+                        kind: text(e, "type"),
+                        base: e["base"]
+                            .as_str()
+                            .filter(|b| !b.is_empty())
+                            .map(str::to_owned),
+                        confinement: text(e, "confinement"),
+                        epoch: epoch_string(&e["epoch"]),
+                        size: e["download"]["size"].as_u64().unwrap_or(0),
+                        sha3_384: text(&e["download"], "sha3-384"),
                     }
                 })
                 .collect()
@@ -502,7 +622,9 @@ mod tests {
             StoreSnap {
                 name: "core".into(),
                 owner: "publisher".into(),
-                private: false
+                private: false,
+                snap_id: "SnapIdCoreXXXXXXXXXXXXXXXXXXXXXX".into(),
+                latest: Some(("stable".into(), 1, "1".into())),
             }
         );
         assert_eq!(
@@ -510,7 +632,9 @@ mod tests {
             StoreSnap {
                 name: "hello-team".into(),
                 owner: "test-user".into(),
-                private: true
+                private: true,
+                snap_id: "SnapIdHelloTeamXXXXXXXXXXXXXXXXX".into(),
+                latest: Some(("stable".into(), 3, "0.3".into())),
             }
         );
     }
@@ -528,6 +652,41 @@ mod tests {
         };
         assert_eq!(
             parse_store_snaps(&not_found).unwrap(),
+            Err(Refusal::NotAdmin)
+        );
+    }
+
+    #[test]
+    fn store_members_listed() {
+        let members = parse_store_members(&fake(200, "store-members.json"))
+            .unwrap()
+            .unwrap();
+        let names: Vec<&str> = members.iter().map(|m| m.username.as_str()).collect();
+        assert_eq!(names, ["alice-example", "bob-example", "carol-example"]);
+        assert_eq!(
+            members[0],
+            StoreMember {
+                username: "alice-example".into(),
+                roles: vec!["admin".into(), "review".into(), "view".into()],
+                displayname: "Alice Example".into(),
+                email: "alice@example.com".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn store_members_refusals() {
+        assert_eq!(
+            parse_store_members(&fake(403, "store-snaps-403.json")).unwrap(),
+            Err(Refusal::Permission("store_admin".into()))
+        );
+        let not_found = Reply {
+            status: StatusCode::NOT_FOUND,
+            body: "{}".into(),
+            wants_refresh: false,
+        };
+        assert_eq!(
+            parse_store_members(&not_found).unwrap(),
             Err(Refusal::NotAdmin)
         );
     }

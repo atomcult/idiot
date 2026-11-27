@@ -1,0 +1,17 @@
+{
+  "_links": {"self": "https://dashboard.snapcraft.io/api/v2/snaps/ce-dummy/releases?page=1"},
+  "revisions": [
+    {"architectures": ["amd64"], "attributes": {}, "base": "core24", "build_url": null, "confinement": "strict", "created_at": "2026-10-01T09:00:00Z", "epoch": {"read": [0, 1], "write": [1]}, "grade": "stable", "revision": 3, "sha3-384": "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", "size": 4096, "status": "Published", "version": "0.3"},
+    {"architectures": ["arm64"], "attributes": {}, "base": "core24", "build_url": null, "confinement": "strict", "created_at": "2026-10-03T09:00:00Z", "epoch": {"read": [0, 1], "write": [1]}, "grade": "devel", "revision": 4, "sha3-384": "abababababababababababababababababababababababababababababababababababababababababababababababab", "size": 8192, "status": "Published", "version": "0.4"},
+    {"architectures": ["amd64", "arm64"], "attributes": {}, "base": "core24", "build_url": null, "confinement": "strict", "created_at": "2026-10-05T09:00:00Z", "epoch": {"read": [0, 1], "write": [1]}, "grade": "devel", "revision": 5, "sha3-384": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd", "size": 8192, "status": "Published", "version": "0.5"},
+    {"architectures": ["amd64"], "attributes": {}, "base": null, "build-url": null, "confinement": "classic", "created-at": "2026-10-06T09:00:00Z", "epoch": {"read": [0, 1], "write": [1]}, "grade": "devel", "revision": 6, "sha3_384": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef", "size": 8192, "status": "Rejected", "version": "0.6"}
+  ],
+  "releases": [
+    {"architecture": "arm64", "branch": "fix-1", "channel": "latest/edge/fix-1", "expiration-date": "2026-11-03T10:00:00Z", "progressive": {"paused": null, "percentage": null, "current-percentage": null}, "revision": 4, "risk": "edge", "track": "latest", "when": "2026-10-04T10:00:00Z"},
+    {"architecture": "arm64", "branch": null, "channel": "latest/edge", "expiration-date": null, "progressive": {"paused": false, "percentage": 30.0, "current-percentage": 30.0}, "revision": 4, "risk": "edge", "track": "latest", "when": "2026-10-03T10:00:00Z"},
+    {"architecture": "amd64", "branch": null, "channel": "latest/beta", "expiration-date": null, "progressive": {"paused": null, "percentage": null, "current-percentage": null}, "revision": null, "risk": "beta", "track": "latest", "when": "2026-10-02T11:00:00Z"},
+    {"architecture": "amd64", "branch": null, "channel": "latest/beta", "expiration-date": null, "progressive": {"paused": null, "percentage": null, "current-percentage": null}, "revision": 3, "risk": "beta", "track": "latest", "when": "2026-10-02T10:30:00Z"},
+    {"architecture": "amd64", "branch": null, "channel": "latest/stable", "expiration-date": null, "progressive": {"paused": null, "percentage": null, "current-percentage": null}, "revision": 3, "risk": "stable", "track": "latest", "when": "2026-10-02T10:00:00Z"}
+  ],
+  "snap": {"channels": [], "default-track": null, "name": "ce-dummy", "tracks": [{"name": "latest", "status": "active"}, {"name": "2.0", "status": "active"}]}
+}

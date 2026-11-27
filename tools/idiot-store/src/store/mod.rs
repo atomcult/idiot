@@ -1,5 +1,6 @@
 pub mod assertion;
 pub mod credential;
+pub mod explore;
 pub mod login;
 pub mod query;
 pub mod whoami;

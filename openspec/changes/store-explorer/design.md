@@ -8,7 +8,8 @@ What exists (from add-store-commands and store-import):
   lines. sh decides and formats.
 - `cmd/store/snaps` builds a store's snap list: the full list for an admin
   with `store_admin`, else the account's snaps there, with a partial-list
-  note. `cmd/store/channels` formats one channel map.
+  note. Its admin pre-check is `store_admin_check` in `share/stores.sh`
+  (from store-members). `cmd/store/channels` formats one channel map.
 - `query_cred` (creds.sh) resolves the active credential or `--cred`.
   Authorised calls send snapd's header and refresh the discharge in memory.
 - fzf 0.44.1 is bundled (Ubuntu 24.04's package; `host/bin/fzf` for host
@@ -22,6 +23,28 @@ What the store offers, and how sure we are:
 | `GET dashboard.snapcraft.io/api/v2/snaps/<name>/releases` | `revisions[]` (every upload: `revision`, `version`, `architectures`, `status`, `created_at`, `base`, `confinement`, `grade`, `epoch`, `size`, `sha3-384`, `attributes`, `build_url`), `releases[]` (history: `channel`, `track`, `risk`, `branch`, `architecture`, `revision` or null for a close, `when`, `expiration-date`, `progressive`), `snap` (tracks, channels, `default-track`), `_links` with `next` | `package_access`; roles not documented | dashboard v2 snaps reference; snapcraft's `list_releases` and `snapcraft.models.Releases`. **Live**: answers 401 `macaroon-authorization-required` anonymously, so the path exists |
 | `GET dashboard.snapcraft.io/api/v2/snaps/<name>/channel-map` | current map incl. closed channels and progressive state | `package_access` | docs, snapcraft `get_channel_map`; live 401 anonymously. **Not used** (see below) |
 | `GET dashboard.snapcraft.io/api/v2/stores/<id>/snaps` | per snap also `id`, `store`, `other-stores`, `latest-release.{channel,revision,timestamp,version}`; `?q=`, `?publisher=` | store admin, `store_admin` | dashboard v2 stores reference; not yet in our fixture |
+
+Recorded on 2026-11-27 with the user's go-ahead (fixtures
+`releases-ce-dummy.json`, `channel-map-ce-dummy.json`, `releases-404.json`,
+account details replaced):
+- `releases` lists revisions and releases **newest first**; `_links` holds
+  plain URL strings (`{"self": "https://…/releases?page=1"}`), no `href`
+  object, and no `next` for a short history. The hash is `sha3-384`, the
+  time `created_at`, `build_url` is null; `channel` is the full name
+  (`latest/stable`) with `branch` null; `progressive` has `paused`,
+  `percentage`, `current-percentage`, all null when not progressive.
+- An **admin of the brand store** (`ce-team-test`, `admin,review,view,
+  access`) who neither publishes nor collaborates on `ce-dummy` **can**
+  read its history (200). For a snap the account has nothing to do with
+  (`hello`) the store answers **404** `resource-not-found`. The viewer
+  case wasn't recorded: `dsmr6` isn't among the account's stores and no
+  snap name is known in its view-only stores.
+- `/api/v2/stores/ce-team-test/snaps` without `store_admin` answers 403
+  `macaroon-permission-required` with `extra.permission`, as the fixture
+  had; the success shape (`id`, `latest-release`) still needs a
+  `store_admin` credential.
+- Every dashboard call first got 401 `macaroon-needs-refresh` and
+  succeeded after the one in-memory refresh.
 
 The releases page holds up to 500 release records and is paged with
 `?page=` / `?size=` and `_links.next`. Names differ between the two dashboard
@@ -59,12 +82,21 @@ simple list command into the explorer and blur `--pick`, which `store check
 contracts. `browse` (not `explore`) matches `idiot inspect changes`'s
 browser and is short. It is a host command (network).
 
-**The snap list moves to `share/stores.sh`.** `store_snap_rows [<query
-args>]` prints `name<TAB>publisher<TAB>private|public` and leaves the
-partial reason in a variable for `_partial_note`, which moves with it. The
-code is lifted from `cmd/store/snaps` unchanged, and `store snaps` calls
-it. Its output, notes and exits stay the same, checked by the existing
-bare-host cases.
+**The snap list moves to `share/stores.sh`.** store-members, applied
+first, already moved the admin pre-check there: `store_admin_check <id>`
+prints `ok`, `role` or `permission`, and `store_admin_alternatives` words
+the `--cred` hint. The list is built on them, not on a copy:
+`store_snap_list` sets `store_snap_rows` (name, publisher,
+private|public, then the latest release's channel, revision and version,
+`-` outside the full list) and `store_snap_partial` (`""`, `role` or
+`permission`); `store_partial_note <why> <command>` says why the list is
+partial. It sets variables rather than printing, since a function run in
+`$(…)` can't hand back the partial reason. `store snaps` calls it and cuts
+the first three fields. Its output, notes and exits stay the same,
+checked against the previous version with a stub and by the existing
+bare-host cases. (Adapted while applying: this decision first named a
+printing `store_snap_rows` with `_partial_note` lifted unchanged from
+`cmd/store/snaps`.)
 
 **idiot-store `channel-maps [--file] [--store <id>] <snap>...`, a new
 subcommand, not a change to `info`.** `info`'s line format is read by
@@ -122,6 +154,10 @@ rules:
 - `--channel`: a bare risk becomes `latest/<risk>` (as `normalise_channel`
   does). `*` comes from the glob. A revision row matches when any channel
   it is currently in matches.
+- `--status` and `--unreleased` leave out channel rows (a channel row has
+  no status and is released by definition), so with them the list keeps
+  the snaps that have such revisions. `--type` applies to revision rows
+  through the snap's type from its channel map. (Decided while applying.)
 - "Currently in" and "unreleased" come from the v2 channel map, not the
   history. So they agree with the channel rows and with what snapd sees in
   the active store.
@@ -163,6 +199,11 @@ versions are there for the length of the run.
   the opened view returns to the list with the saved `--print-query`
   query. Enter prints the row's key fields and exits.
 - The prompts are `snap> ` and `<snap>> `.
+- Previews read the filters, whether there is a credential and the
+  `--cred` file path from a `state` file in the cache dir (names and
+  paths only), not from extra environment variables. Preview output goes
+  to stdout, and `FORCE_COLOR` carries the colours when stderr is a
+  terminal. (Decided while applying.)
 - No `become`, `transform` or `--with-shell`, which 0.44 lacks or which
   are recent.
 
@@ -205,9 +246,10 @@ key `vm-install-from-store` (`<snap>=<channel>`) and `store-assertions`
 
 ## Open Questions
 
-- Which brand-store roles (admin, reviewer, viewer) can read
-  `/api/v2/snaps/<name>/releases` for snaps they neither publish nor
-  collaborate on? This only affects the wording of the refusal.
+- Which brand-store roles can read `/api/v2/snaps/<name>/releases` for
+  snaps they neither publish nor collaborate on? Admins can (recorded);
+  reviewers and viewers are untested. This only affects the wording of
+  the refusal.
 - Does the v2 info channel map in a brand store include snaps the store
   includes from other stores? That affects named-snap browsing only, not
   the list (`store-snaps` leaves included snaps out by design).

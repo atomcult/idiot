@@ -84,3 +84,93 @@ emit_store_unset() {
     emit_unset UBUNTU_STORE_ID
     emit_unset IDIOT_ACTIVE_STORE
 }
+
+# Whether the account can make admin calls on store ID $1 (the member list,
+# the full snap list): prints "ok", "role" (not an admin there) or
+# "permission" (an admin, but the credential lacks store_admin, checked
+# offline). $2 is idiot-store account's output when the caller already has
+# it, else it is fetched. Uses query_file (query_cred). Dies when the
+# account isn't a member of the store. Needs creds.sh.
+# Use as `why="$(store_admin_check "${id}")" || exit $?`.
+store_admin_check() {
+    _sac_h="$(store_helper)" || exit 1
+    _sac_a="${2:-}"
+    [ -n "${_sac_a}" ] ||
+        _sac_a="$("${_sac_h}" account ${query_file:+--file "${query_file}"})" || exit $?
+    # store <id> <display name> <roles>
+    _sac_l="$(printf '%s\n' "${_sac_a}" | awk -F '\t' -v id="${1}" '$1 == "store" && $2 == id')"
+    [ -n "${_sac_l}" ] ||
+        die "your account isn't a member of $(store_label "${1}") — ask one of its admins to add you"
+    if ! printf '%s' "${_sac_l}" | cut -f4 | tr ',' '\n' | grep -qx admin; then
+        printf 'role\n'
+    elif "${_sac_h}" permissions ${query_file:+--file "${query_file}"} | grep -qx store_admin; then
+        printf 'ok\n'
+    else
+        printf 'permission\n'
+    fi
+}
+
+# Print why "$1" (e.g. "the member list") can't be had with this
+# credential and how to get it: the saved credentials with store_admin and
+# `idiot <$2> --cred <first>`, or how to create one. Needs creds.sh.
+store_admin_alternatives() {
+    _saa="$(creds_with_permission store_admin | paste -sd ' ' -)"
+    if [ -n "${_saa}" ]; then
+        printf '%s needs store_admin, which %s has: idiot %s --cred %s' \
+            "${1}" "$(printf '%s' "${_saa}" | sed 's/ /, /g')" "${2}" "${_saa%% *}"
+    else
+        printf '%s needs a credential with store_admin: idiot auth add <name> --permissions store_admin,package_access' "${1}"
+    fi
+}
+
+# The snaps in the active store, as store snaps lists them: all of them for
+# an admin with store_admin, else the account's snaps there (and the global
+# store's for no active store). Sets store_snap_rows to lines of name,
+# publisher, private|public, latest channel, revision and version (`-`
+# where only the full list has them), and store_snap_partial to "" (the
+# full list), "role" or "permission" (why the list is partial). Uses
+# query_file (query_cred). Run it directly, not in $(…): it sets variables.
+# Needs creds.sh.
+# shellcheck disable=SC2034 # store_snap_rows/_partial are read by the caller
+store_snap_list() {
+    store_snap_rows=''
+    store_snap_partial=''
+    _ssl_h="$(store_helper)" || exit 1
+    _ssl_a="$("${_ssl_h}" account ${query_file:+--file "${query_file}"})" || exit $?
+    if [ -n "${UBUNTU_STORE_ID:-}" ]; then
+        # store <id> <display name> <roles>
+        _ssl_d="$(printf '%s\n' "${_ssl_a}" | awk -F '\t' -v id="${UBUNTU_STORE_ID}" '$1 == "store" && $2 == id' | cut -f3)"
+        store_snap_partial="$(store_admin_check "${UBUNTU_STORE_ID}" "${_ssl_a}")" || exit $?
+        if [ "${store_snap_partial}" = ok ]; then
+            store_snap_partial=permission
+            _ssl_f="$("${_ssl_h}" store-snaps ${query_file:+--file "${query_file}"} --store "${UBUNTU_STORE_ID}")" || exit $?
+            # a "refused" line keeps the partial list (and its note)
+            case "${_ssl_f}" in
+            refused*) ;;
+            *)
+                # snap <name> <owner> <private|public> <snap-id> <channel> <rev> <version>
+                store_snap_rows="$(printf '%s\n' "${_ssl_f}" | awk -F '\t' -v OFS='\t' '$1 == "snap" {
+                    print $2, $3, $4, ($6 == "" ? "-" : $6), ($7 == "" ? "-" : $7), ($8 == "" ? "-" : $8) }')"
+                store_snap_partial=''
+                return 0
+                ;;
+            esac
+        fi
+    else
+        _ssl_d=Global
+    fi
+    # snap <name> <store display name> <private|public> <publisher>
+    store_snap_rows="$(printf '%s\n' "${_ssl_a}" | awk -F '\t' -v OFS='\t' -v s="${_ssl_d}" '$1 == "snap" && $3 == s { print $2, $5, $4, "-", "-", "-" }')"
+}
+
+# Say on stderr why store_snap_list's list is partial and what the full one
+# needs: $1 is store_snap_partial ("role" or "permission"), $2 the command
+# to suggest with --cred (e.g. "store snaps").
+store_partial_note() {
+    say "${DIM}Only the snaps you publish or collaborate on in $(store_label "${UBUNTU_STORE_ID}"):${RESET}"
+    if [ "${1}" = role ]; then
+        say "${DIM}the full list needs an admin of the store.${RESET}"
+        return 0
+    fi
+    say "${DIM}$(store_admin_alternatives "the full list" "${2}")${RESET}"
+}

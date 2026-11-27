@@ -6,7 +6,8 @@
 //! `expiry` reads a credential's expiry caveats offline and prints only
 //! those timestamps; `repair` strips base64 padding snapd can't read from a
 //! credential file, in place, and prints only `ok`, `repaired` or `padded`.
-//! `permissions`, `account`, `store-snaps`, `info` and `probe` are the
+//! `permissions`, `account`, `store-snaps`, `store-members`, `info`,
+//! `channel-maps`, `releases` and `probe` are the
 //! read-only queries behind `idiot store`, printing tab-separated lines.
 //! `assertion` fetches an assertion (and with `--chain` its prerequisites)
 //! and prints the stream, only once every assertion has been fetched.
@@ -50,11 +51,24 @@ enum Commands {
     /// The account's stores (`store <id> <name> <roles>`) and snaps
     /// (`snap <name> <store name> <private|public> <publisher>`)
     Account(CredArgs),
-    /// A brand store's snaps (store admins with store_admin):
-    /// `snap <name> <owner> <private|public>`, or `refused ...`
+    /// A brand store's snaps (store admins with store_admin): `snap <name>
+    /// <owner> <private|public> <snap-id> <latest channel|-> <latest
+    /// revision|-> <latest version|->`, or `refused ...`
     StoreSnaps(StoreSnapsArgs),
+    /// A brand store's members (store admins with store_admin):
+    /// `member <username> <roles> <display name> <email>`, or `refused ...`
+    StoreMembers(StoreSnapsArgs),
     /// A snap's channel map: `channel <track/risk> <arch> <revision> <version> <released-at>`
     Info(InfoArgs),
+    /// Several snaps' channel maps, in argument order: `snap <name> <snap-id>
+    /// <publisher> <private|public> <title>`, `channel <name> <channel>
+    /// <arch> <revision> <version> <released-at> <created-at> <type>
+    /// <base|-> <confinement> <epoch> <size> <sha3-384>`, or `hidden <name>`
+    ChannelMaps(ChannelMapsArgs),
+    /// A snap's revisions and release history (publishers and
+    /// collaborators, package_access): `revision ...` and `release ...`
+    /// lines, or `refused permission <p>|not-collaborator|no-credential`
+    Releases(ReleasesArgs),
     /// Whether a snap revision can be downloaded, anonymously and with the
     /// credential (statuses only; nothing is downloaded)
     Probe(ProbeArgs),
@@ -106,6 +120,24 @@ pub struct InfoArgs {
     /// The store's ID (default: the global store)
     #[arg(long)]
     store: Option<String>,
+    snap: String,
+}
+
+#[derive(Args)]
+pub struct ChannelMapsArgs {
+    #[command(flatten)]
+    cred: CredArgs,
+    /// The store's ID (default: the global store)
+    #[arg(long)]
+    store: Option<String>,
+    #[arg(required = true)]
+    snaps: Vec<String>,
+}
+
+#[derive(Args)]
+pub struct ReleasesArgs {
+    #[command(flatten)]
+    cred: CredArgs,
     snap: String,
 }
 
@@ -190,7 +222,10 @@ fn main() -> ExitCode {
         Commands::Permissions(args) => cmd::query::run_permissions(args),
         Commands::Account(args) => cmd::query::run_account(args),
         Commands::StoreSnaps(args) => cmd::query::run_store_snaps(args),
+        Commands::StoreMembers(args) => cmd::query::run_store_members(args),
         Commands::Info(args) => cmd::query::run_info(args),
+        Commands::ChannelMaps(args) => cmd::query::run_channel_maps(args),
+        Commands::Releases(args) => cmd::query::run_releases(args),
         Commands::Probe(args) => cmd::query::run_probe(args),
         Commands::Assertion(args) => cmd::query::run_assertion(args),
     };

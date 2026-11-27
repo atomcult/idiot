@@ -1,0 +1,8 @@
+{
+  "store": {"id": "abc123StoreIdXXXXXXX", "name": "Example Team Store"},
+  "users": [
+    {"displayname": "Carol Example", "email": "carol@example.com", "id": "AccountIdCarolXXXXXXXXXXXXXXXXXX", "roles": ["access"], "username": "carol-example"},
+    {"displayname": "Alice Example", "email": "alice@example.com", "id": "AccountIdAliceXXXXXXXXXXXXXXXXXX", "roles": ["admin", "review", "view"], "username": "alice-example"},
+    {"displayname": "Bob Example", "email": "bob@example.com", "id": "AccountIdBobXXXXXXXXXXXXXXXXXXXX", "roles": ["view"], "username": "bob-example"}
+  ]
+}

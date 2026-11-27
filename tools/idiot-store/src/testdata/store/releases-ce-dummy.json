@@ -1,0 +1,293 @@
+{
+ "_links": {
+  "self": "https://dashboard.snapcraft.io/api/v2/snaps/ce-dummy/releases?page=1"
+ },
+ "releases": [
+  {
+   "architecture": "armhf",
+   "branch": null,
+   "channel": "latest/stable",
+   "expiration-date": null,
+   "progressive": {
+    "current-percentage": null,
+    "paused": null,
+    "percentage": null
+   },
+   "revision": 6,
+   "risk": "stable",
+   "track": "latest",
+   "when": "2021-10-07T13:02:01Z"
+  },
+  {
+   "architecture": "armhf",
+   "branch": null,
+   "channel": "latest/stable",
+   "expiration-date": null,
+   "progressive": {
+    "current-percentage": null,
+    "paused": null,
+    "percentage": null
+   },
+   "revision": 5,
+   "risk": "stable",
+   "track": "latest",
+   "when": "2021-10-06T13:51:04Z"
+  },
+  {
+   "architecture": "armhf",
+   "branch": null,
+   "channel": "latest/stable",
+   "expiration-date": null,
+   "progressive": {
+    "current-percentage": null,
+    "paused": null,
+    "percentage": null
+   },
+   "revision": 4,
+   "risk": "stable",
+   "track": "latest",
+   "when": "2021-10-06T13:47:50Z"
+  },
+  {
+   "architecture": "armhf",
+   "branch": null,
+   "channel": "latest/stable",
+   "expiration-date": null,
+   "progressive": {
+    "current-percentage": null,
+    "paused": null,
+    "percentage": null
+   },
+   "revision": 3,
+   "risk": "stable",
+   "track": "latest",
+   "when": "2021-10-06T13:46:22Z"
+  },
+  {
+   "architecture": "amd64",
+   "branch": null,
+   "channel": "latest/stable",
+   "expiration-date": null,
+   "progressive": {
+    "current-percentage": null,
+    "paused": null,
+    "percentage": null
+   },
+   "revision": 2,
+   "risk": "stable",
+   "track": "latest",
+   "when": "2017-11-16T18:41:20Z"
+  },
+  {
+   "architecture": "armhf",
+   "branch": null,
+   "channel": "latest/stable",
+   "expiration-date": null,
+   "progressive": {
+    "current-percentage": null,
+    "paused": null,
+    "percentage": null
+   },
+   "revision": 1,
+   "risk": "stable",
+   "track": "latest",
+   "when": "2017-11-16T18:06:26Z"
+  }
+ ],
+ "revisions": [
+  {
+   "architectures": [
+    "armhf"
+   ],
+   "attributes": {},
+   "base": "core20",
+   "build_url": null,
+   "confinement": "strict",
+   "created_at": "2021-10-07T13:01:55Z",
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "grade": "stable",
+   "revision": 6,
+   "sha3-384": "b8e3c67ffa672478f57d135b5f66a786e48c646458bfc8c58e01b8ad6f17188428232ef8161288d0278ee61e8ef17488",
+   "size": 16384,
+   "status": "Published",
+   "version": "4"
+  },
+  {
+   "architectures": [
+    "armhf"
+   ],
+   "attributes": {},
+   "base": "core20",
+   "build_url": null,
+   "confinement": "strict",
+   "created_at": "2021-10-06T13:50:23Z",
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "grade": "stable",
+   "revision": 5,
+   "sha3-384": "17e1291abdebfdeea7ff965f47e149364b9e05b8a5b1b0a5c5170a48383257b2d49d0b3210a29c18a7162e657abeb58a",
+   "size": 16384,
+   "status": "Published",
+   "version": "3"
+  },
+  {
+   "architectures": [
+    "armhf"
+   ],
+   "attributes": {},
+   "base": "core20",
+   "build_url": null,
+   "confinement": "strict",
+   "created_at": "2021-10-06T13:47:44Z",
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "grade": "stable",
+   "revision": 4,
+   "sha3-384": "84a9d69f46e198f0a9a9eeec7411406d4b8e79a718108dc9e2b13bfbb30c26835feab3760274d0fc7b75ccf5bfaf6329",
+   "size": 16384,
+   "status": "Published",
+   "version": "2"
+  },
+  {
+   "architectures": [
+    "armhf"
+   ],
+   "attributes": {},
+   "base": "core20",
+   "build_url": null,
+   "confinement": "strict",
+   "created_at": "2021-10-06T13:46:17Z",
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "grade": "stable",
+   "revision": 3,
+   "sha3-384": "8eb24dc062b80a589e0a04bfaa4c8e63f35253d175cf988573db56535ed6f08b72da09468f488549cd8a3c173253685f",
+   "size": 16384,
+   "status": "Published",
+   "version": "1"
+  },
+  {
+   "architectures": [
+    "amd64"
+   ],
+   "attributes": {},
+   "base": null,
+   "build_url": null,
+   "confinement": "strict",
+   "created_at": "2017-11-16T18:40:52Z",
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "grade": "stable",
+   "revision": 2,
+   "sha3-384": "cf4adf692541595c90cae90727f80378e13b5f39fa13d425fe977368d2d03e003b0a1374c32a3afa28cb873a73bc1563",
+   "size": 4096,
+   "status": "Published",
+   "version": "0.2"
+  },
+  {
+   "architectures": [
+    "armhf"
+   ],
+   "attributes": {},
+   "base": null,
+   "build_url": null,
+   "confinement": "strict",
+   "created_at": "2017-11-16T18:04:42Z",
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "grade": "stable",
+   "revision": 1,
+   "sha3-384": "2db96e3d7daf18226a35243944461a3c986eeaf0a872e3b21a2615d1f2645db0ca016d265c048bc9e8d89a69792a9425",
+   "size": 4096,
+   "status": "Published",
+   "version": "0.2"
+  }
+ ],
+ "snap": {
+  "channels": [
+   {
+    "branch": null,
+    "fallback": null,
+    "name": "latest/stable",
+    "risk": "stable",
+    "track": "latest"
+   },
+   {
+    "branch": null,
+    "fallback": "latest/stable",
+    "name": "latest/candidate",
+    "risk": "candidate",
+    "track": "latest"
+   },
+   {
+    "branch": null,
+    "fallback": "latest/candidate",
+    "name": "latest/beta",
+    "risk": "beta",
+    "track": "latest"
+   },
+   {
+    "branch": null,
+    "fallback": "latest/beta",
+    "name": "latest/edge",
+    "risk": "edge",
+    "track": "latest"
+   }
+  ],
+  "default-track": null,
+  "id": "SnapIdCeDummyXXXXXXXXXXXXXXXXXXX",
+  "name": "ce-dummy",
+  "private": false,
+  "publisher": {
+   "display-name": "Test User",
+   "id": "AccountIdTestUserXXXXXXXXXXXXXXX",
+   "username": "test-user"
+  },
+  "title": "ce-dummy",
+  "tracks": [
+   {
+    "creation-date": null,
+    "name": "latest",
+    "status": "default",
+    "version-pattern": null
+   }
+  ]
+ }
+}

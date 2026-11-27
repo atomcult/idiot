@@ -1,12 +1,12 @@
 #!/bin/bash
-# tests/bare-host.d/store - idiot store check/channels/roles/snaps, offline
+# tests/bare-host.d/store - idiot store check/channels/roles/snaps/members/browse, offline
 #
 # Usage: store   (no store account in the container)
 # Fake credentials (V1 macaroons with dummy signatures and an acl caveat)
 # exercise what store check decides before it contacts the store: an
 # unknown --cred, an expired credential, one without package_access, one
 # that can't be read, and padding snapd can't read (reported, then the
-# store refuses the fake). Plus usage errors, and roles/snaps without a
+# store refuses the fake). Plus usage errors, roles/snaps/members/browse without a
 # credential, and store import's refusals (no terminal, no credential).
 # Nothing here needs a real account.
 
@@ -94,6 +94,43 @@ out="$(idiot store snaps 2>&1)"
 rc=$?
 [ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'no active credential' &&
 	ok "store snaps: needs a credential" || fail "store snaps: ${out}"
+out="$(idiot store members --bogus 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store members' &&
+	ok "store members: usage" || fail "store members --bogus: ${out}"
+out="$(idiot store members --role owner 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q "unknown role 'owner'" &&
+	ok "store members: unknown role refused" || fail "store members --role owner: ${out}"
+out="$(idiot store members 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'the global store has no member list' &&
+	ok "store members: none in the global store" || fail "store members (global): ${out}"
+out="$(UBUNTU_STORE_ID=SomeBrandStoreId idiot store members 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'no active credential' &&
+	ok "store members: needs a credential" || fail "store members (no credential): ${out}"
+# store browse: refusals decided before contacting the store
+for args in "--bogus|usage: idiot store browse" "--since yesterday --tsv|--since takes a date" \
+	"--revision x --tsv|--revision takes a number" "--arch sparc --tsv|unknown architecture" \
+	"--confinement weird --tsv|--confinement takes" "--status Rejected --tsv|apply to revisions" \
+	"--tsv|no active credential" "--tsv --cred nope|not found" \
+	"hello|browsing needs a terminal"; do
+	# shellcheck disable=SC2086 # the arguments are split on purpose
+	out="$(idiot store browse ${args%%|*} </dev/null 2>&1)"
+	rc=$?
+	[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -qF -- "${args#*|}" &&
+		ok "store browse ${args%%|*}: refused" || fail "store browse ${args%%|*}: rc=${rc} ${out}"
+done
+# and, when the container reaches the store, public snaps without a credential
+if getent hosts api.snapcraft.io >/dev/null 2>&1 && out="$(idiot store browse hello core22 --tsv 2>/dev/null)"; then
+	h="$(printf '%s\n' "${out}" | awk -F '\t' '$1 == "hello" && $11 == "public"' | wc -l)"
+	c="$(printf '%s\n' "${out}" | awk -F '\t' '$1 == "core22" && $7 == "base" && $8 == "-"' | wc -l)"
+	[ "${h}" -gt 0 ] && [ "${c}" -gt 0 ] &&
+		ok "store browse hello core22 --tsv: public channel maps" || fail "store browse --tsv: ${h} hello rows, ${c} core22 rows"
+else
+	ok "store browse hello core22 --tsv: skipped (the store isn't reachable from here)"
+fi
 out="$(idiot store channels 2>&1)"
 rc=$?
 [ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store channels <snap>' &&

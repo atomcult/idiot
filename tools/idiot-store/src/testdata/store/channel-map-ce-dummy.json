@@ -1,0 +1,81 @@
+{
+ "channel-map": [
+  {
+   "architectures": [
+    "amd64"
+   ],
+   "base": null,
+   "channel": {
+    "architecture": "amd64",
+    "name": "stable",
+    "released-at": "2017-11-16T18:41:20.511979+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "confinement": "strict",
+   "created-at": "2017-11-16T18:40:52.440415+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "cf4adf692541595c90cae90727f80378e13b5f39fa13d425fe977368d2d03e003b0a1374c32a3afa28cb873a73bc1563",
+    "size": 4096,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdCeDummyXXXXXXXXXXXXXXXXXXX_2.snap"
+   },
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "revision": 2,
+   "type": "app",
+   "version": "0.2"
+  },
+  {
+   "architectures": [
+    "armhf"
+   ],
+   "base": "core20",
+   "channel": {
+    "architecture": "armhf",
+    "name": "stable",
+    "released-at": "2021-10-07T13:02:01.808525+00:00",
+    "risk": "stable",
+    "track": "latest"
+   },
+   "confinement": "strict",
+   "created-at": "2021-10-07T13:01:55.836164+00:00",
+   "download": {
+    "deltas": [],
+    "sha3-384": "b8e3c67ffa672478f57d135b5f66a786e48c646458bfc8c58e01b8ad6f17188428232ef8161288d0278ee61e8ef17488",
+    "size": 16384,
+    "url": "https://api.snapcraft.io/api/v1/snaps/download/SnapIdCeDummyXXXXXXXXXXXXXXXXXXX_6.snap"
+   },
+   "epoch": {
+    "read": [
+     0
+    ],
+    "write": [
+     0
+    ]
+   },
+   "revision": 6,
+   "type": "app",
+   "version": "4"
+  }
+ ],
+ "default-track": null,
+ "name": "ce-dummy",
+ "snap": {
+  "private": false,
+  "publisher": {
+   "display-name": "Test User",
+   "id": "AccountIdTestUserXXXXXXXXXXXXXXX",
+   "username": "test-user",
+   "validation": "unproven"
+  },
+  "title": "ce-dummy"
+ },
+ "snap-id": "SnapIdCeDummyXXXXXXXXXXXXXXXXXXX"
+}
