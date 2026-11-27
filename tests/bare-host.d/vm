@@ -5,7 +5,9 @@
 # Boots the image with secure boot and an emulated TPM, with no qemu,
 # firmware or swtpm packages on the host, until it reaches console-conf or
 # <seconds> (default 600) pass, then stops it with vm stop (a graceful power
-# down). A first boot runs install mode and reboots.
+# down). A first boot runs install mode and reboots. Then takes a snapshot,
+# boots again, restores it and boots once more: the last boot must reach
+# console-conf in run mode.
 # The image is booted through an overlay, so it must come out unchanged.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
@@ -81,6 +83,32 @@ printf '%s' "${out}" | grep -qE '7 *: *0x[0-9A-F]{64}' &&
 	fail "vm: tpm2_pcrread: $(printf '%s' "${out}" | head -n 3 | tr '\n' ' ')"
 pkill -x swtpm 2>/dev/null
 wait
+
+# a snapshot after first boot, restored after another boot, boots in run
+# mode (no install mode again: the TPM still unseals the data partition)
+# boot <log>: boot the VM to console-conf (or the timeout), then stop it
+boot() {
+	idiot vm --tpm --no-gfx --name "${name}" </dev/null >"${1}" 2>&1 &
+	bpid=$!
+	for _ in $(seq "${secs}"); do
+		grep -aq 'Press enter to configure' "${1}" && break
+		kill -0 "${bpid}" 2>/dev/null || break
+		sleep 1
+	done
+	idiot vm stop --timeout 120 "${name}" >/dev/null 2>&1
+	wait "${bpid}"
+}
+out="$(idiot vm snapshot create --name "${name}" seeded 2>&1)" &&
+	ok "vm: snapshot after first boot" || fail "vm: snapshot create: ${out}"
+boot "${log}.2"
+out="$(idiot vm snapshot restore --yes --name "${name}" seeded 2>&1)" &&
+	ok "vm: restore the snapshot" || fail "vm: snapshot restore: ${out}"
+boot "${log}.3"
+grep -aq 'Press enter to configure' "${state}/serial.log" &&
+	grep -aq 'snapd_recovery_mode=run' "${state}/serial.log" &&
+	! grep -aq 'snapd_recovery_mode=install' "${state}/serial.log" &&
+	ok "vm: the restored VM boots to console-conf without install mode" ||
+	fail "vm: after restore (see ${state}/serial.log)"
 
 idiot vm delete --yes "${name}" >/dev/null 2>&1
 rm -rf "${state}"

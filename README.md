@@ -178,7 +178,7 @@ VM's state directory.
 $ idiot vm list                     # name, arch, running/stopped, port, image
 $ idiot vm stop gadget              # power button, then quit after --timeout
 $ idiot vm console-log -f gadget    # its serial console (--previous: last boot)
-$ idiot vm reset gadget             # discard disk, UEFI vars, TPM: freshly flashed
+$ idiot vm reset gadget             # discard disk, UEFI vars, TPM, snapshots: freshly flashed
 $ idiot vm delete gadget            # forget it (the image is untouched)
 ```
 
@@ -193,6 +193,7 @@ The dev loop, from a built snap to its logs:
 $ idiot vm install ./my-app_1.0_amd64.snap     # copy, install, follow the change
 $ idiot vm logs -f my-app                      # its services' journal
 $ idiot vm install ./pc-kernel_custom.snap     # follows it through the reboot
+$ idiot vm install hello-world pc-kernel=24/edge   # from the store
 ```
 
 `install` copies the snaps in and installs them as root in one snapd change,
@@ -204,6 +205,40 @@ and idiot says so. The guest user (your Launchpad username, as for `ssh`)
 needs passwordless sudo, as console-conf and system-user accounts have.
 `logs` prints a snap's service logs, or the whole journal of the current
 boot, on stdout.
+
+An argument that isn't a `.snap` file is a store snap, `<name>` or
+`<name>=<channel>` (`--channel` sets it for the others; default `stable`).
+idiot downloads it on the host for the VM's architecture (not
+`UBUNTU_STORE_ARCH`), from the active store with the active credential
+(`--cred <name>` for another saved one, anonymously when there is none),
+checks it against the store's sha3-384, and fetches the assertions that
+install it asserted. The credential goes to the store only, never into the
+VM. Downloads are cached in `~/.cache/idiot/snaps` (readable by you only) and
+reused while the channel still points at them.
+
+Snapshots save a stopped VM's disk, UEFI variables and TPM state together,
+so a VM can go back to an interesting state (first boot done, keys
+enrolled) in seconds instead of a reset and a new install-mode boot:
+
+```
+$ idiot vm stop gadget
+$ idiot vm snapshot create --name gadget seeded   # after its first boot
+$ idiot vm snapshot list --name gadget            # name, taken, UEFI, TPM, ok/broken
+$ idiot vm install ./pc-kernel_broken.snap        # ...and the kernel doesn't boot
+$ idiot vm stop --force gadget
+$ idiot vm snapshot restore --name gadget seeded  # back, TPM-sealed keys and all
+$ idiot vm snapshot delete --name gadget seeded
+```
+
+The disk snapshot lives inside the VM's overlay (it costs only what the
+guest changes afterwards) and the variables and TPM state are copied
+beside it, so a restore never pairs a disk with another moment's TPM.
+`restore` keeps the snapshot (restore it as often as you like), and it and
+`delete` ask first (`--yes` skips the question). Running VMs and
+`--in-place` VMs can't be snapshotted; a snapshot of a VM stopped with
+`--force` is crash-consistent. `idiot vm reset` discards a VM's snapshots
+with its overlay, asking first when it has any (`--yes` skips the
+question).
 
 **Changed:** before named VMs, `idiot vm` wrote to the image and threw
 the UEFI variables and TPM state away after each run (unless you gave

@@ -21,9 +21,10 @@ credential with `query_cred` (creds.sh) and passes `--file` for `--cred`.
 `store check` already turns "not shown / not released / refused" into
 advice.
 
-`store-assertions` (change #2) defines how idiot-store fetches an
-assertion by type and primary key. This change consumes it and doesn't
-redesign it.
+`store-assertions` (implemented and archived; `openspec/specs/store`)
+defines how idiot-store fetches an assertion by type and primary key, and
+`idiot-store assertion --chain` its prerequisites. This change consumes it
+(`store::assertion::fetch` with a `Fetcher`) and doesn't redesign it.
 
 ## Goals / Non-Goals
 
@@ -52,7 +53,9 @@ credential in argv, and sha3-384 isn't in coreutils (`openssl dgst
 -sha3-384` isn't guaranteed on the host and isn't in the snap). idiot-store
 is already the network client that holds credentials, and already has the
 info lookup, the auth header and the refresh logic. idiot-helper stays
-offline and credential-free. The `sha3` crate is added to idiot-store
+offline and credential-free. The blocking client's `timeout` bounds each
+wait (the response, then every read of the body), so 60 s there is the
+read timeout and there is no overall one. The `sha3` crate is added to idiot-store
 (the same crate and version line idiot-helper uses). It is a build
 dependency only: the snap already builds and stages idiot-store.
 
@@ -109,7 +112,9 @@ a connect timeout and a read timeout.
 mode 0600, and fed to SHA3-384 as it goes. When it finishes, the size and
 digest must match `download.size` and `download.sha3-384` (hex in the
 info response). On a match the file is renamed to `DIR/<name>_<rev>.snap`.
-On a mismatch, an error or an interrupt it is removed. `DIR` is created
+On a mismatch or an error it is removed. An interrupt kills
+the process before it can, so each run first removes the `.partial`
+files in `DIR` whose pid is no longer running. `DIR` is created
 with mode 0700 if missing.
 
 **Cache.** sh passes `--dir "${IDIOT_CACHE_DIR}/snaps"`. Before
@@ -121,7 +126,7 @@ revision: revisions are per snap, and the digest check catches anything
 else. Private snaps land in the cache, hence 0700/0600. Nothing prunes it
 yet (see Open questions).
 
-**Assertions come from `store-assertions`, in-process.** That change
+**Assertions come from `store-assertions`, in-process.** It
 defines `idiot-store assertion [--file] [--store] [--chain] <type>
 <header>=<value>...`. Its `--chain` fetches the prerequisites depth-first,
 each printed after everything it needs, deduplicated, and stops at what
@@ -146,13 +151,10 @@ only "each after the assertions it needs". `download` then checks that the snap-
 stream to `<name>_<rev>.assert.<pid>.partial`, then renames it next to the
 snap.
 
-If this change is implemented before `store-assertions`, task 1.3 writes
-that function as a minimal private walk over the same prerequisite rules
-(snap-revision → snap-declaration and developer account; snap-declaration
-→ publisher account; each → its signing account-key → that key's
-account; stop at Canonical's account and root key). It is marked for
-`store-assertions` to replace, so there are never two copies. This change
-adds no assertion subcommand.
+`store-assertions` landed first, so `download` calls its
+`assertion::fetch(&mut Fetcher, "snap-revision/<key>", chain = true)`
+directly: there is no private walk and no second copy of the
+prerequisite rules. This change adds no assertion subcommand.
 
 The guest's snapd verifies the signatures when they are acknowledged.
 idiot doesn't verify them again. Assertions are fetched fresh on every
@@ -233,9 +235,8 @@ host and reuses the cache across VMs and resets.
   message, and pruning is an open question rather than a silent policy.
 - **Large downloads with no resume.** An interrupted download starts
   again. Acceptable for a dev loop; the partial file is always removed.
-- **Order with `store-assertions`.** If this lands first it carries a
-  private fetch function that change #2 must take over. The tasks say so,
-  to avoid two copies.
+- **Order with `store-assertions`.** Resolved: it landed first, and
+  `download` uses its chain fetch as is.
 - **Ambiguous arguments.** A snap called `foo` and a file `./foo` without
   `.snap` used to fail ("not a .snap file"). `foo` now means the store,
   and `./foo` still fails. A typo in a file name without `./` now reaches

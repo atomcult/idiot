@@ -22,7 +22,7 @@ const INFO_FIELDS: &str = "download,revision,version,created-at,architectures";
 
 /// A credential for a run of queries; refreshed in place when needed.
 pub struct Auth {
-    credential: String,
+    pub(crate) credential: String,
 }
 
 impl Auth {
@@ -120,7 +120,7 @@ pub(crate) fn send(
 }
 
 /// The credential with a fresh discharge from Ubuntu SSO.
-fn refresh(client: &Client, cred: &str) -> Result<String, StoreError> {
+pub(crate) fn refresh(client: &Client, cred: &str) -> Result<String, StoreError> {
     refresh_at(client, REFRESH_ENDPOINT, cred)
 }
 
@@ -485,12 +485,20 @@ pub fn parse_info(json: &Value) -> Vec<Channel> {
     out
 }
 
-/// `stable` -> `latest/stable`; `2.0/edge` and `latest/edge/fix` as given.
+const RISKS: [&str; 4] = ["stable", "candidate", "beta", "edge"];
+
+/// A channel as snapd reads it: a first segment that is a risk means the
+/// `latest` track (`stable` -> `latest/stable`, `edge/fix` ->
+/// `latest/edge/fix`), a track alone means its `stable` risk; `2.0/edge`
+/// and `latest/edge/fix` as given.
 pub fn normalise_channel(channel: &str) -> String {
-    if channel.contains('/') {
-        channel.to_string()
-    } else {
+    let first = channel.split('/').next().unwrap_or("");
+    if RISKS.contains(&first) {
         format!("latest/{channel}")
+    } else if !channel.contains('/') {
+        format!("{channel}/stable")
+    } else {
+        channel.to_string()
     }
 }
 
@@ -700,6 +708,18 @@ mod tests {
         assert_eq!(map[0].revision, 4);
         assert_eq!(map[1].name, "latest/stable");
         assert!(map[1].url.ends_with("_3.snap"));
+        let map = parse_info(&fixture("info-hello-world.json"));
+        let e = map
+            .iter()
+            .find(|e| e.name == "latest/stable" && e.arch == "amd64")
+            .unwrap();
+        assert_eq!(e.revision, 29);
+        assert_eq!(e.size, 20480);
+        assert!(e.sha3_384.starts_with("b07bdb78e762c2e6"));
+        assert_eq!(
+            text(&fixture("info-hello-world.json"), "snap-id"),
+            "buPKUD3TKqCOgLEjjHx5kSiCpIs5cMuQ"
+        );
     }
 
     #[test]
@@ -757,5 +777,8 @@ mod tests {
         assert_eq!(normalise_channel("stable"), "latest/stable");
         assert_eq!(normalise_channel("2.0/edge"), "2.0/edge");
         assert_eq!(normalise_channel("latest/edge/fix"), "latest/edge/fix");
+        assert_eq!(normalise_channel("edge/fix"), "latest/edge/fix");
+        assert_eq!(normalise_channel("beta"), "latest/beta");
+        assert_eq!(normalise_channel("2.0"), "2.0/stable");
     }
 }

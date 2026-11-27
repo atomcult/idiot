@@ -18,3 +18,6 @@ real answers are recorded with the user.
 `releases-404.json` were recorded live on 2026-11-27 with the user's
 go-ahead; the publisher's account ID, username and display name and the
 snap ID were replaced with made-up values.
+
+`info-hello-world.json` is the public channel map of `hello-world`, as
+the store served it anonymously on 2026-11-27.

@@ -64,7 +64,7 @@ command (`cmd/vm` is already one). No new runtime dependency: the snap
 already stages `idiot-store`. The `sha3` crate becomes a build-time
 dependency of idiot-store (idiot-helper already uses it).
 
-Depends on `store-assertions` (change #2) for the assertion fetch.
+Uses `store-assertions` (implemented and archived) for the assertion fetch.
 
 ## Capabilities
 

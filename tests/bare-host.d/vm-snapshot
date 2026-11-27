@@ -1,0 +1,261 @@
+#!/bin/bash
+# tests/bare-host.d/vm-snapshot - vm snapshot on hand-made VM state, offline
+#
+# Usage: vm-snapshot   (needs idiot+vm, for its qemu-img)
+# Builds VMs by hand in a scratch IDIOT_VM_DIR (vm.conf, a qcow2 overlay
+# over a sparse raw base made with the component's qemu-img, fake UEFI
+# variables and TPM state); no qemu boots, nothing is downloaded. Checks
+# create and list, the refusals (names, running, --in-place, no overlay,
+# several VMs), the files' modes, restore (the disk's contents by pattern,
+# the copies' bytes, an interrupted restore), delete (broken snapshots
+# too), the confirmations, and reset and --state-dir delete discarding
+# snapshots.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+installed vm || {
+	fail "vm-snapshot: needs idiot+vm"
+	exit 1
+}
+
+work="$(mktemp -d)"
+export IDIOT_VM_DIR="${work}/vm"
+qi() { idiot run qemu-img "$@"; }
+
+# mkvm <name> [in_place]: a stopped VM with an overlay, vars and TPM state
+mkvm() {
+	mkdir -p "${IDIOT_VM_DIR}/${1}"
+	printf 'image=%s\narch=amd64\nsb=1\nin_place=%s\ntpm=1\ngfx=0\nssh_port=8022\n' \
+		"${work}/base.raw" "${2:-0}" >"${IDIOT_VM_DIR}/${1}/vm.conf"
+	[ "${2:-0}" -eq 1 ] ||
+		qi create -q -f qcow2 -b "${work}/base.raw" -F raw "${IDIOT_VM_DIR}/${1}/disk.qcow2"
+	head -c 65536 /dev/urandom >"${IDIOT_VM_DIR}/${1}/fw_vars.fd"
+	head -c 4096 /dev/urandom >"${IDIOT_VM_DIR}/${1}/tpm2-00.permall"
+}
+
+# expect <label> <pattern> <command...>: the command fails, saying pattern
+expect() {
+	_l="${1}"
+	_p="${2}"
+	shift 2
+	_o="$("$@" 2>&1)" && fail "vm-snapshot: ${_l}: succeeded: ${_o}" && return
+	printf '%s' "${_o}" | grep -qF -- "${_p}" && ok "vm-snapshot: ${_l}" ||
+		fail "vm-snapshot: ${_l}: ${_o}"
+}
+
+truncate -s 8M "${work}/base.raw"
+base_sum="$(sha256sum <"${work}/base.raw")"
+mkvm a
+a="${IDIOT_VM_DIR}/a"
+
+# names
+for n in 1 .x -x 123456789012345678901234567890123; do
+	expect "name ${n} refused" "invalid snapshot name" idiot vm snapshot create --name a -- "${n}"
+done
+[ ! -e "${a}/snapshots" ] && ok "vm-snapshot: refused names write nothing" ||
+	fail "vm-snapshot: refused names left ${a}/snapshots"
+
+# create, list
+out="$(idiot vm snapshot create --name a seed-1 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'seed-1.*disk, UEFI variables and TPM state' &&
+	ok "vm-snapshot: create says what it holds" || fail "vm-snapshot: create: ${out}"
+rm -f "${a}/tpm2-00.permall"
+sleep 1 # created is in seconds
+out="$(idiot vm snapshot create --name a a.b 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'no TPM state' &&
+	ok "vm-snapshot: create without TPM state says so" || fail "vm-snapshot: create a.b: ${out}"
+list="$(idiot vm snapshot list --name a 2>/dev/null)"
+[ "$(printf '%s\n' "${list}" | awk '{ print $1 }' | paste -sd' ' -)" = 'NAME seed-1 a.b' ] &&
+	printf '%s\n' "${list}" | grep -qE '^seed-1 +[0-9-]+ [0-9:]+ +yes +yes +ok$' &&
+	printf '%s\n' "${list}" | grep -qE '^a\.b +[0-9-]+ [0-9:]+ +yes +no +ok$' &&
+	ok "vm-snapshot: list, oldest first, with the UEFI and TPM columns" ||
+	fail "vm-snapshot: list: ${list}"
+idiot vm snapshot list --name a 2>/dev/null | grep -q '^seed-1 ' &&
+	ok "vm-snapshot: list | grep" || fail "vm-snapshot: list | grep"
+idiot vm snapshot list 2>/dev/null | grep -q '^a.b ' &&
+	ok "vm-snapshot: the only VM without --name" || fail "vm-snapshot: list without --name"
+expect "taken name" "idiot vm snapshot delete" idiot vm snapshot create --name a seed-1
+qi snapshot -c foreign "${a}/disk.qcow2"
+expect "a tag idiot didn't take" "didn't take" idiot vm snapshot create --name a foreign
+idiot vm snapshot list --name a 2>&1 >/dev/null | grep -q "didn't take.*foreign" &&
+	ok "vm-snapshot: list notes foreign tags" || fail "vm-snapshot: no note of the foreign tag"
+qi snapshot -d foreign "${a}/disk.qcow2"
+
+# modes, the base
+[ "$(stat -c %a "${a}/snapshots" "${a}/snapshots/seed-1" | sort -u)" = 700 ] &&
+	[ "$(stat -c %a "${a}/snapshots/seed-1"/* | sort -u)" = 600 ] &&
+	ok "vm-snapshot: snapshot directories 700, files 600" ||
+	fail "vm-snapshot: modes: $(stat -c '%a %n' "${a}/snapshots"/* "${a}/snapshots/seed-1"/*)"
+[ "$(sha256sum <"${work}/base.raw")" = "${base_sum}" ] &&
+	ok "vm-snapshot: the base image is unchanged" || fail "vm-snapshot: the base image changed"
+
+# a disk snapshot that fails leaves nothing (root ignores modes: a
+# read-only bind mount over the overlay)
+if [ "$(id -u)" -eq 0 ]; then
+	mount --bind "${a}/disk.qcow2" "${a}/disk.qcow2" &&
+		mount -o remount,bind,ro "${a}/disk.qcow2"
+else
+	chmod 444 "${a}/disk.qcow2"
+fi
+expect "failing disk snapshot" "could not take a disk snapshot" idiot vm snapshot create --name a ro
+entries() { find "${1}" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | paste -sd' ' -; }
+[ "$(entries "${a}/snapshots")" = 'a.b seed-1' ] &&
+	ok "vm-snapshot: a failed create leaves no part of it" ||
+	fail "vm-snapshot: after a failed create: $(entries "${a}/snapshots")"
+if [ "$(id -u)" -eq 0 ]; then
+	umount "${a}/disk.qcow2"
+else
+	chmod 600 "${a}/disk.qcow2"
+fi
+
+# refusals
+mkvm raw 1
+expect "--in-place VM" "snapshots need a disk overlay" idiot vm snapshot create --name raw clean
+mkvm fresh
+rm -f "${IDIOT_VM_DIR}/fresh/disk.qcow2"
+expect "no overlay" "idiot vm --name fresh" idiot vm snapshot create --name fresh clean
+expect "several VMs" "--name" idiot vm snapshot create clean
+expect "unknown VM" "idiot vm list" idiot vm snapshot list --name nope
+[ ! -e "${IDIOT_VM_DIR}/raw/snapshots" ] && [ ! -e "${IDIOT_VM_DIR}/fresh/snapshots" ] &&
+	ok "vm-snapshot: refusals write nothing" || fail "vm-snapshot: a refusal wrote snapshots/"
+
+# running: a process whose command line is qemu-system-*
+bash -c 'exec -a qemu-system-x86_64 sleep 30' &
+fake=$!
+printf '%s\n' "${fake}" >"${a}/qemu.pid"
+expect "running VM" "idiot vm stop a" idiot vm snapshot create --name a live
+idiot vm snapshot list --name a 2>/dev/null | grep -q '^seed-1 ' &&
+	ok "vm-snapshot: list works on a running VM" || fail "vm-snapshot: list while running"
+kill "${fake}" 2>/dev/null
+wait "${fake}" 2>/dev/null
+rm -f "${a}/qemu.pid"
+
+# restore: pattern A in the disk at the snapshot, B after
+pat() { # <vm> <letter>: write the letter over the disk's first 4 KiB
+	cp "${work}/base.raw" "${work}/pat.raw"
+	head -c 4096 /dev/zero | tr '\0' "${2}" |
+		dd of="${work}/pat.raw" conv=notrunc status=none
+	qi convert -n -f raw -O qcow2 "${work}/pat.raw" "${IDIOT_VM_DIR}/${1}/disk.qcow2"
+}
+reads() { # <vm>: the disk's first 4 bytes
+	qi convert -O raw "${IDIOT_VM_DIR}/${1}/disk.qcow2" "${work}/read.raw"
+	head -c 4 "${work}/read.raw"
+}
+sums() { # <dir>: checksums of the vars and TPM files in it
+	(cd "${1}" && sha256sum fw_vars.fd tpm2-* 2>/dev/null)
+}
+in_tty() { # <answer> <command>: run the command on a terminal, answering
+	printf '%s\n' "${1}" | script -qec "bash -c '. $(dirname "$0")/lib; ${2}'" /dev/null
+}
+mkvm p
+p="${IDIOT_VM_DIR}/p"
+pat p A
+idiot vm snapshot create --name p pa 2>/dev/null
+saved="$(sums "${p}")"
+pat p B
+head -c 65536 /dev/urandom >"${p}/fw_vars.fd"
+head -c 4096 /dev/urandom >"${p}/tpm2-00.permall"
+head -c 512 /dev/urandom >"${p}/tpm2-00.volatile"
+: >"${p}/swtpm.pid"
+expect "restore without a terminal" "--yes" idiot vm snapshot restore --name p pa </dev/null
+[ "$(reads p)" = BBBB ] && ok "vm-snapshot: a refused restore changes nothing" ||
+	fail "vm-snapshot: the disk changed on a refused restore"
+in_tty n "idiot vm snapshot restore --name p pa" 2>&1 | grep -q 'Nothing changed' &&
+	[ "$(reads p)" = BBBB ] && ok "vm-snapshot: restore answered no changes nothing" ||
+	fail "vm-snapshot: restore answered no"
+idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	[ "$(reads p)" = AAAA ] && [ "$(sums "${p}")" = "${saved}" ] && [ ! -e "${p}/swtpm.pid" ] &&
+	ok "vm-snapshot: restore brings back the disk, vars and TPM files" ||
+	fail "vm-snapshot: after restore: $(reads p); $(sums "${p}")"
+pat p B
+idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	[ "$(reads p)" = AAAA ] && idiot vm snapshot list --name p 2>/dev/null | grep -q '^pa .* ok$' &&
+	ok "vm-snapshot: restore twice, the snapshot kept" || fail "vm-snapshot: second restore"
+expect "unknown snapshot" "idiot vm snapshot list" idiot vm snapshot restore --yes --name p nope
+
+# a snapshot without TPM state removes it on restore
+rm -f "${p}"/tpm2-*
+idiot vm snapshot create --name p notpm 2>/dev/null
+head -c 4096 /dev/urandom >"${p}/tpm2-00.permall"
+idiot vm snapshot restore --yes --name p notpm 2>/dev/null &&
+	! ls "${p}"/tpm2-* >/dev/null 2>&1 && [ -f "${p}/fw_vars.fd" ] &&
+	ok "vm-snapshot: restoring a snapshot without TPM state removes it" ||
+	fail "vm-snapshot: TPM state after restoring notpm: $(ls "${p}")"
+
+# interrupted after the disk: .restoring and the temporaries left by hand
+pat p B
+qi snapshot -a pa "${p}/disk.qcow2"
+printf 'pa\n' >"${p}/snapshots/.restoring"
+printf 'partial' >"${p}/fw_vars.fd.restore"
+idiot vm snapshot list --name p 2>&1 >/dev/null | grep -q 'half-restored.*restore --name p pa' &&
+	ok "vm-snapshot: list reports a half-restored VM" || fail "vm-snapshot: no half-restored note"
+idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	[ "$(reads p)" = AAAA ] && [ "$(sums "${p}")" = "${saved}" ] && [ ! -e "${p}/snapshots/.restoring" ] && ! ls "${p}"/*.restore >/dev/null 2>&1 &&
+	ok "vm-snapshot: restoring again completes it" ||
+	fail "vm-snapshot: after completing: $(sums "${p}"); $(ls -A "${p}" "${p}/snapshots")"
+
+# delete
+expect "delete without a terminal" "--yes" idiot vm snapshot delete --name p notpm </dev/null
+idiot vm snapshot delete --yes --name p notpm 2>/dev/null &&
+	[ "$(idiot vm snapshot list --name p 2>/dev/null | awk 'NR > 1 { print $1 }')" = pa ] &&
+	! qi snapshot -l "${p}/disk.qcow2" | grep -qw notpm &&
+	idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	ok "vm-snapshot: deleting one of two leaves the other restorable" ||
+	fail "vm-snapshot: delete notpm"
+expect "unknown snapshot to delete" "idiot vm snapshot list" idiot vm snapshot delete --yes --name p nope
+qi snapshot -d a.b "${a}/disk.qcow2"
+idiot vm snapshot list --name a 2>/dev/null | grep -q '^a\.b .* broken$' &&
+	ok "vm-snapshot: a disk snapshot removed by hand is broken" || fail "vm-snapshot: a.b not broken"
+expect "restoring a broken snapshot" "missing: the disk snapshot" idiot vm snapshot restore --yes --name a a.b
+idiot vm snapshot delete --yes --name a a.b 2>/dev/null &&
+	! idiot vm snapshot list --name a 2>/dev/null | grep -q '^a\.b ' &&
+	ok "vm-snapshot: delete removes a broken snapshot" || fail "vm-snapshot: delete a.b"
+rm -rf "${a}/snapshots/seed-1"
+idiot vm snapshot delete --yes --name a seed-1 2>/dev/null &&
+	! qi snapshot -l "${a}/disk.qcow2" | grep -qw seed-1 &&
+	ok "vm-snapshot: delete removes a disk snapshot whose copies are gone" ||
+	fail "vm-snapshot: delete seed-1"
+
+# vm delete still confirms
+expect "vm delete without a terminal" "--yes" idiot vm delete fresh </dev/null
+in_tty n "idiot vm delete fresh" >/dev/null 2>&1
+[ -d "${IDIOT_VM_DIR}/fresh" ] && ok "vm-snapshot: vm delete answered no keeps the VM" ||
+	fail "vm-snapshot: vm delete answered no deleted it"
+in_tty y "idiot vm delete fresh" >/dev/null 2>&1
+[ ! -e "${IDIOT_VM_DIR}/fresh" ] && ok "vm-snapshot: vm delete answered yes deletes it" ||
+	fail "vm-snapshot: vm delete answered yes kept it"
+idiot vm delete --yes raw 2>/dev/null && [ ! -e "${IDIOT_VM_DIR}/raw" ] &&
+	ok "vm-snapshot: vm delete --yes" || fail "vm-snapshot: vm delete --yes"
+
+# reset discards snapshots, asking first
+idiot vm snapshot create --name p two 2>/dev/null
+expect "reset with snapshots, no terminal" "--yes" idiot vm reset p </dev/null
+[ -f "${p}/disk.qcow2" ] && [ -d "${p}/snapshots/two" ] &&
+	ok "vm-snapshot: a refused reset keeps everything" || fail "vm-snapshot: a refused reset discarded"
+out="$(idiot vm reset --yes p 2>&1)" &&
+	printf '%s' "${out}" | grep -q 'its 2 snapshots' &&
+	[ ! -e "${p}/disk.qcow2" ] && [ ! -e "${p}/snapshots" ] &&
+	idiot vm snapshot list --name p 2>&1 | grep -q 'No snapshots' &&
+	ok "vm-snapshot: reset --yes discards the snapshots" || fail "vm-snapshot: reset --yes: ${out}"
+mkvm q
+idiot vm reset q </dev/null 2>/dev/null && [ ! -e "${IDIOT_VM_DIR}/q/disk.qcow2" ] &&
+	ok "vm-snapshot: reset without snapshots asks nothing" || fail "vm-snapshot: reset q"
+
+# a --state-dir VM's snapshots go with it, foreign files stay
+for keep in 0 1; do
+	sd="${work}/sd${keep}"
+	mkdir -p "${sd}"
+	mkvm "s${keep}"
+	mv "${IDIOT_VM_DIR}/s${keep}"/* "${sd}/"
+	rmdir "${IDIOT_VM_DIR}/s${keep}"
+	ln -s "${sd}" "${IDIOT_VM_DIR}/s${keep}"
+	idiot vm snapshot create --name "s${keep}" snap 2>/dev/null
+	[ "${keep}" -eq 0 ] || : >"${sd}/mine"
+	idiot vm delete --yes "s${keep}" 2>/dev/null
+done
+[ ! -e "${work}/sd0" ] && [ "$(entries "${work}/sd1")" = mine ] &&
+	ok "vm-snapshot: deleting a --state-dir VM removes its snapshots, keeps foreign files" ||
+	fail "vm-snapshot: --state-dir delete left: $(find "${work}/sd0" "${work}/sd1" 2>/dev/null)"
+
+rm -rf "${work:?}"

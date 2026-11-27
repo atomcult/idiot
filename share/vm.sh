@@ -226,3 +226,77 @@ vm_scp() {
     IFS="${_vsc_ifs}"
     scp "$@"
 }
+
+# Snapshots: an internal qcow2 snapshot of disk.qcow2 tagged with the
+# snapshot's name, and ${state}/snapshots/<name>/ holding copies of
+# fw_vars.fd and tpm2-* and snapshot.conf (created=<unix time>, vars=0|1,
+# tpm=0|1; key=value, never sourced). snapshots/.restoring names the
+# snapshot a restore was interrupted in.
+
+# Print VM $1's snapshots directory, or that of its snapshot $2.
+vm_snapshot_dir() {
+    printf '%s/snapshots%s' "$(vm_dir "${1}")" "${2:+/${2}}"
+}
+
+# Die unless $1 is a valid snapshot name: as a VM name, and not digits
+# only (qemu-img takes an argument that is a snapshot ID as that ID).
+vm_validate_snapshot_name() {
+    case "${1}" in
+    '' | .* | -* | *[!A-Za-z0-9._-]*) ;;
+    *[!0-9]*) [ "${#1}" -gt 32 ] || return 0 ;;
+    esac
+    die "invalid snapshot name '${1}': use 1-32 letters, digits, '.', '-' and '_', not starting with '.' or '-' and not digits only"
+}
+
+# Print the value of key $3 in snapshot $2 of VM $1 (empty if unset).
+vm_snapshot_conf_get() {
+    _vscg="$(vm_snapshot_dir "${1}" "${2}")/snapshot.conf"
+    [ -f "${_vscg}" ] || return 0
+    awk -v k="${3}=" 'index($0, k) == 1 { print substr($0, length(k) + 1); exit }' "${_vscg}"
+}
+
+# Print the names of VM $1's snapshots (its snapshots/ directories), one
+# per line, oldest first.
+vm_snapshot_names() {
+    _vsnd="$(vm_snapshot_dir "${1}")"
+    [ -d "${_vsnd}" ] || return 0
+    for _vsn in "${_vsnd}"/*; do
+        [ -d "${_vsn}" ] || continue
+        _vsn="${_vsn##*/}"
+        printf '%s %s\n' "$(vm_snapshot_conf_get "${1}" "${_vsn}" created | tr -dc '0-9')" "${_vsn}"
+    done | sort -n -k 1,1 | awk '{ print $2 }'
+}
+
+# Print the internal snapshot tags of VM $1's disk overlay, one per line
+# (none without an overlay). Works while qemu has the overlay open (-U).
+vm_snapshot_tags() {
+    _vst="$(vm_dir "${1}")/disk.qcow2"
+    [ -f "${_vst}" ] || return 0
+    tool qemu-img snapshot -l -U "${_vst}" | awk 'NR > 2 { print $2 }'
+}
+
+# Print what is missing from snapshot $2 of VM $1, one part per line;
+# nothing when it is whole. $3: the overlay's tags (vm_snapshot_tags),
+# when the caller has them.
+vm_snapshot_problem() {
+    _vsp_d="$(vm_snapshot_dir "${1}" "${2}")"
+    _vsp_tags="${3-$(vm_snapshot_tags "${1}")}"
+    printf '%s\n' "${_vsp_tags}" | grep -qxF -- "${2}" ||
+        printf '%s\n' "the disk snapshot in disk.qcow2"
+    if [ ! -f "${_vsp_d}/snapshot.conf" ]; then
+        printf '%s\n' "snapshot.conf"
+        return 0
+    fi
+    [ "$(vm_snapshot_conf_get "${1}" "${2}" vars)" != 1 ] || [ -f "${_vsp_d}/fw_vars.fd" ] ||
+        printf '%s\n' "the copy of fw_vars.fd"
+    [ "$(vm_snapshot_conf_get "${1}" "${2}" tpm)" != 1 ] || vm_snapshot_has_tpm "${_vsp_d}" ||
+        printf '%s\n' "the copy of the TPM state"
+}
+
+# Succeed if directory $1 holds TPM state (tpm2-* files).
+vm_snapshot_has_tpm() {
+    for _vsht in "${1}"/tpm2-*; do
+        [ -f "${_vsht}" ] && return 0
+    done
+    return 1
+}

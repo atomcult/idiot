@@ -14,7 +14,7 @@ use idiot_store::store::explore::{
 use idiot_store::store::query::{self, Auth, Channel, Refusal, StoreMember, StoreSnap};
 
 /// The credential from --file, else UBUNTU_STORE_AUTH; None when neither.
-fn credential(args: &CredArgs) -> Result<Option<String>, Failure> {
+pub(super) fn credential(args: &CredArgs) -> Result<Option<String>, Failure> {
     match &args.file {
         Some(path) => std::fs::read_to_string(path)
             .map(Some)
