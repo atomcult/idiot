@@ -4,7 +4,9 @@
 
 . "$(dirname "${0}")/../share/common.sh"
 include arch.sh
+include creds.sh
 include lp.sh
+include stores.sh
 include vm-firmware.sh
 include vm.sh
 
@@ -453,7 +455,7 @@ do_run() {
 			help_command "delete" "Remove a VM and its state"
 			help_command "snapshot" "Save and restore a stopped VM's state"
 			help_command "console-log" "Print a VM's serial console log"
-			help_command "install" "Install snaps into a running VM"
+			help_command "install" "Install snaps (files or from the store) into a running VM"
 			help_command "logs" "Print a VM's journal (or a snap's logs)"
 			help_command "ssh" "SSH into a running VM"
 			help_command "scp" "Copy files to/from a running VM"
@@ -1287,33 +1289,130 @@ _install_cleanup() {
 	[ -z "${gdir:-}" ] || _guest rm -rf "${gdir}" >/dev/null 2>&1 || :
 }
 
+# Succeeds if $1 is a snap name as snapd allows it: 2-40 of a-z, 0-9 and
+# '-', at least one letter, no leading, trailing or doubled '-'.
+_valid_snap_name() {
+	case "${1}" in
+	'' | *[!a-z0-9-]* | -* | *- | *--*) return 1 ;;
+	*[a-z]*) ;;
+	*) return 1 ;;
+	esac
+	[ "${#1}" -ge 2 ] && [ "${#1}" -le 40 ]
+}
+
+# Succeeds if $1 is a channel: 1-3 '/'-separated non-empty segments of
+# a-z, 0-9, '.', '_' and '-'.
+_valid_channel() {
+	case "${1}" in
+	'' | /* | */ | *//* | */*/*/* | *[!a-z0-9._/-]*) return 1 ;;
+	esac
+}
+
+# Downloads store snap $1 from channel $2 for the VM's architecture into
+# the cache (the helper verifies it and writes its assertions beside it),
+# and adds it to files; dies, suggesting idiot store check, when the store
+# doesn't show it, has no release for the arch or refuses the download.
+_store_fetch() {
+	_sf_check="idiot store check ${1} --arch ${arch} --channel ${2}${cred:+ --cred ${cred}}"
+	set -- "${1}" "${2}" download --arch "${arch}" --channel "${2}" --dir "${IDIOT_CACHE_DIR}/snaps"
+	[ -z "${UBUNTU_STORE_ID:-}" ] || set -- "$@" --store "${UBUNTU_STORE_ID}"
+	# shellcheck disable=SC2154 # query_file from query_cred (creds.sh)
+	[ -z "${query_file}" ] || set -- "$@" --file "${query_file}"
+	[ "${dangerous}" -eq 0 ] || set -- "$@" --no-assertions
+	[ ! -t 2 ] || set -- "$@" --progress
+	_sf_name="${1}"
+	_sf_ch="${2}"
+	shift 2
+	_sf_out="$("${store_helper}" "$@" "${_sf_name}")" ||
+		die "could not download ${_sf_name} from ${store_lbl} — check it: ${_sf_check}"
+	_sf_first="$(printf '%s\n' "${_sf_out}" | head -n 1)"
+	case "${_sf_first}" in
+	snap'	'*)
+		_sf_path="$(printf '%s' "${_sf_first}" | cut -f 2)"
+		_sf_rev="$(printf '%s' "${_sf_first}" | cut -f 4)"
+		_sf_ver="$(printf '%s' "${_sf_first}" | cut -f 5)"
+		if [ "$(printf '%s' "${_sf_first}" | cut -f 6)" = cached ]; then
+			say "${BOLD}${_sf_name}${RESET} ${_sf_ver} (${_sf_rev}) for ${arch}: cached ${DIM}(${_sf_path})${RESET}"
+		else
+			say "Downloaded ${BOLD}${_sf_name}${RESET} ${_sf_ver} (${_sf_rev}) for ${arch} from ${store_lbl} ${DIM}(${_sf_path})${RESET}"
+		fi
+		files="${files}${_sf_path}
+"
+		store_snaps="${store_snaps:+${store_snaps}, }${_sf_name}"
+		;;
+	unknown)
+		_sf_to=''
+		[ -z "${query_cred}" ] || _sf_to=" to credential '${query_cred}'"
+		die "${store_lbl} doesn't show ${_sf_name}${_sf_to} — check it: ${_sf_check}"
+		;;
+	unreleased'	'*)
+		_sf_have="$(printf '%s\n' "${_sf_out}" | awk -F '\t' '$1 == "available" { print $2 " (" $3 ")" }' |
+			paste -sd, - | sed 's/,/, /g')"
+		die "${_sf_name} has no ${arch} release in $(printf '%s' "${_sf_first}" | cut -f 2)${_sf_have:+ (${arch} releases: ${_sf_have})}${_sf_have:- (no ${arch} release in any channel)} — check it: ${_sf_check}"
+		;;
+	refused'	'*)
+		die "${store_lbl} refused to download ${_sf_name} (HTTP $(printf '%s' "${_sf_first}" | cut -f 2)) — check it: ${_sf_check}"
+		;;
+	*) die "unexpected answer from idiot-store download: ${_sf_first}" ;;
+	esac
+}
+
 do_install() {
 	name=''
 	dangerous=0
 	flags=''
 	timeout=300
 	files=''
+	store_args=''
+	channel=''
+	cred=''
+	_usage="usage: idiot vm install [--name <name>] [--channel <channel>] [--cred <name>] [options] <snap>..."
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
-			help_heading "Usage:" "idiot vm install [--name <name>] [options] <file.snap>..."
+			help_heading "Usage:" "idiot vm install [--name <name>] [options] <snap>..."
 			echo >&2
 			help_heading "Options:"
 			help_option "--name <name>" "VM to install into (default: the running one)"
+			help_option "--channel <channel>" "Channel for store snaps without =<channel> (default: stable)"
+			help_option "--cred <name>" "Download with this saved credential instead of the active one"
 			help_option "--dangerous" "Install without assertions even if there are some"
 			help_option "--classic" "Classic confinement"
 			help_option "--devmode" "Developer mode"
 			help_option "--timeout <seconds>" "Wait this long for a reboot (default: 300)"
 			echo >&2
+			say "Each ${BOLD}<snap>${RESET} is a ${BOLD}<file>.snap${RESET} on this machine, or a snap in the"
+			say "store: ${BOLD}<name>${RESET} or ${BOLD}<name>=<channel>${RESET}. Store snaps are downloaded here"
+			say "for the VM's architecture, from the active store with the active"
+			say "credential (or anonymously), verified, and cached in"
+			say "${DIM}${IDIOT_CACHE_DIR}/snaps${RESET} with their assertions."
+			echo >&2
 			say "Copies the snaps into the VM, installs them with snapd in one change and"
 			say "follows it, through the guest rebooting for a kernel, gadget or base."
 			say "With a ${BOLD}<file>.assert${RESET} next to every snap (as snap download"
-			say "leaves them) they install as asserted revisions, else --dangerous."
+			say "leaves them, and store snaps always have) they install as asserted"
+			say "revisions, else all with --dangerous."
+			echo >&2
+			help_heading "Examples:"
+			say "  ${CYAN}idiot vm install${RESET} hello-world"
+			say "  ${CYAN}idiot vm install${RESET} pc-kernel=24/edge ./pc_custom.snap"
 			exit 0
 			;;
 		--name)
 			[ -n "${2:-}" ] || die "--name requires an argument"
 			name="${2}"
+			shift
+			;;
+		--channel)
+			[ -n "${2:-}" ] || die "--channel requires an argument"
+			_valid_channel "${2}" ||
+				die "invalid channel '${2}': use <risk>, <track>/<risk> or <track>/<risk>/<branch>"
+			channel="${2}"
+			shift
+			;;
+		--cred)
+			[ -n "${2:-}" ] || die "--cred requires a credential name"
+			cred="${2}"
 			shift
 			;;
 		--dangerous) dangerous=1 ;;
@@ -1327,12 +1426,8 @@ do_install() {
 			;;
 		--) ;;
 		-*) die "unknown option: ${1}" ;;
-		*)
+		*.snap)
 			[ -f "${1}" ] || die "file not found: ${1}"
-			case "${1}" in
-			*.snap) ;;
-			*) die "not a .snap file: ${1}" ;;
-			esac
 			case "${1}" in
 			*'
 '*) die "file names with newlines aren't supported: ${1}" ;;
@@ -1340,10 +1435,66 @@ do_install() {
 			files="${files}${1}
 "
 			;;
+		*=*)
+			_n="${1%%=*}"
+			_c="${1#*=}"
+			_valid_snap_name "${_n}" || die "invalid snap name '${_n}' in ${1}"
+			[ -n "${_c}" ] || die "empty channel in '${1}' — name one, e.g. ${_n}=edge"
+			_valid_channel "${_c}" ||
+				die "invalid channel '${_c}' in ${1}: use <risk>, <track>/<risk> or <track>/<risk>/<branch>"
+			store_args="${store_args}${_n} ${_c}
+"
+			;;
+		*/*) die "not a .snap file or a snap name: ${1}" ;;
+		*)
+			_valid_snap_name "${1}" ||
+				die "invalid snap name '${1}' (2-40 of a-z, 0-9 and '-'; a file must end in .snap)"
+			store_args="${store_args}${1} -
+"
+			;;
 		esac
 		shift
 	done
-	[ -n "${files}" ] || die "usage: idiot vm install [--name <name>] [options] <file.snap>..."
+	[ -n "${files}${store_args}" ] || die "${_usage}"
+	if [ -z "${store_args}" ]; then
+		[ -z "${channel}" ] || die "--channel is for store snaps, and only files were given"
+		[ -z "${cred}" ] || die "--cred is for store snaps, and only files were given"
+	fi
+	if [ -n "${store_args}" ]; then
+		# an unknown credential fails here, before any ssh or download
+		has_cred=1
+		query_cred "${cred}" || has_cred=0
+		store_helper="$(store_helper)" || exit 1
+	fi
+
+	_vm_target
+	_rc=0
+	_guest sudo -n true 2>/dev/null || _rc=$?
+	if [ "${_rc}" -eq 255 ]; then
+		die "can't reach VM '${name}' over ssh as ${lp_user} (port ${port}) — is the guest up, with your key for ${lp_user}?"
+	elif [ "${_rc}" -ne 0 ]; then
+		die "sudo in VM '${name}' asks ${lp_user} for a password — idiot vm install needs passwordless sudo"
+	fi
+
+	# store snaps: downloaded here, for the VM's architecture
+	store_snaps=''
+	if [ -n "${store_args}" ]; then
+		arch="$(vm_conf_get "${name}" arch)"
+		[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
+		store_lbl="$(store_label "${UBUNTU_STORE_ID:-}")"
+		[ "${has_cred}" -eq 1 ] ||
+			say "${DIM}No active credential: downloading anonymously (idiot auth login, or --cred <name>)${RESET}"
+		_oifs="${IFS}"
+		IFS='
+'
+		for _s in ${store_args}; do
+			IFS="${_oifs}"
+			_c="${_s#* }"
+			[ "${_c}" != - ] || _c="${channel:-stable}"
+			_store_fetch "${_s%% *}" "${_c}"
+		done
+		IFS="${_oifs}"
+	fi
 
 	# assertions next to every snap: an asserted install, else --dangerous
 	unasserted=''
@@ -1354,15 +1505,6 @@ do_install() {
 		[ -f "${_f%.snap}.assert" ] || unasserted="${unasserted:+${unasserted}, }${_f##*/}"
 	done
 	IFS="${_oifs}"
-
-	_vm_target
-	_rc=0
-	_guest sudo -n true 2>/dev/null || _rc=$?
-	if [ "${_rc}" -eq 255 ]; then
-		die "can't reach VM '${name}' over ssh as ${lp_user} (port ${port}) — is the guest up, with your key for ${lp_user}?"
-	elif [ "${_rc}" -ne 0 ]; then
-		die "sudo in VM '${name}' asks ${lp_user} for a password — idiot vm install needs passwordless sudo"
-	fi
 
 	gdir="$(_guest mktemp -d)" || die "could not create a directory in VM '${name}'"
 	trap _install_cleanup EXIT
@@ -1402,6 +1544,8 @@ do_install() {
 	IFS="${_oifs}"
 	if [ -n "${unasserted}" ] && [ "${dangerous}" -eq 0 ]; then
 		say "${DIM}No assertions for ${unasserted}: installing with --dangerous${RESET}"
+		[ -z "${store_snaps}" ] ||
+			say "${YELLOW}warning:${RESET} ${store_snaps} install without their store revision in this change — install them on their own to keep it"
 		dangerous=1
 	fi
 	[ "${dangerous}" -eq 0 ] || flags="${flags} --dangerous"

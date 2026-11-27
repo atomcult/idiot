@@ -193,6 +193,7 @@ The dev loop, from a built snap to its logs:
 $ idiot vm install ./my-app_1.0_amd64.snap     # copy, install, follow the change
 $ idiot vm logs -f my-app                      # its services' journal
 $ idiot vm install ./pc-kernel_custom.snap     # follows it through the reboot
+$ idiot vm install hello-world pc-kernel=24/edge   # from the store
 ```
 
 `install` copies the snaps in and installs them as root in one snapd change,
@@ -204,6 +205,16 @@ and idiot says so. The guest user (your Launchpad username, as for `ssh`)
 needs passwordless sudo, as console-conf and system-user accounts have.
 `logs` prints a snap's service logs, or the whole journal of the current
 boot, on stdout.
+
+An argument that isn't a `.snap` file is a store snap, `<name>` or
+`<name>=<channel>` (`--channel` sets it for the others; default `stable`).
+idiot downloads it on the host for the VM's architecture (not
+`UBUNTU_STORE_ARCH`), from the active store with the active credential
+(`--cred <name>` for another saved one, anonymously when there is none),
+checks it against the store's sha3-384, and fetches the assertions that
+install it asserted. The credential goes to the store only, never into the
+VM. Downloads are cached in `~/.cache/idiot/snaps` (readable by you only) and
+reused while the channel still points at them.
 
 Snapshots save a stopped VM's disk, UEFI variables and TPM state together,
 so a VM can go back to an interesting state (first boot done, keys

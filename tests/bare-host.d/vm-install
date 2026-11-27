@@ -1,0 +1,85 @@
+#!/bin/bash
+# tests/bare-host.d/vm-install - vm install's store snaps, without a VM
+#
+# Usage: vm-install   (needs network access to the store)
+# Checks vm install refuses bad arguments before any ssh or network call
+# (no VM runs), then downloads hello-world anonymously with the snap's
+# idiot-store: its sha3-384 matches openssl's, its .assert verifies with
+# idiot inspect assertion and holds the assertions snap download writes, a
+# second run is cached, a truncated cache file is downloaded again, and
+# the cache directory is private.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+work="$(mktemp -d)"
+export IDIOT_VM_DIR="${work}/vm"
+
+# expect <label> <pattern> <args...>: vm install fails, saying pattern
+expect() {
+	_l="${1}"
+	_p="${2}"
+	shift 2
+	_o="$(idiot vm install "$@" 2>&1)" && fail "vm-install: ${_l}: succeeded: ${_o}" && return
+	printf '%s' "${_o}" | grep -qF -- "${_p}" && ok "vm-install: ${_l}" ||
+		fail "vm-install: ${_l}: ${_o}"
+}
+: >"${work}/app.snap"
+expect "empty channel" "empty channel in 'hello-world='" hello-world=
+expect "invalid name" "invalid snap name 'Bad_Name'" Bad_Name
+expect "unknown --cred" "'nope' not found" --cred nope hello-world
+expect "--channel without a store snap" "--channel is for store snaps" --channel edge "${work}/app.snap"
+expect "a path that isn't a .snap" "not a .snap file or a snap name" ./foo
+
+helper="${IDIOT_STORE_HELPER:-/snap/idiot/current/lib/idiot/libexec/idiot-store}"
+cache="${work}/cache"
+out="$(env -u UBUNTU_STORE_AUTH "${helper}" download --arch "$(dpkg --print-architecture)" \
+	--dir "${cache}" hello-world 2>&1)"
+snap="$(printf '%s' "${out}" | awk -F '\t' '$1 == "snap" && $6 == "downloaded" { print $2 }')"
+if [ -f "${snap}" ]; then
+	ok "vm-install: hello-world downloaded anonymously"
+else
+	fail "vm-install: download: ${out}"
+	rm -rf "${work:?}"
+	exit 1
+fi
+[ "$(stat -c %a "${cache}")" = 700 ] && [ "$(stat -c %a "${snap}" "${snap%.snap}.assert" | sort -u)" = 600 ] &&
+	ok "vm-install: the cache is private" ||
+	fail "vm-install: modes: $(stat -c '%a %n' "${cache}" "${cache}"/*)"
+rev="$(printf '%s' "${out}" | cut -f 4)"
+# openssl's digest is the one the signed snap-revision names
+got="$(openssl dgst -sha3-384 -binary "${snap}" | basenc --base64url | tr -d '=')"
+want="$(awk '/^type: snap-revision/ { r = 1 } r && /^snap-sha3-384:/ { print $2; exit }' "${snap%.snap}.assert")"
+[ -n "${got}" ] && [ "${got}" = "${want}" ] &&
+	ok "vm-install: sha3-384 matches openssl's" ||
+	fail "vm-install: openssl's sha3-384 ${got}, the snap-revision's ${want}"
+v="$(idiot inspect assertion "${snap%.snap}.assert" 2>&1)"
+[ "$(printf '%s\n' "${v}" | grep -c '^signature: *verified')" -eq 3 ] &&
+	ok "vm-install: the .assert verifies with inspect assertion" ||
+	fail "vm-install: inspect assertion: $(printf '%s' "${v}" | grep -i 'signature\|error')"
+
+# the same assertions as snap download writes
+keys() { grep -E '^(type|account-id|public-key-sha3-384|snap-id|snap-sha3-384):' "${1}" | sort; }
+(cd "${work}" && snap download hello-world >/dev/null 2>&1)
+[ -f "${work}/hello-world_${rev}.assert" ] &&
+	[ "$(keys "${work}/hello-world_${rev}.assert")" = "$(keys "${snap%.snap}.assert")" ] &&
+	ok "vm-install: the assertions snap download writes" ||
+	fail "vm-install: assertions differ from snap download's: $(keys "${snap%.snap}.assert" | tr '\n' ' ')"
+
+out="$(env -u UBUNTU_STORE_AUTH "${helper}" download --arch "$(dpkg --print-architecture)" \
+	--dir "${cache}" hello-world 2>&1)"
+[ "$(printf '%s' "${out}" | cut -f 6)" = cached ] &&
+	ok "vm-install: a second download is cached" || fail "vm-install: second run: ${out}"
+truncate -s 100 "${snap}"
+out="$(env -u UBUNTU_STORE_AUTH "${helper}" download --arch "$(dpkg --print-architecture)" \
+	--dir "${cache}" hello-world 2>&1)"
+[ "$(printf '%s' "${out}" | cut -f 6)" = downloaded ] &&
+	[ "$(openssl dgst -sha3-384 -binary "${snap}" | basenc --base64url | tr -d '=')" = "${got}" ] &&
+	ok "vm-install: a truncated cache file is downloaded again" ||
+	fail "vm-install: after truncating: ${out}"
+out="$(env -u UBUNTU_STORE_AUTH "${helper}" download --arch "$(dpkg --print-architecture)" \
+	--dir "${cache}" nope-no-such-snap-idiot 2>&1)"
+[ "${out}" = unknown ] && ok "vm-install: an unknown snap is reported" ||
+	fail "vm-install: unknown snap: ${out}"
+
+rm -rf "${work:?}"

@@ -61,7 +61,7 @@ together; the warning says how to fix it and never blocks.
 | `idiot vm --name n` | Boot an existing VM again |
 | `idiot vm list` | Name, arch, state, ssh port, image |
 | `idiot vm ssh --name n [ssh-args]` / `scp --name n src dst` | As the lp user, on the VM's forwarded port (`:path` is the guest side for scp) |
-| `idiot vm install --name n <file.snap>...` | Copy in and install in one change, following reboots; `<file>.assert` beside a snap makes it asserted, else `--dangerous` |
+| `idiot vm install --name n [--channel c] [--cred name] <snap>...` | Copy in and install in one change, following reboots; a `<snap>` is a `.snap` file (`<file>.assert` beside every one makes them asserted, else `--dangerous`) or a store snap `name[=channel]`, downloaded on the host for the VM's arch with the active credential, verified, cached, with its assertions |
 | `idiot vm logs --name n [snap[.app]] [-f] [-n lines]` | The guest journal on stdout |
 | `idiot vm stop [--timeout s] [--force] <n>` | Power button, then quit after the timeout |
 | `idiot vm console-log [-f] [--previous] <n>` | The serial log |
