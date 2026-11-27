@@ -9,8 +9,6 @@ main() {
 	help_heading "Subcommands:"
 	help_command "fetch" "Fetch an assertion from the store (and what it needs)"
 	help_command "show" "Summarise and verify assertions"
-	help_command "pick" "Copy a model assertion out of the model repos"
-	help_command "repos" "Manage the model repos pick reads"
 	echo >&2
 	help_command "new" "Write an unsigned model, system-user or validation-set"
 	help_command "edit" "Edit an unsigned assertion (bump its revision, refresh snaps)"
@@ -18,6 +16,7 @@ main() {
 	help_command "sign" "Sign an unsigned assertion with snap sign"
 	echo >&2
 	say "Drafts are the JSON snap sign takes. Snap IDs, types and revisions"
-	say "come from the active store, as your credential sees it."
+	say "come from the active store, as your credential sees it. Models kept in"
+	say "git repositories: idiot model (list, update, pick)."
 }
 main "$@"

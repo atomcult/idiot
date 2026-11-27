@@ -10,8 +10,8 @@
 # shellcheck disable=SC2034 # read by alias_resolve
 IDIOT_ALIASES='store assertion|assertion fetch
 inspect assertion|assertion show
-model pick|assertion pick
-model|assertion repos
+assertion pick|model pick
+assertion repos|model
 auth login|auth use
 auth logout|auth unset
 clean all|clean

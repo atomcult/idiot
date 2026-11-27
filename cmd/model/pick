@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
-# cmd/assertion/pick - interactively select a model assertion and copy it
+# cmd/model/pick - interactively select a model assertion and copy it
 # idiot: host
-# Usage: idiot assertion pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]
+# Usage: idiot model pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]
 #
 # Signed model assertions:   *.model
 # Unsigned model assertions: *.json
@@ -18,7 +18,7 @@ main() {
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		help | -h | --help)
-			help_heading "Usage:" "idiot assertion pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]"
+			help_heading "Usage:" "idiot model pick [--signed|--unsigned] [-o <file>|-o -] [<dir>]"
 			echo >&2
 			help_heading "Options:"
 			help_option "--signed" "Only show signed model assertions (*.model)"

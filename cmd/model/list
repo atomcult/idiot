@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
-# cmd/assertion/repos/list - list configured model repos
+# cmd/model/list - list configured model repos
 
-. "$(dirname "${0}")/../../../share/common.sh"
+. "$(dirname "${0}")/../../share/common.sh"
 include models.sh
 
 main() {
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot assertion repos list"
+		help_heading "Usage:" "idiot model list"
 		exit 0
 		;;
 	esac

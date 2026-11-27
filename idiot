@@ -36,7 +36,8 @@ idiot_help() {
 	help_command "lp" "Manage Launchpad identity"
 	echo >&2
 	help_heading "Assertions & inspection:"
-	help_command "assertion" "Fetch, show, pick, write and sign assertions"
+	help_command "assertion" "Fetch, show, write, check and sign assertions"
+	help_command "model" "Model assertion repos: clone, update, pick a model"
 	help_command "inspect" "Inspect snaps, images, snapd state and changes"
 	echo >&2
 	help_heading "VM & device:"

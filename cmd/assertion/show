@@ -118,7 +118,7 @@ main() {
 		input="${src}"
 		name="${src}"
 	fi
-	# an unsigned model from `idiot assertion pick --unsigned` is JSON
+	# an unsigned model from `idiot model pick --unsigned` is JSON
 	[ "$(tr -d ' \t\r\n' <"${input}" | head -c 1)" != '{' ] ||
 		die "${name} is an unsigned model (JSON), not a signed assertion — sign it with: snap sign"
 

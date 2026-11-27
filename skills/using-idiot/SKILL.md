@@ -83,7 +83,7 @@ command reference.
 4. **Do the task** with the commands in
    [references/commands.md](references/commands.md). Check
    [references/classic-vs-core.md](references/classic-vs-core.md) before
-   using `kernel`, `example`, `assertion repos update`, `clean containers`, zsh/fish,
+   using `kernel`, `example`, `model update`, `clean containers`, zsh/fish,
    or KVM on a Core device.
 5. **Report** what changed (`idiot status` for the environment, `idiot vm
    list` for VMs), and anything the user must do in their own shell.
