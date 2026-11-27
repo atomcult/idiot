@@ -350,7 +350,7 @@ check_credentials() {
 				[ -f "${_cc_file}" ] || continue
 				[ "$("${_cc_helper}" repair --check "${_cc_file}" 2>/dev/null)" = padded ] || continue
 				_warn "credential '${_cc_file##*/}' has padding snapd can't read (private snap downloads 404)" \
-					"repair it with: idiot auth login ${_cc_file##*/}"
+					"repair it with: idiot auth use ${_cc_file##*/}"
 			done
 		fi
 	else
@@ -361,11 +361,11 @@ check_credentials() {
 		_cc_active="${IDIOT_AUTH_DIR}/${IDIOT_ACTIVE_CRED}"
 		if [ ! -f "${_cc_active}" ]; then
 			_fail "active credential '${IDIOT_ACTIVE_CRED}' no longer exists" \
-				'run: idiot auth login <name>  or: idiot auth logout'
+				'run: idiot auth use <name>  or: idiot auth unset'
 		elif [ "${SNAPCRAFT_STORE_CREDENTIALS:-}" != "$(cat "${_cc_active}")" ]; then
 			# compared in this shell: the credential is in no argv or output
 			_warn "active credential '${IDIOT_ACTIVE_CRED}' differs from the saved one" \
-				"run: idiot auth login ${IDIOT_ACTIVE_CRED}"
+				"run: idiot auth use ${IDIOT_ACTIVE_CRED}"
 		else
 			_ok 'active credential' "${IDIOT_ACTIVE_CRED}"
 		fi

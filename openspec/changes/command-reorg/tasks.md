@@ -41,12 +41,12 @@
 
 ## 3. Verbs
 
-- [ ] 3.1 `git mv cmd/auth/login cmd/auth/use` and `cmd/auth/logout cmd/auth/unset`. Update the usage strings, `auth/help` and `_counted`'s `auth use` check, and add the `auth login` and `auth logout` aliases. Rename the hints in `cmd/` and `share/` (`doctor`, `store check`, `auth bind`, `profile save`, creds.sh). Verify that `grep -rn "auth log\(in\|out\)" cmd share` matches only the alias table.
-- [ ] 3.2 Add `cmd/profile/unset`, per the profile delta ("Clearing the active profile"), and list it in `profile/help`. Verify through the wrapper from the source tree:
+- [x] 3.1 `git mv cmd/auth/login cmd/auth/use` and `cmd/auth/logout cmd/auth/unset`. Update the usage strings, `auth/help` and `_counted`'s `auth use` check, and add the `auth login` and `auth logout` aliases. Rename the hints in `cmd/` and `share/` (`doctor`, `store check`, `auth bind`, `profile save`, creds.sh). Verify that `grep -rn "auth log\(in\|out\)" cmd share` matches only the alias table.
+- [x] 3.2 Add `cmd/profile/unset`, per the profile delta ("Clearing the active profile"), and list it in `profile/help`. Verify through the wrapper from the source tree:
   - after `profile use` of a full profile, every recorded variable and `IDIOT_ACTIVE_PROFILE` are unset;
   - a partial profile leaves `UBUNTU_STORE_ARCH` alone;
   - with none active, the command says so and exits 0.
-- [ ] 3.3 Update `README.md`, the skill and `CLAUDE.md`. Run `make check`. Commit: `feat(auth,profile): use and unset in every group`.
+- [x] 3.3 Update `README.md`, the skill and `CLAUDE.md`. Run `make check`. Commit: `feat(auth,profile): use and unset in every group`.
 
 ## 4. Explicit forms and folds
 

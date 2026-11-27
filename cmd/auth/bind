@@ -32,7 +32,7 @@ main() {
 	done
 	name="${name:-${IDIOT_ACTIVE_CRED:-}}"
 	[ -n "${name}" ] ||
-		die "usage: idiot auth bind [--any] [<name>] — or activate a credential first: idiot auth login"
+		die "usage: idiot auth bind [--any] [<name>] — or activate a credential first: idiot auth use"
 	validate_cred_name "${name}"
 	require_cred "${name}"
 

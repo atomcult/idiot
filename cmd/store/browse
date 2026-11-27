@@ -793,7 +793,7 @@ main() {
 	have_cred=1
 	query_cred "${cred}" || {
 		[ -n "${names}" ] ||
-			die "no active credential — log in first (idiot auth login), use --cred <name>, or name the snaps"
+			die "no active credential — activate one first (idiot auth use), use --cred <name>, or name the snaps"
 		have_cred=0
 	}
 	helper="$(store_helper)" || exit 1

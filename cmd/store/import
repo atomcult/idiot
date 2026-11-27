@@ -79,7 +79,7 @@ main() {
 		require fzf
 	fi
 	query_cred "${cred}" ||
-		die "no active credential — log in first (idiot auth login), or use --cred <name>"
+		die "no active credential — activate one first (idiot auth use), or use --cred <name>"
 	helper="$(store_helper)" || exit 1
 	account="$("${helper}" account ${query_file:+--file "${query_file}"})" || exit $?
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# cmd/auth/login - activate a saved credential (and say when it expires soon)
-# Usage: idiot auth login [<name>]
+# cmd/auth/use - activate a saved credential (and say when it expires soon)
+# Usage: idiot auth use [<name>]
 # Outputs: eval-able export statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
@@ -11,7 +11,7 @@ include fzf.sh
 main() {
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot auth login [<name>]"
+		help_heading "Usage:" "idiot auth use [<name>]"
 		exit 0
 		;;
 	esac

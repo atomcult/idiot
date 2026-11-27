@@ -43,7 +43,7 @@ command reference.
 
 - **Load the shell integration in every shell that runs idiot.** Each agent
   Bash call is a fresh non-interactive shell, and commands that change the
-  environment (`auth login`, `store use`, `arch set`, `profile use`) refuse
+  environment (`auth use`, `store use`, `arch set`, `profile use`) refuse
   to run without the wrapper. Start the command with the init line and chain
   what depends on it in the same call:
   ```bash
@@ -93,7 +93,7 @@ command reference.
 | Task | Command |
 |---|---|
 | What's active | `idiot status` (store, credential with expiry, arch, lp, profile) |
-| Switch credential / store / arch | `idiot auth login <name>`, `idiot store use <name>`, `idiot arch set <arch>` |
+| Switch credential / store / arch | `idiot auth use <name>`, `idiot store use <name>`, `idiot arch set <arch>` |
 | Whole setup at once | `idiot profile save <name>`, `idiot profile use <name>` |
 | Boot a Core image | `idiot vm [--name <n>] [--tpm] <image>` (serial console on the terminal) |
 | Try a built snap in a VM | `idiot vm install ./app.snap` (or a store snap: `idiot vm install hello-world=edge`), then `idiot vm logs -f app` |

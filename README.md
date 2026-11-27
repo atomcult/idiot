@@ -6,7 +6,7 @@ with a single command; everything takes effect in your current shell session.
 
 ```
 $ idiot store use staging
-$ idiot auth login work-creds
+$ idiot auth use work-creds
 $ idiot status
   auth    logged in  work-creds · you@example.com
   store   staging    abc123xyz
@@ -371,6 +371,7 @@ $ idiot profile use staging-ci
 $ idiot profile list
   * staging-ci  auth ci · store staging · arch arm64 · lp alice
     personal    auth me · store none
+$ idiot profile unset                    # clear what staging-ci set
 ```
 
 A profile records names (credential, store), never credential contents.
@@ -381,7 +382,8 @@ you use it. `profile use` checks everything before changing anything: a
 profile naming a removed credential changes nothing. It sets
 `IDIOT_LP_USER` for the current shell only and leaves the username saved
 with `idiot lp set` alone. `idiot profile status` (and the `profile` row in
-`idiot status`) shows what has changed since.
+`idiot status`) shows what has changed since. `idiot profile unset` clears the
+settings the active profile records and forgets it, leaving the rest.
 
 ---
 
@@ -389,7 +391,7 @@ with `idiot lp set` alone. `idiot profile status` (and the `profile` row in
 
 A credential belongs to the store you were using when you added it:
 `idiot auth add ci` with `staging` active pairs `ci` with `staging`. From
-then on `idiot status`, `auth login`, `store use` and `store unset` warn when
+then on `idiot status`, `auth use`, `store use` and `store unset` warn when
 the active credential and store don't match, and say how to fix it:
 
 ```
@@ -517,7 +519,7 @@ VMs
 
 Credentials and stores
   ✓ credentials                 3 credentials, private
-  ! credential 'old' has padding snapd can't read (private snap downloads 404) — repair it with: idiot auth login old
+  ! credential 'old' has padding snapd can't read (private snap downloads 404) — repair it with: idiot auth use old
   ✓ active credential           work
   ✓ work                        expires in 41d
   ! credential 'ci' expires in 3d — renew it with: idiot auth add
@@ -546,7 +548,7 @@ in your current shell, not a subprocess. Nothing a command prints is ever
 eval'd: stdout and stderr reach your terminal or pipe as-is
 (`idiot auth export work | …`, `idiot run …`).
 
-Under the snap, commands that only manage idiot's own state (`auth login`,
+Under the snap, commands that only manage idiot's own state (`auth use`,
 `store use`, `arch`, …) run confined. Commands that need host tools, the
 network or your files (`vm`, `run`, `inspect`, `auth add`, …) are handed
 back to your shell through the same file and run there, as you, from the

@@ -1,0 +1,45 @@
+#!/usr/bin/env sh
+# cmd/profile/unset - clear what the active profile set
+# Usage: idiot profile unset
+# Outputs: eval-able unset statements (via the eval file)
+
+. "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
+include stores.sh
+include profiles.sh
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "idiot profile unset"
+		echo >&2
+		say "Clears the settings the active profile records (credential, store,"
+		say "arch, Launchpad user) and forgets the profile. Saved credentials,"
+		say "stores and profiles are left alone."
+		exit 0
+		;;
+	esac
+	[ $# -eq 0 ] || die "usage: idiot profile unset"
+	require_wrapper
+
+	name="${IDIOT_ACTIVE_PROFILE:-}"
+	[ -n "${name}" ] || {
+		say "No profile active"
+		exit 0
+	}
+	validate_profile_name "${name}"
+	if [ ! -f "${IDIOT_PROFILES_DIR}/${name}" ]; then
+		emit_unset IDIOT_ACTIVE_PROFILE
+		say "Profile '${name}' no longer exists: forgot it, and left the settings as they are"
+		exit 0
+	fi
+	read_profile "${name}" || die "profile '${name}': ${PF_ERROR}"
+
+	[ "${PF_HAS_AUTH}" -eq 0 ] || emit_cred_logout
+	[ "${PF_HAS_STORE}" -eq 0 ] || emit_store_unset
+	[ "${PF_HAS_ARCH}" -eq 0 ] || emit_unset UBUNTU_STORE_ARCH
+	[ "${PF_HAS_LP}" -eq 0 ] || emit_unset IDIOT_LP_USER
+	emit_unset IDIOT_ACTIVE_PROFILE
+	say "Cleared profile ${BOLD}${name}${RESET}"
+}
+main "$@"

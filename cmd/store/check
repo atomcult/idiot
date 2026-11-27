@@ -110,7 +110,7 @@ main() {
 	name="${query_cred}"
 	expired=0 noaccess=0 padded=0
 	if [ "${has_cred}" -eq 0 ]; then
-		_warn "no active credential: only anonymous access is checked (idiot auth login, or --cred <name>)"
+		_warn "no active credential: only anonymous access is checked (idiot auth use, or --cred <name>)"
 	else
 		if [ -n "${name}" ]; then
 			_ok "credential '${name}'"
@@ -139,7 +139,7 @@ main() {
 		fi
 		if [ -z "${query_file}" ] && [ -n "${name}" ] && [ -f "${IDIOT_AUTH_DIR}/${name}" ] &&
 			[ "${UBUNTU_STORE_AUTH}" != "$(cat "${IDIOT_AUTH_DIR}/${name}")" ]; then
-			_warn "this shell's credential differs from the saved '${name}' — reload it: idiot auth login ${name}"
+			_warn "this shell's credential differs from the saved '${name}' — reload it: idiot auth use ${name}"
 		fi
 		if [ -n "${name}" ] && own="$(cred_store_id "${name}")" &&
 			[ "${own}" != "${CRED_ANY_STORE}" ] && [ "${own}" != "${store}" ]; then
@@ -212,17 +212,17 @@ main() {
 	fi
 	if [ "${has_cred}" -eq 0 ]; then
 		_allowed "${dl_anon}" && _conclude 0 "${snap} can be downloaded without a credential"
-		_conclude 1 "${snap} needs a credential with access to it — log in first: idiot auth login <name>"
+		_conclude 1 "${snap} needs a credential with access to it — log in first: idiot auth use <name>"
 	fi
 	if _allowed "${dl_auth}"; then
 		_ok "your credential can download it"
 		if [ "${padded}" -eq 1 ]; then
 			_allowed "${dl_anon}" &&
-				_conclude 0 "${snap} can be downloaded (snapd would do it anonymously, since it can't read this credential — repair it: idiot auth login ${name:-<name>})"
-			_conclude 1 "idiot can download ${snap}, but snapd can't read this credential and would go anonymous, which the store refuses — repair it: idiot auth login ${name:-<name>}"
+				_conclude 0 "${snap} can be downloaded (snapd would do it anonymously, since it can't read this credential — repair it: idiot auth use ${name:-<name>})"
+			_conclude 1 "idiot can download ${snap}, but snapd can't read this credential and would go anonymous, which the store refuses — repair it: idiot auth use ${name:-<name>}"
 		fi
 		_allowed "${dl_anon}" && _conclude 0 "${snap} can be downloaded"
-		_conclude 0 "${snap} can be downloaded with your credential (snapd reads it from UBUNTU_STORE_AUTH, which idiot auth login sets)"
+		_conclude 0 "${snap} can be downloaded with your credential (snapd reads it from UBUNTU_STORE_AUTH, which idiot auth use sets)"
 	fi
 	_bad "your credential can't download it (${dl_auth:-no answer})"
 	_allowed "${dl_anon}" && _conclude 0 "${snap} can be downloaded anonymously (though not with your credential)"

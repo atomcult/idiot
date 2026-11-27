@@ -81,11 +81,11 @@ _increment_count() {
 
 # Count the command and, once a day, warn about the active credential's
 # expiry. creds.sh is only read when a credential with a known expiry is
-# active, so other shells pay nothing. `auth login` gives its own notice.
+# active, so other shells pay nothing. `auth use` gives its own notice.
 _counted() {
 	_increment_count
 	[ -n "${IDIOT_CRED_EXPIRES:-}" ] || return 0
-	[ "${1}" != "auth login" ] || return 0
+	[ "${1}" != "auth use" ] || return 0
 	include creds.sh
 	cred_expiry_warn
 }

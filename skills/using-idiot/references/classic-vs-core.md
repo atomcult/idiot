@@ -111,7 +111,7 @@ directory is elsewhere (for example under `/run/user`) fails with
 ## Confined and host commands
 
 The snap is strictly confined with no interfaces to connect. Commands that
-only change idiot's own state (`auth login`, `store use`, `arch`, `lp`,
+only change idiot's own state (`auth use`, `store use`, `arch`, `lp`,
 `profile`, `status`, `prompt`) run confined. Commands that need host tools,
 the network or the user's files (`vm`, `run`, `inspect`, `auth add`,
 `auth export`, `doctor`, `clean`, `kernel`, `example`, `assertion repos update`) are
@@ -121,5 +121,5 @@ without it, host commands can't run from the snap at all, and `idiot
 doctor` runs a reduced, confined set of checks and exits 1.
 
 Host commands can't change the environment, so commands that do both are
-split (for example `auth add` saves a credential; `auth login` activates
+split (for example `auth add` saves a credential; `auth use` activates
 it). idiot never changes PATH or LD_LIBRARY_PATH in the user's shell.

@@ -29,7 +29,7 @@ _record() {
 		if [ -n "${IDIOT_ACTIVE_CRED:-}" ]; then
 			_r_val="${IDIOT_ACTIVE_CRED}"
 		elif [ -n "${SNAPCRAFT_STORE_CREDENTIALS:-}${UBUNTU_STORE_AUTH:-}" ]; then
-			say "${YELLOW}warning:${RESET} the active credential has no name, leaving out auth — activate it by name: idiot auth login"
+			say "${YELLOW}warning:${RESET} the active credential has no name, leaving out auth — activate it by name: idiot auth use"
 			return 0
 		else
 			_r_val=''

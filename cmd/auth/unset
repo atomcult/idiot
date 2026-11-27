@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# cmd/auth/logout - unset store credential environment variables
-# Usage: idiot auth logout
+# cmd/auth/unset - clear the active credential
+# Usage: idiot auth unset
 # Outputs: eval-able unset statements (via the eval file)
 
 . "$(dirname "${0}")/../../share/common.sh"
@@ -9,7 +9,7 @@ include creds.sh
 main() {
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot auth logout"
+		help_heading "Usage:" "idiot auth unset"
 		exit 0
 		;;
 	esac

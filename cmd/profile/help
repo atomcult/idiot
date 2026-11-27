@@ -8,6 +8,7 @@ main() {
 	echo >&2
 	help_heading "Subcommands:"
 	help_command "use" "Switch to a profile"
+	help_command "unset" "Clear what the active profile set"
 	help_command "status" "Show the active profile and what changed"
 	echo >&2
 	help_command "save" "Save the current settings as a profile"

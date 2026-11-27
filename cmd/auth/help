@@ -7,9 +7,9 @@ main() {
 	help_heading "Usage:" "idiot auth <subcommand>"
 	echo >&2
 	help_heading "Subcommands:"
-	help_command "login" "Activate a credential"
-	help_command "logout" "Log out"
-	help_command "status" "Show login status"
+	help_command "use" "Activate a saved credential"
+	help_command "unset" "Clear the active credential"
+	help_command "status" "Show the active credential and its account"
 	echo >&2
 	help_command "add" "Log in to the Snap Store and save a credential"
 	help_command "remove" "Remove a saved credential"

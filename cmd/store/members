@@ -56,7 +56,7 @@ main() {
 	[ -n "${UBUNTU_STORE_ID:-}" ] ||
 		die "the global store has no member list — activate a brand store first (idiot store use <name>)"
 	query_cred "${cred}" ||
-		die "no active credential — log in first (idiot auth login), or use --cred <name>"
+		die "no active credential — activate one first (idiot auth use), or use --cred <name>"
 	helper="$(store_helper)" || exit 1
 	why="$(store_admin_check "${UBUNTU_STORE_ID}")" || exit $?
 	case "${why}" in

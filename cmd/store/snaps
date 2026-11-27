@@ -43,7 +43,7 @@ main() {
 	done
 	[ "${mode}" != pick ] || require fzf
 	query_cred "${cred}" ||
-		die "no active credential — log in first (idiot auth login), or use --cred <name>"
+		die "no active credential — activate one first (idiot auth use), or use --cred <name>"
 	store_snap_list
 	[ -z "${store_snap_partial:-}" ] || store_partial_note "${store_snap_partial:-}" "store snaps"
 	rows="$(printf '%s\n' "${store_snap_rows:-}" | cut -f1-3)"

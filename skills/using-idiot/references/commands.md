@@ -25,7 +25,7 @@ in the same shell (see SKILL.md). They run confined under the snap.
 | `idiot prompt [--format store,arch,cred,lp,profile] [--separator s]` | The same as one segment on stdout |
 | `idiot auth list` / `status` | Saved credentials with expiry and store; the active one's login status (`status` asks the store) |
 | `idiot auth add <name> [--permissions …] [--snaps …] [--channels …] [--expires …]` | Logs in (interactive: password and OTP) and saves a credential paired with the active store (`--any`: for any store). Doesn't activate it. **Leave to the user.** |
-| `idiot auth login <name>` / `logout` | Activate / clear a credential (sets `SNAPCRAFT_STORE_CREDENTIALS`, `UBUNTU_STORE_AUTH`, `IDIOT_ACTIVE_CRED`) |
+| `idiot auth use <name>` / `unset` | Activate / clear a credential (sets `SNAPCRAFT_STORE_CREDENTIALS`, `UBUNTU_STORE_AUTH`, `IDIOT_ACTIVE_CRED`) |
 | `idiot auth import <name> <file>` | Save a credential exported by snapcraft |
 | `idiot auth export [<name>] [-f <file>]` | Credential on stdout, or to a file. **Never let it reach the transcript.** |
 | `idiot auth bind [--any] [<name>]` | Re-pair a credential with the active store; `--any`: for any store, never warned about |
@@ -41,13 +41,13 @@ in the same shell (see SKILL.md). They run confined under the snap.
 | `idiot arch set <arch>` / `unset` / `status` | Sets `UBUNTU_STORE_ARCH` (amd64, arm64, armhf, riscv64, …) |
 | `idiot lp set <user>` / `unset` / `status` | Launchpad username (also the VM guest user for `vm ssh`) |
 | `idiot profile save <name> [--fields auth,store,arch,lp]` | Record the current setup (names only, never credential contents) |
-| `idiot profile use <name>` / `list` / `status` / `remove` | Switch everything at once; checks everything before changing anything |
+| `idiot profile use <name>` / `unset` / `list` / `status` / `remove` | Switch everything at once (checks everything before changing anything); `unset` clears what the active profile set |
 
-Commands whose name argument is optional (`auth login`, `auth remove`,
+Commands whose name argument is optional (`auth use`, `auth remove`,
 `auth export`, `profile use`, `profile remove`) open an fzf picker without
 one: always pass the name.
 
-`auth login`, `profile use` and `auth export` repair a credential with
+`auth use`, `profile use` and `auth export` repair a credential with
 base64 padding (saved by older idiot), which snapd can't read: it then
 downloads anonymously and private or brand-store snaps 404. If snap
 downloads 404 with an idiot credential, run `idiot doctor`.
@@ -137,7 +137,7 @@ without a value: always pass the value in a non-interactive shell.
 
 | Variable | Set by / for |
 |---|---|
-| `SNAPCRAFT_STORE_CREDENTIALS`, `UBUNTU_STORE_AUTH`, `IDIOT_ACTIVE_CRED` | `auth login`: what snapcraft and snap use |
+| `SNAPCRAFT_STORE_CREDENTIALS`, `UBUNTU_STORE_AUTH`, `IDIOT_ACTIVE_CRED` | `auth use`: what snapcraft and snap use |
 | `UBUNTU_STORE_ID`, `IDIOT_ACTIVE_STORE` | `store use` |
 | `UBUNTU_STORE_ARCH` | `arch set` |
 | `IDIOT_LP_USER` | `lp`, `profile use` (this shell only) |

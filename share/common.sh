@@ -178,7 +178,7 @@ shell_quote() {
 #
 # help_heading "Subcommands:"
 # help_heading "Usage:" "idiot env auth <subcommand>"
-# help_command "login"           "Activate a credential"
+# help_command "use"             "Activate a saved credential"
 # help_option  "--dry-run"       "Print what would be removed"
 # help_env     "IDIOT_AUTH_DIR"  "Credentials directory"
 

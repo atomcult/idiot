@@ -1483,7 +1483,7 @@ do_install() {
 		[ -n "${arch}" ] || arch="$(uname_to_snap_arch)"
 		store_lbl="$(store_label "${UBUNTU_STORE_ID:-}")"
 		[ "${has_cred}" -eq 1 ] ||
-			say "${DIM}No active credential: downloading anonymously (idiot auth login, or --cred <name>)${RESET}"
+			say "${DIM}No active credential: downloading anonymously (idiot auth use, or --cred <name>)${RESET}"
 		_oifs="${IFS}"
 		IFS='
 '
