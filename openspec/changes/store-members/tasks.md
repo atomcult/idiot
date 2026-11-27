@@ -2,7 +2,7 @@
 
 ## 1. idiot-store
 
-- [ ] 1.1 `query::store_members` and `idiot-store store-members --store <id>` (`member` lines, `refused permission <p>` / `refused not-admin`), with a synthetic fixture shaped like the documented response (made-up names and addresses only). Verify with unit tests: members parsed and sorted, the account ID never printed, both refusals. Run `cargo test` and `make check`. Commit: `feat(idiot-store): list a store's members`.
+- [x] 1.1 `query::store_members` and `idiot-store store-members --store <id>` (`member` lines, `refused permission <p>` / `refused not-admin`), with a synthetic fixture shaped like the documented response (made-up names and addresses only). Verify with unit tests: members parsed and sorted, the account ID never printed, both refusals. Run `cargo test` and `make check`. Commit: `feat(idiot-store): list a store's members`.
 
 ## 2. store members
 

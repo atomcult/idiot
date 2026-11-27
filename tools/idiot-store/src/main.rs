@@ -6,7 +6,8 @@
 //! `expiry` reads a credential's expiry caveats offline and prints only
 //! those timestamps; `repair` strips base64 padding snapd can't read from a
 //! credential file, in place, and prints only `ok`, `repaired` or `padded`.
-//! `permissions`, `account`, `store-snaps`, `info` and `probe` are the
+//! `permissions`, `account`, `store-snaps`, `store-members`, `info` and
+//! `probe` are the
 //! read-only queries behind `idiot store`, printing tab-separated lines.
 //! `assertion` fetches an assertion (and with `--chain` its prerequisites)
 //! and prints the stream, only once every assertion has been fetched.
@@ -53,6 +54,9 @@ enum Commands {
     /// A brand store's snaps (store admins with store_admin):
     /// `snap <name> <owner> <private|public>`, or `refused ...`
     StoreSnaps(StoreSnapsArgs),
+    /// A brand store's members (store admins with store_admin):
+    /// `member <username> <roles> <display name> <email>`, or `refused ...`
+    StoreMembers(StoreSnapsArgs),
     /// A snap's channel map: `channel <track/risk> <arch> <revision> <version> <released-at>`
     Info(InfoArgs),
     /// Whether a snap revision can be downloaded, anonymously and with the
@@ -190,6 +194,7 @@ fn main() -> ExitCode {
         Commands::Permissions(args) => cmd::query::run_permissions(args),
         Commands::Account(args) => cmd::query::run_account(args),
         Commands::StoreSnaps(args) => cmd::query::run_store_snaps(args),
+        Commands::StoreMembers(args) => cmd::query::run_store_members(args),
         Commands::Info(args) => cmd::query::run_info(args),
         Commands::Probe(args) => cmd::query::run_probe(args),
         Commands::Assertion(args) => cmd::query::run_assertion(args),

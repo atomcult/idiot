@@ -256,12 +256,14 @@ pub fn store_snaps(
     parse_store_snaps(&reply)
 }
 
-pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal>, StoreError> {
-    let json = reply.json();
+/// How the store answered an admin-only store call: `Ok(None)` for a
+/// success, a refusal for a missing permission or (404, other 403) no
+/// rights, an error otherwise.
+fn admin_refusal(reply: &Reply, json: &Value) -> Result<Option<Refusal>, StoreError> {
     match reply.status {
-        s if s.is_success() => {}
+        s if s.is_success() => Ok(None),
         StatusCode::FORBIDDEN
-            if error_codes(&json)
+            if error_codes(json)
                 .iter()
                 .any(|c| c == "macaroon-permission-required") =>
         {
@@ -271,10 +273,17 @@ pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal
                 .flatten()
                 .find_map(|e| e["extra"]["permission"].as_str())
                 .unwrap_or("store_admin");
-            return Ok(Err(Refusal::Permission(perm.to_string())));
+            Ok(Some(Refusal::Permission(perm.to_string())))
         }
-        StatusCode::NOT_FOUND | StatusCode::FORBIDDEN => return Ok(Err(Refusal::NotAdmin)),
-        _ => return Err(rejected_or(reply)),
+        StatusCode::NOT_FOUND | StatusCode::FORBIDDEN => Ok(Some(Refusal::NotAdmin)),
+        _ => Err(rejected_or(reply)),
+    }
+}
+
+pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal>, StoreError> {
+    let json = reply.json();
+    if let Some(r) = admin_refusal(reply, &json)? {
+        return Ok(Err(r));
     }
     let mut snaps: Vec<StoreSnap> = json["snaps"]
         .as_array()
@@ -296,6 +305,48 @@ pub fn parse_store_snaps(reply: &Reply) -> Result<Result<Vec<StoreSnap>, Refusal
         .collect();
     snaps.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(Ok(snaps))
+}
+
+/// A member of a brand store (store admins). The account ID the store
+/// sends is not kept: idiot has no use for it.
+#[derive(Debug, PartialEq)]
+pub struct StoreMember {
+    pub username: String,
+    pub roles: Vec<String>,
+    pub displayname: String,
+    pub email: String,
+}
+
+pub fn store_members(
+    auth: &mut Auth,
+    store: &str,
+) -> Result<Result<Vec<StoreMember>, Refusal>, StoreError> {
+    let c = client()?;
+    let reply = send(&c, Some(auth), || {
+        c.get(format!("{DASHBOARD}/api/v2/stores/{store}/users"))
+            .header("Accept", "application/json")
+    })?;
+    parse_store_members(&reply)
+}
+
+pub fn parse_store_members(reply: &Reply) -> Result<Result<Vec<StoreMember>, Refusal>, StoreError> {
+    let json = reply.json();
+    if let Some(r) = admin_refusal(reply, &json)? {
+        return Ok(Err(r));
+    }
+    let mut members: Vec<StoreMember> = json["users"]
+        .as_array()
+        .ok_or_else(|| StoreError::Store("unexpected store users response".into()))?
+        .iter()
+        .map(|u| StoreMember {
+            username: text(u, "username"),
+            roles: strings(&u["roles"]),
+            displayname: text(u, "displayname"),
+            email: text(u, "email"),
+        })
+        .collect();
+    members.sort_by(|a, b| a.username.cmp(&b.username));
+    Ok(Ok(members))
 }
 
 /// One channel and architecture in a snap's channel map.
@@ -528,6 +579,41 @@ mod tests {
         };
         assert_eq!(
             parse_store_snaps(&not_found).unwrap(),
+            Err(Refusal::NotAdmin)
+        );
+    }
+
+    #[test]
+    fn store_members_listed() {
+        let members = parse_store_members(&fake(200, "store-members.json"))
+            .unwrap()
+            .unwrap();
+        let names: Vec<&str> = members.iter().map(|m| m.username.as_str()).collect();
+        assert_eq!(names, ["alice-example", "bob-example", "carol-example"]);
+        assert_eq!(
+            members[0],
+            StoreMember {
+                username: "alice-example".into(),
+                roles: vec!["admin".into(), "review".into(), "view".into()],
+                displayname: "Alice Example".into(),
+                email: "alice@example.com".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn store_members_refusals() {
+        assert_eq!(
+            parse_store_members(&fake(403, "store-snaps-403.json")).unwrap(),
+            Err(Refusal::Permission("store_admin".into()))
+        );
+        let not_found = Reply {
+            status: StatusCode::NOT_FOUND,
+            body: "{}".into(),
+            wants_refresh: false,
+        };
+        assert_eq!(
+            parse_store_members(&not_found).unwrap(),
             Err(Refusal::NotAdmin)
         );
     }

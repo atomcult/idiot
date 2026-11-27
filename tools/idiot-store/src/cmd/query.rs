@@ -6,7 +6,7 @@ use super::Failure;
 use crate::{AssertionArgs, CredArgs, InfoArgs, ProbeArgs, StoreSnapsArgs};
 use idiot_store::store::assertion::{self, Fetcher};
 use idiot_store::store::credential::permissions;
-use idiot_store::store::query::{self, Auth, Refusal};
+use idiot_store::store::query::{self, Auth, Refusal, StoreMember};
 
 /// The credential from --file, else UBUNTU_STORE_AUTH; None when neither.
 fn credential(args: &CredArgs) -> Result<Option<String>, Failure> {
@@ -65,8 +65,43 @@ pub fn run_store_snaps(args: StoreSnapsArgs) -> Result<(), Failure> {
                 println!("snap\t{}\t{}\t{}", s.name, s.owner, flag(s.private));
             }
         }
-        Err(Refusal::Permission(p)) => println!("refused\tpermission\t{p}"),
-        Err(Refusal::NotAdmin) => println!("refused\tnot-admin"),
+        Err(r) => println!("{}", refusal_line(r)),
+    }
+    Ok(())
+}
+
+/// `s` with tabs and newlines as spaces, so it stays one field.
+fn field(s: &str) -> String {
+    s.replace(['\t', '\n', '\r'], " ")
+}
+
+/// A `member` line: username, roles, display name, email (no account ID).
+fn member_line(m: &StoreMember) -> String {
+    format!(
+        "member\t{}\t{}\t{}\t{}",
+        field(&m.username),
+        m.roles.join(","),
+        field(&m.displayname),
+        field(&m.email)
+    )
+}
+
+fn refusal_line(r: Refusal) -> String {
+    match r {
+        Refusal::Permission(p) => format!("refused\tpermission\t{p}"),
+        Refusal::NotAdmin => "refused\tnot-admin".to_string(),
+    }
+}
+
+pub fn run_store_members(args: StoreSnapsArgs) -> Result<(), Failure> {
+    let mut auth = Auth::new(&required(&args.cred)?);
+    match query::store_members(&mut auth, &args.store)? {
+        Ok(members) => {
+            for m in &members {
+                println!("{}", member_line(m));
+            }
+        }
+        Err(r) => println!("{}", refusal_line(r)),
     }
     Ok(())
 }
@@ -112,4 +147,57 @@ pub fn run_assertion(args: AssertionArgs) -> Result<(), Failure> {
     let got = assertion::fetch(&mut fetcher, &assertion::path(&req), args.chain)?;
     print!("{}", assertion::stream(&got));
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use idiot_store::store::query::{parse_store_members, Reply};
+    use reqwest::StatusCode;
+
+    fn fixture(name: &str) -> String {
+        let path = format!("{}/src/testdata/store/{name}", env!("CARGO_MANIFEST_DIR"));
+        std::fs::read_to_string(path).unwrap()
+    }
+
+    #[test]
+    fn member_lines_without_account_ids() {
+        let reply = Reply {
+            status: StatusCode::OK,
+            body: fixture("store-members.json"),
+            wants_refresh: false,
+        };
+        let lines: Vec<String> = parse_store_members(&reply)
+            .unwrap()
+            .unwrap()
+            .iter()
+            .map(member_line)
+            .collect();
+        assert_eq!(
+            lines[0],
+            "member\talice-example\tadmin,review,view\tAlice Example\talice@example.com"
+        );
+        assert_eq!(lines.len(), 3);
+        assert!(lines.iter().all(|l| !l.contains("AccountId")));
+    }
+
+    #[test]
+    fn member_fields_stay_on_one_line() {
+        let m = StoreMember {
+            username: "x".into(),
+            roles: vec!["view".into()],
+            displayname: "A\tB\nC".into(),
+            email: String::new(),
+        };
+        assert_eq!(member_line(&m), "member\tx\tview\tA B C\t");
+    }
+
+    #[test]
+    fn refusals_printed() {
+        assert_eq!(
+            refusal_line(Refusal::Permission("store_admin".into())),
+            "refused\tpermission\tstore_admin"
+        );
+        assert_eq!(refusal_line(Refusal::NotAdmin), "refused\tnot-admin");
+    }
 }
