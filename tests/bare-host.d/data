@@ -40,7 +40,11 @@ if installed network; then
 	expect "network: nmap scan with a script (data dir)" 'Nmap done: 1 IP address' \
 		idiot run nmap -sT -p 22 --script banner 127.0.0.1
 	expect "network: mtr report (mtr-packet)" 'localhost|127\.0\.0\.1' idiot run mtr -r -c 1 127.0.0.1
-	expect "network: curl https (CA certificates)" '^(200|301|302)$' \
+	# any HTTP status means the TLS handshake (and so the bundled CA
+	# certificates) worked; a certificate problem prints curl's error and 000.
+	# The status itself is the site's business: snapcraft.io answers some
+	# clients 503.
+	expect "network: curl https (CA certificates)" '^[1-5][0-9][0-9]$' \
 		idiot run curl -sS -o /dev/null -w '%{http_code}' https://snapcraft.io
 	expect "network: dig" '^[0-9.]+$' idiot run dig +short snapcraft.io
 	expect "network: tcpdump as root (wrapper: no tcpdump user)" 'listening on' \
