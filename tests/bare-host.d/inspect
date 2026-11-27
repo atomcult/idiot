@@ -6,7 +6,11 @@
 # mtools (GPT, a FAT ubuntu-seed holding a model and empty seeded snaps,
 # differing only in pc-kernel's revision), then checks inspect image reads
 # one and inspect diff --tsv prints exactly the one difference on a clean
-# stdout.
+# stdout. Then, on a booted image (an ext4 ubuntu-data made with mke2fs
+# -d, holding the synthetic state.json pushed beside this check), checks
+# inspect image --extract-state and inspect state redact it, read it from
+# a file, stdin, the image, a qcow2 overlay (with idiot+vm) and --local,
+# and fail as they should.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
 . "$(dirname "$0")/lib"
@@ -72,5 +76,106 @@ out="$(idiot inspect diff "${work}/a.img" "${work}/a.img" 2>"${work}/err")"
 [ -z "${out}" ] && grep -q "don't differ" "${work}/err" &&
 	ok "inspect diff: identical images, empty stdout" ||
 	fail "inspect diff: identical: stdout '${out}', stderr: $(cat "${work}/err")"
+
+# ---- snapd's state: redaction, extract-state and inspect state ----------
+# The fixture (tools/idiot-helper/src/testdata/state.json, pushed next to
+# this check) holds one of each secret as a marker: MKR-… or MDAxMKR….
+fixture="$(dirname "$0")/state.json"
+leaks() { grep -qE 'MKR-|MDAxMKR' "$@"; }
+
+# mkbooted <img>: a 64M image with ubuntu-seed (as mk) and an ext4
+# ubuntu-data holding a run-mode modeenv and the fixture as state.json
+mkbooted() {
+	truncate -s 64M "${1}"
+	printf 'label: gpt\nstart=2048, size=69632, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name=ubuntu-seed\nstart=71680, size=53248, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name=ubuntu-data\n' |
+		idiot run sfdisk -q "${1}" >/dev/null || return 1
+	m="${1}@@1048576"
+	idiot run mformat -i "${m}" -T 69632 -h 64 -s 32 :: &&
+		idiot run mmd -i "${m}" ::/systems ::/systems/20240603 ::/snaps &&
+		idiot run mcopy -i "${m}" "${work}/model" ::/systems/20240603/model || return 1
+	d="${work}/data/system-data/var/lib/snapd"
+	mkdir -p "${d}" && printf 'mode=run\n' >"${d}/modeenv" && cp "${fixture}" "${d}/state.json" &&
+		truncate -s 26M "${work}/data.ext4" &&
+		idiot run mke2fs -q -t ext4 -d "${work}/data" "${work}/data.ext4" >/dev/null &&
+		dd if="${work}/data.ext4" of="${1}" bs=512 seek=71680 conv=notrunc status=none
+}
+
+if [ -f "${fixture}" ] && mkbooted "${work}/c.img"; then
+	ok "inspect: built a booted image (ubuntu-data with mke2fs -d)"
+else
+	fail "inspect: couldn't build the booted image"
+	rm -rf "${work}"
+	exit 1
+fi
+
+idiot inspect image --extract-state "${work}/st.json" "${work}/c.img" >/dev/null 2>"${work}/err"
+[ "$(stat -c %a "${work}/st.json" 2>/dev/null)" = 600 ] && ! leaks "${work}/st.json" &&
+	grep -q '"session-macaroon": "<redacted>"' "${work}/st.json" &&
+	grep -q 'values redacted' "${work}/err" &&
+	idiot inspect state --json "${work}/st.json" >/dev/null 2>&1 &&
+	ok "inspect image --extract-state: redacted, valid JSON, mode 0600" ||
+	fail "inspect image --extract-state: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+
+# state <label> <args...>: --json from a source has the state, no marker
+state() {
+	_l="${1}"
+	shift
+	idiot inspect state --json "$@" >"${work}/out.json" 2>"${work}/err"
+	grep -q '"email": "dev@example.com"' "${work}/out.json" && ! leaks "${work}/out.json" &&
+		grep -q '^16 values redacted' "${work}/err" &&
+		ok "inspect state --json: ${_l}" ||
+		fail "inspect state --json: ${_l}: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+}
+state "state file" "${fixture}"
+state "stdin" - <"${fixture}"
+state "booted image" "${work}/c.img"
+if installed vm; then
+	idiot run qemu-img create -q -f qcow2 -b "${work}/c.img" -F raw "${work}/c.qcow2" &&
+		qsum="$(sha256sum <"${work}/c.qcow2")" &&
+		state "qcow2 overlay" "${work}/c.qcow2"
+	[ "$(sha256sum <"${work}/c.qcow2")" = "${qsum:-}" ] &&
+		ok "inspect state: the qcow2 overlay is unchanged" ||
+		fail "inspect state: the qcow2 overlay changed"
+	compgen -G "${IDIOT_CACHE_DIR:-${HOME}/snap/idiot/common/cache}/inspect-state.*" >/dev/null &&
+		fail "inspect state: left a conversion in the cache" ||
+		ok "inspect state: removed its conversion"
+fi
+
+# as root, --local reads the container's own state without sudo
+out="$(idiot inspect state --local --json 2>"${work}/err")"
+printf '%s' "${out}" | grep -q '"data"' && ! printf '%s' "${out}" | grep -q 'MDAx' &&
+	ok "inspect state --local --json: as root" ||
+	fail "inspect state --local --json: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+
+# fails <label> <pattern> <args...>: fails, stderr matching, stdout empty
+fails() {
+	_l="${1}" _p="${2}"
+	shift 2
+	out="$(idiot inspect state "$@" 2>"${work}/err")" && _rc=0 || _rc=$?
+	[ "${_rc}" -ne 0 ] && [ -z "${out}" ] && grep -q -- "${_p}" "${work}/err" &&
+		ok "inspect state: ${_l}" ||
+		fail "inspect state: ${_l}: rc ${_rc}, $(head -n 3 "${work}/err" | tr '\n' ' ')"
+}
+fails "two sources" 'usage: idiot inspect state \[options\]' --local "${fixture}"
+fails "no source" 'usage: idiot inspect state \[options\]' --json
+fails "option after the file" 'usage: idiot inspect state' "${fixture}" --json
+fails "not a terminal" 'pass --json or -o <file>' "${fixture}"
+fails "fresh image" 'no snapd state yet' --json "${work}/a.img"
+fails "not snapd state" 'not snapd state' --json - <<<'{"x": 1}'
+fails "unknown VM" 'idiot vm list' --name nosuch --json
+
+rm -f "${work}/saved.json"
+idiot inspect state -o "${work}/saved.json" "${fixture}" 2>"${work}/err" &&
+	[ "$(stat -c %a "${work}/saved.json")" = 600 ] && ! leaks "${work}/saved.json" &&
+	grep -q 'saved.json' "${work}/err" &&
+	ok "inspect state -o: mode 0600, named on stderr" ||
+	fail "inspect state -o: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+printf 'keep\n' >"${work}/saved.json"
+fails "-o refuses an existing file" '\-\-force' -o "${work}/saved.json" "${fixture}"
+[ "$(cat "${work}/saved.json")" = keep ] &&
+	idiot inspect state -o "${work}/saved.json" --force "${fixture}" 2>/dev/null &&
+	! leaks "${work}/saved.json" && grep -q '"data"' "${work}/saved.json" &&
+	ok "inspect state -o --force: overwrites" ||
+	fail "inspect state -o --force"
 
 rm -rf "${work}"

@@ -138,6 +138,9 @@ for f in "${snap}" "$@"; do
 	lxc file push -q "${f}" "${target}/root/bare-host/"
 done
 lxc file push -q -r "${here}/bare-host.d" "${target}/root/bare-host/"
+# the synthetic snapd state (one of each secret) the inspect check redacts
+lxc file push -q "${here}/../tools/idiot-helper/src/testdata/state.json" \
+	"${target}/root/bare-host/bare-host.d/state.json"
 files="/root/bare-host/$(basename "${snap}")"
 for c in "$@"; do
 	files="${files} /root/bare-host/$(basename "${c}")"

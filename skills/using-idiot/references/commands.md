@@ -84,6 +84,7 @@ e2fsprogs, mtools and fdisk).
 |---|---|
 | `idiot inspect image <disk.img>` | Model, first boot, seeded snaps, snapd state |
 | `idiot inspect diff [--tsv] [--state] <a.img> <b.img>` | Only what differs |
+| `idiot inspect state [--view <v>] [--json \| -o <file> [--force]] <file \| - \| --name <vm> \| --local>` | fzf explorer of snapd's state.json (snaps and kept revisions, connections, changes and task logs, raw tree) from a state file, a raw or qcow2 Core image, stdin, an idiot vm VM (ssh while running, its disk when stopped) or this machine (sudo). Secrets are always redacted; `--json`/`-o` export the redacted state. `inspect image --extract-state` saves it redacted too |
 | `idiot inspect assertion [--remote] <file \| ->` | Headers, snaps, signature chain; exit 1 on an invalid signature. Offline for Canonical models; never touches snapd's database |
 | `idiot inspect snap <file.snap>` | Its snapcraft.yaml or snap.yaml |
 | `idiot inspect changes` | Browse recent snapd changes (fzf) |

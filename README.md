@@ -219,6 +219,19 @@ $ idiot inspect image core.img                 # model, first boot, seeded snaps
 $ idiot inspect diff old.img new.img           # only what differs (--tsv, --state)
 $ idiot inspect assertion pc.model             # headers, snaps, and is the signature good?
 $ snap known model | idiot inspect assertion -
+$ idiot inspect state core.img                 # explore snapd's state: snaps, connections, changes
+$ idiot inspect state --name a                 # an idiot vm VM's, running or stopped (--local: this machine's)
+$ idiot inspect state --json st.json | jq .data.snaps
+```
+
+`inspect state` opens an fzf explorer of snapd's `state.json`: each
+snap's kept revisions, how interfaces were connected, every change with
+its tasks and their logs, and the raw tree. Secrets (macaroons,
+discharges, cookies, passwords, URL credentials, anything named like a
+key or token) are always redacted first, in every view and in `--json`
+and `-o` (mode 0600); `inspect image --extract-state` saves the same
+redacted state.
+| idiot inspect assertion -
 ```
 
 `inspect assertion` checks each signature up the chain of account-keys
