@@ -88,7 +88,8 @@ share/           # sourced helper modules (never executed directly)
   common.sh      # universal: colors, say/die/require/include, help formatters,
                  #   dispatch_subcmd, tool/tool_path/snap_app, helper_path/helper,
                  #   git(), shell_quote,
-                 #   require_wrapper, emit_export, emit_unset, stdout_colors,
+                 #   require_wrapper, require_shell/asks_help (help never
+                 #   needs init), emit_export, emit_unset, stdout_colors,
                  #   snap_component_dirs, snap_component_table
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu(), STORE_ARCHES,
                  #   is_store_arch

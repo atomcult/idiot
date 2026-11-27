@@ -135,7 +135,7 @@ main() {
 			case "${cmd}" in
 			init) exec "${cmd_file}" "$@" ;;
 			*)
-				[ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+				require_shell "${cmd}" "$@"
 				_counted "${cmd}"
 				run_cmd "${cmd_file}" 1 "${cmd}" "$@"
 				;;

@@ -1,0 +1,32 @@
+#!/bin/bash
+# tests/bare-host.d/help - help works without the shell integration
+#
+# Usage: help
+# Checks that help for groups, leaves and vm's own subcommands prints
+# without the wrapper (confined: nothing to hand off), wherever -h/--help
+# is before --, and that everything else still asks for idiot init.
+
+# shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
+. "$(dirname "$0")/lib"
+
+bare() { env -u IDIOT_SHELL -u IDIOT_EVAL_FILE /snap/bin/idiot "$@" 2>&1 </dev/null; }
+
+for words in "store help" "vm --help" "vm help" "vm list --help" \
+	"store browse --help" "inspect state -h" "kernel help" "example --help" \
+	"run --help" "assertion new --help"; do
+	# shellcheck disable=SC2086 # words splits on purpose
+	out="$(bare ${words})"
+	case "${out}" in
+	*Usage:*) ok "help: idiot ${words} without the wrapper" ;;
+	*) fail "help: idiot ${words}: $(printf '%s' "${out}" | head -1)" ;;
+	esac
+done
+
+for words in "store channels core" "vm -- --help" "run ls --help"; do
+	# shellcheck disable=SC2086 # words splits on purpose
+	out="$(bare ${words})"
+	case "${out}" in
+	*"idiot init"*) ok "help: idiot ${words} still needs the wrapper" ;;
+	*) fail "help: idiot ${words} ran without the wrapper: $(printf '%s' "${out}" | head -1)" ;;
+	esac
+done

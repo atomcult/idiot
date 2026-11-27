@@ -208,6 +208,33 @@ help_env() {
     say "  ${BOLD}${1}${RESET}$(printf '%*s' "${gap}" '')${2}"
 }
 
+# True if the words after command $1 ask it for help: help, -h or --help
+# first, or -h/--help anywhere before -- (except for run, whose words
+# after the first are the tool's).
+asks_help() {
+    _ah_cmd="${1}"
+    shift
+    case "${1:-}" in
+    -h | --help | help) return 0 ;;
+    esac
+    [ "${_ah_cmd}" != run ] || return 1
+    for _ah_word in "$@"; do
+        case "${_ah_word}" in
+        --) return 1 ;;
+        -h | --help) return 0 ;;
+        esac
+    done
+    return 1
+}
+
+# Die unless the shell integration is loaded. A help request never needs
+# it. Usage: require_shell <cmd> <word>...
+require_shell() {
+    [ -z "${IDIOT_SHELL:-}" ] || return 0
+    asks_help "$@" ||
+        die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+}
+
 # Dispatch to a subcommand within a command group directory.
 # $1: display name of the parent command (e.g. "env")
 # $2: path to the command group directory
@@ -227,7 +254,7 @@ dispatch_subcmd() {
         fi
         ;;
     *)
-        [ -n "${IDIOT_SHELL}" ] || die "shell not initialized — run: eval \"\$(idiot init bash)\"  or: idiot init fish | source"
+        require_shell "${cmd}" "$@"
         subcmd_file="${cmd_file}/${subcmd}"
         if [ -d "${subcmd_file}" ]; then
             subsubcmd="${1:-}"
@@ -265,7 +292,8 @@ is_host_cmd() {
 }
 
 # Run a resolved command file. Under the snap (confined), a host command
-# that isn't asked for help is handed to the user's shell instead.
+# that isn't asked for help (asks_help) is handed to the user's shell
+# instead.
 # Usage: run_cmd <file> <n> <word>... — the first <n> words are the command
 # path (e.g. inspect image), the rest its arguments.
 run_cmd() {
@@ -273,15 +301,14 @@ run_cmd() {
     _rc_n="${2}"
     shift 2
     if [ -n "${SNAP:-}" ] && is_host_cmd "${_rc_file}"; then
-        _rc_first=''
-        eval "_rc_first=\${$((_rc_n + 1)):-}"
-        case "${_rc_first}" in
-        -h | --help | help) ;;
-        *)
+        if ! (
+            _rc_cmd="${1}"
+            shift "${_rc_n}"
+            asks_help "${_rc_cmd}" "$@"
+        ); then
             emit_handoff "$@"
             exit 0
-            ;;
-        esac
+        fi
     fi
     shift "${_rc_n}"
     exec "${_rc_file}" "$@"
