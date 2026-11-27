@@ -27,6 +27,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Run `openspec validate store-explorer --strict`.
+- [x] 5.1 Run `openspec validate store-explorer --strict`.
 - [ ] 5.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 5.3 With the user, under the snap: `idiot store browse` in `ce-team-test` with a `store_admin` credential lists the whole store, opening `ce-dummy` shows its revisions, Enter prints the row; in `dsmr6` as a viewer the list is partial and noted; `--arch arm64 --channel edge --tsv` and `--unreleased --revisions --tsv` give what the dashboard shows; nothing printed or left in the temp dir contains a credential.
