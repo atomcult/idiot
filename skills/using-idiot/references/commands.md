@@ -33,6 +33,7 @@ in the same shell (see SKILL.md). They run confined under the snap.
 | `idiot store check <snap> [--channel c] [--arch a] [--cred n]` | Why a snap can (exit 0) or can't (exit 1) be downloaded from the active store: membership, release, credential (expiry, permissions, padding). Downloads nothing. Host command |
 | `idiot store channels <snap> [--arch a] [--tsv]` | The snap's channel map (stdout) |
 | `idiot store import [--all] [--cred n]` | Save the stores the account belongs to (skips global and saved ones). Interactive picker and name prompts; `--all` uses names from the display names. Host command |
+| `idiot store assertion [--chain] [--raw \| -o f] <type> <key>...` | Fetch an assertion (account, account-key, store, model, snap-declaration `<snap>`, snap-revision `<snap> <rev>`, validation-set `<acct>/<name>`, or any type by `header=value`) and summarise it; `--chain` adds what snapd needs to accept it. Host command |
 | `idiot store roles [--tsv]` | Your stores and roles (stdout), the active one marked `*` |
 | `idiot store snaps [--tsv \| --pick] [--cred n]` | Snaps in the active store (stdout); the full list only for admins with a `store_admin` credential |
 | `idiot arch set <arch>` / `unset` / `status` | Sets `UBUNTU_STORE_ARCH` (amd64, arm64, armhf, riscv64, …) |

@@ -110,6 +110,25 @@ out="$(idiot store import --bogus 2>&1)"
 rc=$?
 [ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store import' &&
 	ok "store import: usage" || fail "store import --bogus: ${out}"
+# store assertion: refusals decided before contacting the store
+for args in "nope x|unknown assertion type" "model canonical|a model is fetched by <brand-id>/<model>" \
+	"account bogus=1|unknown header bogus" "--raw -o /tmp/x.assert account canonical|--raw and -o can't both be given" \
+	"account canonical --cred nope|not found" "store|no store is active"; do
+	# shellcheck disable=SC2086 # the arguments are split on purpose
+	out="$(idiot store assertion ${args%%|*} 2>&1)"
+	rc=$?
+	[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -qF -- "${args#*|}" &&
+		ok "store assertion ${args%%|*}: refused" || fail "store assertion ${args%%|*}: rc=${rc} ${out}"
+done
+# and, when the container reaches the store, a chain that verifies offline
+if getent hosts api.snapcraft.io >/dev/null 2>&1 && out="$(idiot store assertion --chain --raw snap-revision hello-world 29 2>&1)"; then
+	n="$(printf '%s\n' "${out}" | grep -c '^type: ')"
+	v="$(printf '%s\n' "${out}" | idiot inspect assertion - 2>&1 | grep -c '^signature: *verified')"
+	[ "${n}" -eq 3 ] && [ "${v}" -eq 3 ] &&
+		ok "store assertion --chain: 3 assertions, all verified" || fail "store assertion --chain: ${n} assertions, ${v} verified"
+else
+	ok "store assertion --chain: skipped (the store isn't reachable from here)"
+fi
 n="$(idiot store check hello --cred st-old 2>/dev/null | wc -c)"
 [ "${n}" -eq 0 ] && ok "store check: nothing on stdout" || fail "store check: ${n} bytes on stdout"
 [ "$(stat -c %a "${auth}/st-pad")" = 600 ] && ok "store check: credentials stay private" ||

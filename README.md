@@ -317,6 +317,27 @@ $ idiot store snaps --cred ce-admin      # with another saved credential, once
 $ idiot store import                     # save your stores (pick and name them; --all for all)
 ```
 
+`idiot store assertion` fetches assertions from the store and summarises
+them as `idiot inspect assertion` does (`--raw` prints them as served,
+`-o` saves them):
+
+```
+$ idiot store assertion account canonical
+$ idiot store assertion snap-declaration hello-world
+$ idiot store assertion model canonical/ubuntu-core-24-amd64
+$ idiot store assertion validation-set acme/base-set      # the latest sequence
+$ idiot store assertion serial brand-id=acme model=gw serial=1234
+```
+
+With `--chain` it also fetches everything snapd needs before it accepts
+the assertion (signing keys, the snap's declaration, accounts), so a
+side-loaded snap can be installed asserted:
+
+```
+$ idiot store assertion --chain -o hello.assert snap-revision hello-world 29
+$ sudo snap ack hello.assert && sudo snap install ./hello-world_29.snap
+```
+
 `store snaps` lists a whole brand store only for its admins, with a
 credential that has `store_admin` (`idiot auth add ce-admin --permissions
 store_admin,package_access`); otherwise it lists the snaps you publish or
