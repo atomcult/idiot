@@ -7,8 +7,8 @@
 ## 2. store members
 
 - [ ] 2.1 Move the admin pre-check from `cmd/store/snaps` into `share/stores.sh` (`store_admin_check`), with `store snaps` behaving as before. Verify: the store bare-host check and a local run of `store snaps` against the user's account (partial list and note unchanged).
-- [ ] 2.2 `cmd/store/members` (host): `--role`, `--email`, `--tsv`, `--cred`, the pre-check, the global-store refusal; add it to `cmd/store/help`. Verify from the source tree with a stub idiot-store (copied tree) for the listed, filtered, email and refusal cases; emails absent without `--email`.
-- [ ] 2.3 Extend `tests/bare-host.d/store` (usage, no credential, global store) and update the README and the using-idiot skill reference. Run `make check`. Commit: `feat(store): list a store's members`.
+- [x] 2.2 `cmd/store/members` (host): `--role`, `--email`, `--tsv`, `--cred`, the pre-check, the global-store refusal; add it to `cmd/store/help`. Verify from the source tree with a stub idiot-store (copied tree) for the listed, filtered, email and refusal cases; emails absent without `--email`.
+- [x] 2.3 Extend `tests/bare-host.d/store` (usage, no credential, global store) and update the README and the using-idiot skill reference. Run `make check`. Commit: `feat(store): list a store's members`.
 
 ## 3. Verification
 

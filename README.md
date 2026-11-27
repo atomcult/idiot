@@ -314,6 +314,7 @@ $ idiot store channels ce-dummy          # revisions per channel and arch (--tsv
 $ idiot store roles                      # your stores and roles, the active one marked
 $ idiot store snaps                      # the snaps in the active store (--pick: fzf)
 $ idiot store snaps --cred ce-admin      # with another saved credential, once
+$ idiot store members --role admin       # who is in the store, and with which roles
 $ idiot store import                     # save your stores (pick and name them; --all for all)
 ```
 
@@ -341,8 +342,10 @@ $ sudo snap ack hello.assert && sudo snap install ./hello-world_29.snap
 `store snaps` lists a whole brand store only for its admins, with a
 credential that has `store_admin` (`idiot auth add ce-admin --permissions
 store_admin,package_access`); otherwise it lists the snaps you publish or
-collaborate on there and says what the full list needs. `--cred <name>`
-works on all four and never changes the active credential.
+collaborate on there and says what the full list needs. `store members`
+needs the same (an admin with `store_admin`) and fails without it; it
+leaves members' emails out unless asked (`--email`). `--cred <name>`
+works on all of them and never changes the active credential.
 
 idiot also knows when each credential expires, read offline from the
 credential itself when it's added or imported (or from the store, the

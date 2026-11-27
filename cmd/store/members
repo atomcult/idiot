@@ -1,0 +1,104 @@
+#!/usr/bin/env sh
+# cmd/store/members - the members of the active store and their roles
+# idiot: host
+# Usage: idiot store members [--tsv] [--email] [--role <role>] [--cred <name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include creds.sh
+include stores.sh
+
+USAGE='idiot store members [--tsv] [--email] [--role <role>] [--cred <name>]'
+
+usage() {
+	help_heading "Usage:" "${USAGE}"
+	echo >&2
+	say "Lists the members of the active store, sorted by username: their"
+	say "roles (admin, review, view, access) and display names. Needs an admin"
+	say "of the store using a credential with store_admin."
+	echo >&2
+	help_heading "Options:"
+	help_option "--role <role>" "Only members with this role"
+	help_option "--email" "Add each member's email (off by default)"
+	help_option "--tsv" "Tab-separated: username, roles, display name[, email]"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+}
+
+main() {
+	tsv=0
+	email=0
+	role=''
+	cred=''
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		-h | --help | help)
+			usage
+			exit 0
+			;;
+		--tsv) tsv=1 ;;
+		--email) email=1 ;;
+		--role)
+			case "${2:-}" in
+			admin | review | view | access) role="${2}" ;;
+			'') die "--role needs a role: admin, review, view or access" ;;
+			*) die "unknown role '${2}': use admin, review, view or access" ;;
+			esac
+			shift
+			;;
+		--cred)
+			[ -n "${2:-}" ] || die "--cred needs a credential name"
+			cred="${2}"
+			shift
+			;;
+		*) die "usage: ${USAGE}" ;;
+		esac
+		shift
+	done
+	[ -n "${UBUNTU_STORE_ID:-}" ] ||
+		die "the global store has no member list — activate a brand store first (idiot store use <name>)"
+	query_cred "${cred}" ||
+		die "no active credential — log in first (idiot auth login), or use --cred <name>"
+	helper="$(store_helper)" || exit 1
+	why="$(store_admin_check "${UBUNTU_STORE_ID}")" || exit $?
+	case "${why}" in
+	role) die "the member list needs an admin of $(store_label "${UBUNTU_STORE_ID}")" ;;
+	permission) die "$(store_admin_alternatives "the member list" "store members")" ;;
+	esac
+	lines="$("${helper}" store-members ${query_file:+--file "${query_file}"} --store "${UBUNTU_STORE_ID}")" || exit $?
+	case "${lines}" in
+	refused*permission*)
+		die "$(store_admin_alternatives "the member list" "store members")"
+		;;
+	refused*) die "the store refused the member list: it needs an admin of $(store_label "${UBUNTU_STORE_ID}")" ;;
+	esac
+
+	# member <username> <roles> <display name> <email>; the email only
+	# leaves here with --email
+	rows="$(printf '%s\n' "${lines}" | awk -F '\t' -v role="${role}" -v email="${email}" '
+		$1 != "member" { next }
+		role != "" { n = split($3, r, ","); keep = 0; for (i = 1; i <= n; i++) if (r[i] == role) keep = 1; if (!keep) next }
+		{ printf "%s\t%s\t%s", $2, $3, $4; if (email) printf "\t%s", $5; printf "\n" }')"
+	if [ -z "${rows}" ]; then
+		if [ -n "${role}" ]; then
+			say "${DIM}No members with the ${role} role.${RESET}"
+		else
+			say "${DIM}No members to list.${RESET}"
+		fi
+		exit 0
+	fi
+	if [ "${tsv}" -eq 1 ]; then
+		printf '%s\n' "${rows}"
+		exit 0
+	fi
+	stdout_colors
+	# ASCII columns first, then the display name (any script), the email dim
+	printf '%s\n' "${rows}" | awk -F '\t' -v d="${OUT_DIM}" -v r="${OUT_RESET}" '
+		{ for (i = 1; i <= 3; i++) if (length($i) > w[i]) w[i] = length($i); row[NR] = $0 }
+		END {
+			for (n = 1; n <= NR; n++) {
+				k = split(row[n], f, "\t")
+				if (k > 3) printf "%-" w[1] "s  %-" w[2] "s  %-" w[3] "s  %s%s%s\n", f[1], f[2], f[3], d, f[4], r
+				else printf "%-" w[1] "s  %-" w[2] "s  %s\n", f[1], f[2], f[3]
+			}
+		}'
+}
+main "$@"

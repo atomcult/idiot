@@ -36,6 +36,7 @@ in the same shell (see SKILL.md). They run confined under the snap.
 | `idiot store assertion [--chain] [--raw \| -o f] <type> <key>...` | Fetch an assertion (account, account-key, store, model, snap-declaration `<snap>`, snap-revision `<snap> <rev>`, validation-set `<acct>/<name>`, or any type by `header=value`) and summarise it; `--chain` adds what snapd needs to accept it. Host command |
 | `idiot store roles [--tsv]` | Your stores and roles (stdout), the active one marked `*` |
 | `idiot store snaps [--tsv \| --pick] [--cred n]` | Snaps in the active store (stdout); the full list only for admins with a `store_admin` credential |
+| `idiot store members [--role r] [--email] [--tsv] [--cred n]` | The active brand store's members: username, roles, display name (stdout); admins with a `store_admin` credential only. Emails only with `--email`: other people's data, keep them out of the transcript unless needed. Host command |
 | `idiot arch set <arch>` / `unset` / `status` | Sets `UBUNTU_STORE_ARCH` (amd64, arm64, armhf, riscv64, …) |
 | `idiot lp set <user>` / `unset` / `status` | Launchpad username (also the VM guest user for `vm ssh`) |
 | `idiot profile save <name> [--fields auth,store,arch,lp]` | Record the current setup (names only, never credential contents) |

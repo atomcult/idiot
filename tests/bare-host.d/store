@@ -1,12 +1,12 @@
 #!/bin/bash
-# tests/bare-host.d/store - idiot store check/channels/roles/snaps, offline
+# tests/bare-host.d/store - idiot store check/channels/roles/snaps/members, offline
 #
 # Usage: store   (no store account in the container)
 # Fake credentials (V1 macaroons with dummy signatures and an acl caveat)
 # exercise what store check decides before it contacts the store: an
 # unknown --cred, an expired credential, one without package_access, one
 # that can't be read, and padding snapd can't read (reported, then the
-# store refuses the fake). Plus usage errors, and roles/snaps without a
+# store refuses the fake). Plus usage errors, roles/snaps/members without a
 # credential, and store import's refusals (no terminal, no credential).
 # Nothing here needs a real account.
 
@@ -94,6 +94,22 @@ out="$(idiot store snaps 2>&1)"
 rc=$?
 [ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'no active credential' &&
 	ok "store snaps: needs a credential" || fail "store snaps: ${out}"
+out="$(idiot store members --bogus 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store members' &&
+	ok "store members: usage" || fail "store members --bogus: ${out}"
+out="$(idiot store members --role owner 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q "unknown role 'owner'" &&
+	ok "store members: unknown role refused" || fail "store members --role owner: ${out}"
+out="$(idiot store members 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'the global store has no member list' &&
+	ok "store members: none in the global store" || fail "store members (global): ${out}"
+out="$(UBUNTU_STORE_ID=SomeBrandStoreId idiot store members 2>&1)"
+rc=$?
+[ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'no active credential' &&
+	ok "store members: needs a credential" || fail "store members (no credential): ${out}"
 out="$(idiot store channels 2>&1)"
 rc=$?
 [ "${rc}" -ne 0 ] && printf '%s' "${out}" | grep -q 'usage: idiot store channels <snap>' &&

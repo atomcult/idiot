@@ -30,12 +30,7 @@ _partial_note() {
 		say "${DIM}the full list needs an admin of the store.${RESET}"
 		return 0
 	fi
-	_pn_have="$(creds_with_permission store_admin | paste -sd ' ' -)"
-	if [ -n "${_pn_have}" ]; then
-		say "${DIM}the full list needs store_admin, which $(printf '%s' "${_pn_have}" | sed 's/ /, /g') has: idiot store snaps --cred ${_pn_have%% *}${RESET}"
-	else
-		say "${DIM}the full list needs a credential with store_admin: idiot auth add <name> --permissions store_admin,package_access${RESET}"
-	fi
+	say "${DIM}$(store_admin_alternatives "the full list" "store snaps")${RESET}"
 }
 
 main() {
@@ -67,24 +62,19 @@ main() {
 	rows=''
 	if [ -n "${UBUNTU_STORE_ID:-}" ]; then
 		# store <id> <display name> <roles>
-		store_line="$(printf '%s\n' "${account}" | awk -F '\t' -v id="${UBUNTU_STORE_ID}" '$1 == "store" && $2 == id')"
-		display="$(printf '%s' "${store_line}" | cut -f3)"
-		[ -n "${store_line}" ] ||
-			die "your account isn't a member of $(store_label "${UBUNTU_STORE_ID}") — ask one of its admins to add you"
-		why=role
-		if printf '%s' "${store_line}" | cut -f4 | tr ',' '\n' | grep -qx admin; then
+		display="$(printf '%s\n' "${account}" | awk -F '\t' -v id="${UBUNTU_STORE_ID}" '$1 == "store" && $2 == id' | cut -f3)"
+		why="$(store_admin_check "${UBUNTU_STORE_ID}" "${account}")" || exit $?
+		if [ "${why}" = ok ]; then
 			why=permission
-			if "${helper}" permissions ${query_file:+--file "${query_file}"} | grep -qx store_admin; then
-				full="$("${helper}" store-snaps ${query_file:+--file "${query_file}"} --store "${UBUNTU_STORE_ID}")" || exit $?
-				# a "refused" line keeps the partial list (and its note)
-				case "${full}" in
-				refused*) ;;
-				*)
-					rows="$(printf '%s\n' "${full}" | awk -F '\t' '$1 == "snap" { print $2 "\t" $3 "\t" $4 }')"
-					why=''
-					;;
-				esac
-			fi
+			full="$("${helper}" store-snaps ${query_file:+--file "${query_file}"} --store "${UBUNTU_STORE_ID}")" || exit $?
+			# a "refused" line keeps the partial list (and its note)
+			case "${full}" in
+			refused*) ;;
+			*)
+				rows="$(printf '%s\n' "${full}" | awk -F '\t' '$1 == "snap" { print $2 "\t" $3 "\t" $4 }')"
+				why=''
+				;;
+			esac
 		fi
 	else
 		display=Global
