@@ -871,7 +871,7 @@ as_default_name() {
 }
 
 # Fetch assertion $1 (model or validation-set) by key $2 from the active
-# store, as idiot store assertion does (the active or --cred credential),
+# store, as idiot assertion fetch does (the active or --cred credential),
 # into ${work}/source. Exits with its message when the store doesn't
 # serve it.
 as_source_fetch() {
@@ -880,7 +880,7 @@ as_source_fetch() {
     *) die "only models and validation sets can be fetched from the store, not ${1}" ;;
     esac
     _asf_rc=0
-    "${IDIOT_ROOT}/cmd/store/assertion" --raw ${cred:+--cred "${cred}"} "${1}" "${2}" \
+    "${IDIOT_ROOT}/cmd/assertion/fetch" --raw ${cred:+--cred "${cred}"} "${1}" "${2}" \
         >"${work}/source" || _asf_rc=$?
     [ "${_asf_rc}" -eq 0 ] || exit "${_asf_rc}"
     as_src_from="the store"

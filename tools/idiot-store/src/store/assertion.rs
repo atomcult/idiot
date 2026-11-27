@@ -142,15 +142,16 @@ fn usage(kind: &Kind) -> String {
 }
 
 /// What to fetch: a type and its primary-key values, or lookups to resolve
-/// first (`snap-name=`, `snap-name=` + `snap-revision=`).
+/// first (`snap-name=`, `snap-name=` + `snap-revision=` or `snap-channel=`).
 #[derive(Debug, PartialEq, Clone)]
 pub struct Request {
     pub kind: &'static str,
     /// (header, value) in the type's key order; values may be pending
-    /// lookups, recorded in `snap_name` / `snap_revision`.
+    /// lookups, recorded in `snap_name` / `snap_revision` / `snap_channel`.
     pub headers: Vec<(String, String)>,
     pub snap_name: Option<String>,
     pub snap_revision: Option<u64>,
+    pub snap_channel: Option<String>,
 }
 
 /// Parses `<type> <header>=<value>...` into a request, failing (usage) on
@@ -178,7 +179,8 @@ pub fn parse(kind_name: &str, words: &[String]) -> Result<Request, String> {
             || kind.optional == Some(h)
             || (h == "snap-name"
                 && (kind.keys.contains(&"snap-id") || kind.keys.contains(&"snap-sha3-384")))
-            || (h == "snap-revision" && kind.keys.contains(&"snap-sha3-384"));
+            || ((h == "snap-revision" || h == "snap-channel")
+                && kind.keys.contains(&"snap-sha3-384"));
         if !allowed {
             return Err(format!("unknown header {h} — {}", usage(kind)));
         }
@@ -193,16 +195,27 @@ pub fn parse(kind_name: &str, words: &[String]) -> Result<Request, String> {
         ),
         None => None,
     };
+    let snap_channel = get("snap-channel");
     if snap_revision.is_some() && snap_name.is_none() {
         return Err("snap-revision= needs snap-name= too".into());
     }
+    if snap_channel.is_some() && snap_name.is_none() {
+        return Err("snap-channel= needs snap-name= too".into());
+    }
+    if snap_channel.is_some() && snap_revision.is_some() {
+        return Err("give snap-revision= or snap-channel=, not both".into());
+    }
+    if let Some(c) = &snap_channel {
+        Channel::parse(c)?;
+    }
+    let lookup = snap_revision.is_some() || snap_channel.is_some();
     let mut headers = Vec::new();
     for k in kind.keys {
         let value = match (*k, get(k)) {
             (_, Some(v)) => v,
             ("series", None) => "16".into(),
             ("snap-id", None) if snap_name.is_some() => String::new(),
-            ("snap-sha3-384", None) if snap_revision.is_some() => String::new(),
+            ("snap-sha3-384", None) if lookup => String::new(),
             ("sequence", None) if kind.sequence => String::new(),
             _ => return Err(format!("{k} is missing — {}", usage(kind))),
         };
@@ -214,10 +227,7 @@ pub fn parse(kind_name: &str, words: &[String]) -> Result<Request, String> {
         }
     }
     // a snap-name alone resolves snap-id, not a revision's hash
-    if kind.keys.contains(&"snap-sha3-384")
-        && snap_revision.is_none()
-        && get("snap-sha3-384").is_none()
-    {
+    if kind.keys.contains(&"snap-sha3-384") && !lookup && get("snap-sha3-384").is_none() {
         return Err(format!("snap-sha3-384 is missing — {}", usage(kind)));
     }
     Ok(Request {
@@ -225,6 +235,103 @@ pub fn parse(kind_name: &str, words: &[String]) -> Result<Request, String> {
         headers,
         snap_name,
         snap_revision,
+        snap_channel,
+    })
+}
+
+const RISKS: [&str; 4] = ["stable", "candidate", "beta", "edge"];
+
+/// A channel as given: `<risk>`, `<risk>/<branch>`, `<track>/<risk>` or
+/// `<track>/<risk>/<branch>`; no track means the snap's default track.
+#[derive(Debug, PartialEq)]
+pub struct Channel {
+    pub track: Option<String>,
+    pub risk: String,
+    pub branch: Option<String>,
+}
+
+impl Channel {
+    pub fn parse(c: &str) -> Result<Channel, String> {
+        let parts: Vec<&str> = c.split('/').collect();
+        let is_risk = |p: &str| RISKS.contains(&p);
+        let ch = |t: Option<&str>, r: &str, b: Option<&str>| Channel {
+            track: t.map(str::to_owned),
+            risk: r.to_owned(),
+            branch: b.map(str::to_owned),
+        };
+        match parts.as_slice() {
+            [r] if is_risk(r) => Ok(ch(None, r, None)),
+            [t] if !t.is_empty() => Err(format!(
+                "'{c}' isn't a channel — a track alone is written {t}/stable"
+            )),
+            [r, b] if is_risk(r) && !b.is_empty() => Ok(ch(None, r, Some(b))),
+            [t, r] if !t.is_empty() && is_risk(r) => Ok(ch(Some(t), r, None)),
+            [t, r, b] if !t.is_empty() && is_risk(r) && !b.is_empty() => {
+                Ok(ch(Some(t), r, Some(b)))
+            }
+            _ => Err(format!(
+                "'{c}' isn't a channel (<risk>, <track>/<risk> or <track>/<risk>/<branch>, risk one of {})",
+                RISKS.join(", ")
+            )),
+        }
+    }
+}
+
+/// What a channel resolved to: the channel released into, its revision and
+/// the revision's SHA3-384.
+#[derive(Debug, PartialEq)]
+pub struct Release {
+    pub channel: String,
+    pub revision: u64,
+    pub sha3_384: String,
+}
+
+/// The release snapd would install from `channel` for `arch`, from an info
+/// reply's channel map: a risk with nothing released follows the next more
+/// stable risk in its track (a branch is taken only as given). None when
+/// nothing is released there for that architecture.
+pub fn channel_release(info: &Value, channel: &Channel, arch: Option<&str>) -> Option<Release> {
+    let map = info["channel-map"].as_array()?;
+    let track = channel
+        .track
+        .clone()
+        .or_else(|| info["default-track"].as_str().map(str::to_owned))
+        .unwrap_or_else(|| "latest".into());
+    // the store names latest's channels without the track ("stable",
+    // "edge/fix"): match the track and risk fields, the branch from the name
+    let branch_of = |c: &Value| {
+        let (t, r) = (c["track"].as_str()?, c["risk"].as_str()?);
+        let name = c["name"].as_str()?;
+        let rest = name
+            .strip_prefix(&format!("{t}/{r}"))
+            .or_else(|| name.strip_prefix(r))?;
+        Some(rest.strip_prefix('/').unwrap_or(rest).to_owned())
+    };
+    let find = |risk: &str, branch: Option<&str>| {
+        map.iter().find(|e| {
+            let c = &e["channel"];
+            c["track"].as_str() == Some(track.as_str())
+                && c["risk"].as_str() == Some(risk)
+                && branch_of(c).as_deref() == Some(branch.unwrap_or(""))
+                && arch.is_none_or(|a| c["architecture"].as_str() == Some(a))
+        })
+    };
+    let entry = match &channel.branch {
+        Some(b) => find(&channel.risk, Some(b)),
+        None => {
+            let from = RISKS.iter().position(|r| *r == channel.risk)?;
+            RISKS[..=from].iter().rev().find_map(|r| find(r, None))
+        }
+    }?;
+    let c = &entry["channel"];
+    let mut name = format!("{}/{}", c["track"].as_str()?, c["risk"].as_str()?);
+    if let Some(b) = branch_of(c).filter(|b| !b.is_empty()) {
+        name = format!("{name}/{b}");
+    }
+    Some(Release {
+        channel: name,
+        revision: entry["revision"].as_u64()?,
+        sha3_384: entry["download"]["sha3-384"].as_str()?.to_owned(),
     })
 }
 
@@ -345,8 +452,25 @@ impl<'a> Fetcher<'a> {
                 }
             }
         }
+        if let Some(given) = req.snap_channel.clone() {
+            let channel = Channel::parse(&given).map_err(StoreError::Store)?;
+            let arch = self.arch.clone();
+            let rel = channel_release(&info, &channel, arch.as_deref()).ok_or_else(|| {
+                StoreError::NotFound(format!(
+                    "{name} has nothing released in {given} for {}",
+                    arch.as_deref().unwrap_or("any architecture")
+                ))
+            })?;
+            eprintln!("channel\t{given}\t{}\t{}", rel.channel, rel.revision);
+            for (h, v) in req.headers.iter_mut() {
+                if h == "snap-sha3-384" && v.is_empty() {
+                    *v = rel.sha3_384.clone();
+                }
+            }
+        }
         req.snap_name = None;
         req.snap_revision = None;
+        req.snap_channel = None;
         Ok(req)
     }
 
@@ -676,6 +800,104 @@ mod tests {
         assert!(refresh_result_hash(&ok).unwrap().starts_with("eed62063c0"));
         let missing: Value = serde_json::from_str(&fixture("refresh-missing.json")).unwrap();
         assert_eq!(refresh_result_hash(&missing), None);
+    }
+
+    #[test]
+    fn channels_parse() {
+        let c = |t: Option<&str>, r: &str, b: Option<&str>| Channel {
+            track: t.map(str::to_owned),
+            risk: r.into(),
+            branch: b.map(str::to_owned),
+        };
+        assert_eq!(Channel::parse("stable"), Ok(c(None, "stable", None)));
+        assert_eq!(
+            Channel::parse("edge/fix-1"),
+            Ok(c(None, "edge", Some("fix-1")))
+        );
+        assert_eq!(Channel::parse("2.0/beta"), Ok(c(Some("2.0"), "beta", None)));
+        assert_eq!(
+            Channel::parse("latest/edge/fix-1"),
+            Ok(c(Some("latest"), "edge", Some("fix-1")))
+        );
+        assert!(Channel::parse("22").unwrap_err().contains("22/stable"));
+        assert!(Channel::parse("2.0/nightly").is_err());
+        assert!(Channel::parse("a/stable/b/c").is_err());
+        assert!(Channel::parse("").is_err());
+    }
+
+    #[test]
+    fn channel_releases() {
+        // as the store gives them: latest's channels named without the track
+        let e = |name: &str, arch: &str, rev: u64| {
+            let parts: Vec<&str> = name.split('/').collect();
+            let (track, risk) = match parts.as_slice() {
+                [t, r, ..] if !super::RISKS.contains(t) => (*t, *r),
+                [r, ..] => ("latest", *r),
+                [] => unreachable!(),
+            };
+            json!({"channel": {"name": name, "track": track, "risk": risk, "architecture": arch},
+                   "revision": rev, "download": {"sha3-384": format!("h{rev}")}})
+        };
+        let info = json!({"default-track": "6", "channel-map": [
+            e("6/stable", "amd64", 10), e("6/beta", "amd64", 12),
+            e("6/stable", "arm64", 11), e("stable", "amd64", 20),
+            e("edge/fix-1", "amd64", 25),
+        ]});
+        let rel = |c: &str, a: Option<&str>| {
+            channel_release(&info, &Channel::parse(c).unwrap(), a).map(|r| (r.channel, r.revision))
+        };
+        // a risk alone takes the default track
+        assert_eq!(rel("stable", Some("amd64")), Some(("6/stable".into(), 10)));
+        assert_eq!(rel("stable", Some("arm64")), Some(("6/stable".into(), 11)));
+        // closed edge follows beta; candidate follows stable
+        assert_eq!(rel("edge", Some("amd64")), Some(("6/beta".into(), 12)));
+        assert_eq!(
+            rel("6/candidate", Some("amd64")),
+            Some(("6/stable".into(), 10))
+        );
+        assert_eq!(
+            rel("latest/stable", Some("amd64")),
+            Some(("latest/stable".into(), 20))
+        );
+        // branches only as given; nothing for an architecture
+        assert_eq!(
+            rel("latest/edge/fix-1", Some("amd64")),
+            Some(("latest/edge/fix-1".into(), 25))
+        );
+        assert_eq!(rel("latest/edge/nope", Some("amd64")), None);
+        assert_eq!(rel("latest/stable", Some("riscv64")), None);
+        assert_eq!(rel("stable", Some("riscv64")), None);
+        let r = channel_release(&info, &Channel::parse("stable").unwrap(), Some("amd64")).unwrap();
+        assert_eq!(r.sha3_384, "h10");
+        // no default track: latest
+        let plain = json!({"channel-map": [e("stable", "amd64", 3)]});
+        assert_eq!(
+            channel_release(&plain, &Channel::parse("stable").unwrap(), Some("amd64"))
+                .map(|r| r.revision),
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn channel_requests() {
+        let r = parse(
+            "snap-revision",
+            &words(&["snap-name=hello-world", "snap-channel=stable"]),
+        )
+        .unwrap();
+        assert_eq!(r.snap_channel.as_deref(), Some("stable"));
+        assert!(parse("snap-revision", &words(&["snap-channel=stable"])).is_err());
+        assert!(parse(
+            "snap-revision",
+            &words(&["snap-name=x", "snap-channel=stable", "snap-revision=3"])
+        )
+        .is_err());
+        assert!(parse("snap-revision", &words(&["snap-name=x", "snap-channel=22"])).is_err());
+        assert!(parse(
+            "snap-declaration",
+            &words(&["snap-name=x", "snap-channel=stable"])
+        )
+        .is_err());
     }
 
     #[test]

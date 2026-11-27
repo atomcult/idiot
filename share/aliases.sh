@@ -8,7 +8,10 @@
 # a one-word one. Removing an alias is deleting its line.
 
 # shellcheck disable=SC2034 # read by alias_resolve
-IDIOT_ALIASES=''
+IDIOT_ALIASES='store assertion|assertion fetch
+inspect assertion|assertion show
+model pick|assertion pick
+model|assertion repos'
 
 # Print "<n>|<new words>" when the first one or two words ($1, $2) are an
 # old name, n being how many of them it is; fail otherwise.

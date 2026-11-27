@@ -9,7 +9,7 @@ options not listed here before guessing.
 - [Environment: status, auth, store, arch, lp, profile](#environment)
 - [VMs](#vms)
 - [Inspecting](#inspecting)
-- [Writing assertions](#writing-assertions)
+- [Assertions](#assertions)
 - [Tools and housekeeping](#tools-and-housekeeping)
 - [Development checkouts](#development-checkouts)
 - [Environment variables](#environment-variables)
@@ -34,7 +34,6 @@ in the same shell (see SKILL.md). They run confined under the snap.
 | `idiot store check <snap> [--channel c] [--arch a] [--cred n]` | Why a snap can (exit 0) or can't (exit 1) be downloaded from the active store: membership, release, credential (expiry, permissions, padding). Downloads nothing. Host command |
 | `idiot store channels <snap> [--arch a] [--tsv]` | The snap's channel map (stdout) |
 | `idiot store import [--all] [--cred n]` | Save the stores the account belongs to (skips global and saved ones). Interactive picker and name prompts; `--all` uses names from the display names. Host command |
-| `idiot store assertion [--chain] [--raw \| -o f] <type> <key>...` | Fetch an assertion (account, account-key, store, model, snap-declaration `<snap>`, snap-revision `<snap> <rev>`, validation-set `<acct>/<name>`, or any type by `header=value`) and summarise it; `--chain` adds what snapd needs to accept it. Host command |
 | `idiot store roles [--tsv]` | Your stores and roles (stdout), the active one marked `*` |
 | `idiot store snaps [--tsv \| --pick] [--cred n]` | Snaps in the active store (stdout); the full list only for admins with a `store_admin` credential |
 | `idiot store browse [<snap>…] [filters] [--tsv [--revisions]] [--cred n]` | Explore the active store in fzf (needs a terminal); for agents always `--tsv`: one row per snap/channel/arch (snap, channel, arch, revision, version, released, type, base, confinement, publisher, visibility), or per revision with `--revisions` (snap, revision, version, arches, status, uploaded, channels or `-`, base, confinement, grade). Filters: `--arch`, `--channel` (`edge`, `2.0/*`, `*/stable`), `--version` glob, `--revision`, `--type`, `--base`, `--confinement`, `--since YYYY-MM-DD`, `--status`/`--unreleased` (revisions), `--name` glob, `--publisher`, `--private`/`--public`. Host command |
@@ -92,12 +91,10 @@ e2fsprogs, mtools and fdisk).
 | `idiot inspect image <disk.img>` | Model, first boot, seeded snaps, snapd state |
 | `idiot inspect diff [--tsv] [--state] <a.img> <b.img>` | Only what differs |
 | `idiot inspect state [--view <v>] [--json \| -o <file> [--force]] <file \| - \| --name <vm> \| --local>` | fzf explorer of snapd's state.json (snaps and kept revisions, connections, changes and task logs, raw tree) from a state file, a raw or qcow2 Core image, stdin, an idiot vm VM (ssh while running, its disk when stopped) or this machine (sudo). Secrets are always redacted; `--json`/`-o` export the redacted state. `inspect image --extract-state` saves it redacted too |
-| `idiot inspect assertion [--remote] <file \| ->` | Headers, snaps, signature chain; exit 1 on an invalid signature. Offline for Canonical models; never touches snapd's database |
 | `idiot inspect snap <file.snap>` | Its snapcraft.yaml or snap.yaml |
 | `idiot inspect changes` | Browse recent snapd changes (fzf) |
-| `idiot model list` / `add` / `remove` / `pick` / `update` | Model assertion repos; `pick` is an fzf picker; `update` needs git |
 
-## Writing assertions
+## Assertions
 
 Host commands. Drafts are the unsigned JSON `snap sign` takes (every
 scalar a string); snap IDs, types and revisions come from the active
@@ -105,6 +102,10 @@ store, as the credential sees it.
 
 | Command | Does |
 |---|---|
+| `idiot assertion fetch [--chain] [--raw \| -o f] <type> <key>...` | Fetch an assertion (account, account-key, store, model, snap-declaration `<snap>`, snap-revision `<snap> <rev>` or `<snap> [<channel>]` (default stable), validation-set `<acct>/<name>`, or any type by `header=value`) and summarise it; `--chain` adds what snapd needs to accept it. Host command |
+| `idiot assertion show [--remote] <file \| ->` | Headers, snaps, signature chain; exit 1 on an invalid signature. Offline for Canonical models; never touches snapd's database |
+| `idiot assertion pick [--signed\|--unsigned] [-o f\|-] [<dir>]` | Copy a model out of the model repos (fzf) |
+| `idiot assertion repos list` / `add` / `remove` / `update` | The model repos `pick` reads; `update` needs git |
 | `idiot assertion new <model\|system-user\|validation-set> [--from file\|- \| --from-store key] [--set h=v]... [--add h=v]... [--snap name[=channel]]... [--arch a] [--cred c] [--no-edit] [-o file\|-]` | With `--from`/`--from-store` (`<brand>/<model>`, `<acct>/<name>[=<seq>]`; not system-users): another assertion of the type as defaults, minus its identity (authority, brand/account, name, display name, sequence, revision, times; a system-user's username, email, name, password). Asks for each header (defaults: the credential's account, the arch, the active store, UC24 essentials), fills each snap's ID/type/channel or revision, opens $EDITOR, checks, writes `<model>.json` / `<username>.json` / `<name>-<seq>.json` (never overwrites). Without a terminal every required header must be given |
 | `idiot assertion edit <file\|-> [--refresh] [--snap name[=channel]]... [--set …] [--no-edit] [-o file\|-]`, `idiot assertion edit model <brand>/<model>` / `validation-set <acct>/<name>[=<seq>]` | Same prompts, the input's values as defaults; bumps a model's revision (a validation set's revision or sequence), moves the timestamp on; `--refresh` looks snaps up again; keeps fields it doesn't model. Input: a draft, a signed assertion or a stream holding one (`store assertion --chain --raw`), or fetched from the active store with a type and key. A signed input is never written to: the draft goes to `<model>.json` etc. here (never overwriting) or `-o`. Stdin (`-`) asks nothing |
 | `idiot assertion check <file.json\|->` | snapd's rules for the three types, offline; exit 1 on an error |

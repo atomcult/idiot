@@ -33,7 +33,7 @@ usage() {
 	say "know (modes, components…) are kept as they are."
 	echo >&2
 	say "The input can be a JSON draft or a signed assertion (a .model, or a"
-	say "stream such as idiot store assertion --chain --raw gives); with a type"
+	say "stream such as idiot assertion fetch --chain --raw gives); with a type"
 	say "and key it is fetched from the active store. A signed one is never"
 	say "written to: its draft goes to <model>.json, <username>.json or"
 	say "<name>-<sequence>.json here, or to -o. From stdin (-) nothing is asked."

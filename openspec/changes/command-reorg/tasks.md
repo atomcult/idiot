@@ -11,7 +11,7 @@
 
 ## 2. One assertion group
 
-- [ ] 2.1 `git mv` the commands into `assertion`:
+- [x] 2.1 `git mv` the commands into `assertion`:
   - `cmd/store/assertion` → `cmd/assertion/fetch`
   - `cmd/inspect/assertion` → `cmd/assertion/show`
   - `cmd/model/pick` → `cmd/assertion/pick`
@@ -19,17 +19,17 @@
   - `cmd/model/help` → `cmd/assertion/repos/help`
 
   Fix each moved file's `common.sh` depth and its usage strings. Remove `cmd/model`. Add the `model`, `model pick`, `store assertion` and `inspect assertion` aliases.
-- [ ] 2.2 Update the group help files:
+- [x] 2.2 Update the group help files:
   - `assertion/help` lists `fetch`, `show`, `pick`, `repos`, `new`, `edit`, `check`, `sign`;
   - `store/help` drops `assertion`;
   - `inspect/help` drops `assertion`.
-- [ ] 2.3 Rename the hints that name the moved commands in `cmd/`, `share/` (`models.sh`, `assertion.sh`) and `tools/idiot-helper/src/assertion.rs`. Run `cargo test` for idiot-helper. Verify with `grep -rnE "(store|inspect) assertion|model (pick|list|add|remove|update)" cmd share tools/*/src`: the only matches left are the alias table.
-- [ ] 2.4 Verify from the source tree:
+- [x] 2.3 Rename the hints that name the moved commands in `cmd/`, `share/` (`models.sh`, `assertion.sh`) and `tools/idiot-helper/src/assertion.rs`. Run `cargo test` for idiot-helper. Verify with `grep -rnE "(store|inspect) assertion|model (pick|list|add|remove|update)" cmd share tools/*/src`: the only matches left are the alias table.
+- [x] 2.4 Verify from the source tree:
   - `idiot assertion repos list`;
   - `idiot assertion show tests/bare-host.d/brand.model --no-verify`;
   - `idiot model list` (note, then the same output);
   - `idiot assertion pick --help`.
-- [ ] 2.5 Add `snap-revision <snap> [<channel>]` lookups, per the design:
+- [x] 2.5 Add `snap-revision <snap> [<channel>]` lookups, per the design:
   - in idiot-store, `snap-channel=` resolves through the info reply's channel map, using the default track and following a closed risk down, and prints the channel and revision it used on stderr;
   - in `cmd/assertion/fetch`, map the words and add the form to the help's Types list.
 
@@ -37,7 +37,7 @@
   - `idiot assertion fetch snap-revision hello-world` and `… hello-world stable` fetch the same revision;
   - `… hello-world 29` still works;
   - `… hello-world latest/stable --arch riscv64` fails naming `idiot store channels`.
-- [ ] 2.6 Update `README.md`, `skills/using-idiot/SKILL.md`, its `references/` and `CLAUDE.md`. Run `make check`. Commit: `feat(assertion): fetch, show, pick and repos under idiot assertion; snap-revision by channel`.
+- [x] 2.6 Update `README.md`, `skills/using-idiot/SKILL.md`, its `references/` and `CLAUDE.md`. Run `make check`. Commit: `feat(assertion): fetch, show, pick and repos under idiot assertion; snap-revision by channel`.
 
 ## 3. Verbs
 

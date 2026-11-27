@@ -11,7 +11,7 @@ description: >
   not at all on Ubuntu Core.
   WHEN: use idiot, run idiot, install idiot, idiot on Ubuntu Core, idiot on a
   Core device, idiot snap components, idiot init, idiot auth, idiot store use,
-  idiot vm, boot a Core image in a VM, idiot inspect image, inspect assertion,
+  idiot vm, boot a Core image in a VM, idiot inspect image, assertion show,
   idiot run, idiot doctor, idiot profile, switch snap store credentials.
 license: MIT
 metadata:
@@ -83,7 +83,7 @@ command reference.
 4. **Do the task** with the commands in
    [references/commands.md](references/commands.md). Check
    [references/classic-vs-core.md](references/classic-vs-core.md) before
-   using `kernel`, `example`, `model update`, `clean containers`, zsh/fish,
+   using `kernel`, `example`, `assertion repos update`, `clean containers`, zsh/fish,
    or KVM on a Core device.
 5. **Report** what changed (`idiot status` for the environment, `idiot vm
    list` for VMs), and anything the user must do in their own shell.
@@ -100,8 +100,9 @@ command reference.
 | Save and roll back a VM | `idiot vm snapshot create --name a seeded`, `idiot vm snapshot restore --name a seeded` (VM stopped) |
 | What's in an image | `idiot inspect image core.img`, `idiot inspect diff a.img b.img` |
 | What's in a store | `idiot store browse --tsv`, `idiot store channels <snap>`, `idiot store check <snap>` |
-| Fetch an assertion | `idiot store assertion snap-declaration <snap>` (`--chain --raw` for `snap ack`, `-o file`) |
-| Is an assertion valid | `idiot inspect assertion pc.model` (exit 1 on a bad signature) |
+| Fetch an assertion | `idiot assertion fetch snap-declaration <snap>` (`--chain --raw` for `snap ack`, `-o file`) |
+| Fetch what a channel has | `idiot assertion fetch snap-revision <snap> [<channel>]` (default stable, the target arch) |
+| Is an assertion valid | `idiot assertion show pc.model` (exit 1 on a bad signature) |
 | What snapd did (changes, kept revisions) | `idiot inspect state --name a` (or a state.json, an image, `--local`; secrets always redacted; `--json` for scripts) |
 | Write a model or validation set | `idiot assertion new model`, `idiot assertion check kiosk.json` (`--set`/`--snap`/`--no-edit` without a terminal) |
 | A bundled tool | `idiot run <tool>`, `idiot run --sudo <tool>`, `idiot run --list` |

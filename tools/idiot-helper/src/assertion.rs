@@ -1,13 +1,13 @@
 //! `assertion`: summarise and verify a stream of snapd assertions.
 //!
 //! A port of the former share/assertion.py, kept output-for-output: the same
-//! arguments, report, --facts file and exit status, so cmd/inspect/assertion
+//! arguments, report, --facts file and exit status, so cmd/assertion/show
 //! only changed the line that runs it.
 //!
 //! Usage: idiot-helper assertion [--remote] [--no-verify] [--snap <path>]
 //!            [--trusted <file>]... [--facts <file>] [--name <label>] <file|->
 //!
-//! `idiot inspect assertion` reads model, account-key, serial, system-user,
+//! `idiot assertion show` reads model, account-key, serial, system-user,
 //! snap-declaration and other assertions without root and without touching
 //! snapd's assertion database (`snap ack` needs both). The parser follows
 //! snapd's text format, and a signature is checked with the RSA arithmetic

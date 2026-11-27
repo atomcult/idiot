@@ -252,8 +252,8 @@ VM; use `--in-place` if you need the image written.
 ```
 $ idiot inspect image core.img                 # model, first boot, seeded snaps, snapd state
 $ idiot inspect diff old.img new.img           # only what differs (--tsv, --state)
-$ idiot inspect assertion pc.model             # headers, snaps, and is the signature good?
-$ snap known model | idiot inspect assertion -
+$ idiot assertion show pc.model                # headers, snaps, and is the signature good?
+$ snap known model | idiot assertion show -
 $ idiot inspect state core.img                 # explore snapd's state: snaps, connections, changes
 $ idiot inspect state --name a                 # an idiot vm VM's, running or stopped (--local: this machine's)
 $ idiot inspect state --json st.json | jq .data.snaps
@@ -266,10 +266,10 @@ discharges, cookies, passwords, URL credentials, anything named like a
 key or token) are always redacted first, in every view and in `--json`
 and `-o` (mode 0600); `inspect image --extract-state` saves the same
 redacted state.
-| idiot inspect assertion -
+| idiot assertion show -
 ```
 
-`inspect assertion` checks each signature up the chain of account-keys
+`assertion show` checks each signature up the chain of account-keys
 to one snapd trusts (this machine's assertion database) or Canonical's
 root key, which idiot bundles with Canonical's `models` key, so Canonical
 models verify offline. It never adds anything to snapd's database and
@@ -279,6 +279,31 @@ model`) with the same name has another revision. It exits 1 when a
 signature is invalid.
 
 ---
+
+## Fetching assertions
+
+`idiot assertion fetch` fetches assertions from the store and summarises
+them as `idiot assertion show` does (`--raw` prints them as served,
+`-o` saves them):
+
+```
+$ idiot assertion fetch account canonical
+$ idiot assertion fetch snap-declaration hello-world
+$ idiot assertion fetch snap-revision hello-world 29     # by revision...
+$ idiot assertion fetch snap-revision lxd 5.21/candidate  # ...or what a channel has (default: stable)
+$ idiot assertion fetch model canonical/ubuntu-core-24-amd64
+$ idiot assertion fetch validation-set acme/base-set      # the latest sequence
+$ idiot assertion fetch serial brand-id=acme model=gw serial=1234
+```
+
+With `--chain` it also fetches everything snapd needs before it accepts
+the assertion (signing keys, the snap's declaration, accounts), so a
+side-loaded snap can be installed asserted:
+
+```
+$ idiot assertion fetch --chain -o hello.assert snap-revision hello-world 29
+$ sudo snap ack hello.assert && sudo snap install ./hello-world_29.snap
+```
 
 ## Writing assertions
 
@@ -308,7 +333,7 @@ only its SHA-512 crypt hash (from `openssl passwd -6`) is written, mode
 0600. `--set`, `--add` and `--snap` answer without prompts, for scripts.
 
 `assertion edit` reads a draft or a signed assertion: a `.model`, a
-stream such as `idiot store assertion --chain --raw` or `snap known model`
+stream such as `idiot assertion fetch --chain --raw` or `snap known model`
 gives (the one model, system-user or validation-set in it), or, with a
 type and key (`model <brand>/<model>`, `validation-set
 <account>/<name>[=<sequence>]`), one fetched from the active store. A
@@ -330,7 +355,7 @@ store sees differently.
 `assertion sign` runs the check, looks up in the store which account the
 key is registered to (warning when it isn't the `authority-id`), signs
 with `snap sign` (which asks for the passphrase: idiot only passes the
-key's name) and reports the result's signature as `inspect assertion
+key's name) and reports the result's signature as `assertion show
 --remote` sees it. It writes `kiosk.model` (or `<name>.assert`) beside
 the draft, or stdout with `-o -`.
 
@@ -436,27 +461,6 @@ $ idiot store browse --version '1.4*' --tsv           # where is 1.4 released?
 $ idiot store browse --publisher alice --private      # alice's private snaps
 $ idiot store browse ce-dummy --unreleased --revisions --tsv
 $ idiot store browse hello core22 --tsv               # public snaps work without a credential
-```
-
-`idiot store assertion` fetches assertions from the store and summarises
-them as `idiot inspect assertion` does (`--raw` prints them as served,
-`-o` saves them):
-
-```
-$ idiot store assertion account canonical
-$ idiot store assertion snap-declaration hello-world
-$ idiot store assertion model canonical/ubuntu-core-24-amd64
-$ idiot store assertion validation-set acme/base-set      # the latest sequence
-$ idiot store assertion serial brand-id=acme model=gw serial=1234
-```
-
-With `--chain` it also fetches everything snapd needs before it accepts
-the assertion (signing keys, the snap's declaration, accounts), so a
-side-loaded snap can be installed asserted:
-
-```
-$ idiot store assertion --chain -o hello.assert snap-revision hello-world 29
-$ sudo snap ack hello.assert && sudo snap install ./hello-world_29.snap
 ```
 
 `store snaps` lists a whole brand store only for its admins, with a

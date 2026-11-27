@@ -173,7 +173,7 @@ main() {
 		as_write "${work}/signed" "${out}"
 	fi
 
-	# the verdict, as idiot inspect assertion --remote gives it
+	# the verdict, as idiot assertion show --remote gives it
 	verdict="$("${h}" assertion --name "${out}" --remote --snap "$(command -v snap)" \
 		--trusted "${IDIOT_ROOT}/share/assertions/canonical.account-keys" - \
 		<"${work}/signed" 2>/dev/null | sed -n 's/^signature: *//p' | head -n 1)"

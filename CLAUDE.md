@@ -91,6 +91,8 @@ share/           # sourced helper modules (never executed directly)
                  #   require_wrapper, require_shell/asks_help (help never
                  #   needs init), emit_export, emit_unset, stdout_colors,
                  #   snap_component_dirs, snap_component_table
+  aliases.sh     # old command names → new ones (IDIOT_ALIASES), alias_resolve,
+                 #   alias_note; the dispatcher rewrites before dispatch
   arch.sh        # uname_to_snap_arch(), snap_arch_to_qemu(), STORE_ARCHES,
                  #   is_store_arch
   clean.sh       # clean_list_*/clean_remove_*, clean_show, clean_confirm
@@ -127,7 +129,7 @@ tools/idiot-store/ # Rust helper: Snap Store login and whoami (no snapcraft
                  #   Credentials never in argv or stdout. Exit 0/1 usage/2 auth/3 store.
 tools/idiot-helper/ # Rust helper: what host commands can't do in sh (no
                  #   python3 on the host): snapd-state (inspect image/diff),
-                 #   assertion (inspect assertion), uefi-vars (vm vars),
+                 #   assertion (assertion show), uefi-vars (vm vars),
                  #   qmp, port-free, swtpm-shutdown (vm's sockets);
                  #   installed to lib/idiot/libexec/. Never handles
                  #   credentials, no network code. src/py.rs reproduces the

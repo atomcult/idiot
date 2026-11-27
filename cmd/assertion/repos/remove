@@ -1,15 +1,15 @@
 #!/usr/bin/env sh
-# cmd/model/remove - remove a registered user model repo and its local clone
-# Usage: idiot model remove [<name>]
+# cmd/assertion/repos/remove - remove a registered user model repo and its local clone
+# Usage: idiot assertion repos remove [<name>]
 
-. "$(dirname "${0}")/../../share/common.sh"
+. "$(dirname "${0}")/../../../share/common.sh"
 include models.sh
 include fzf.sh
 
 main() {
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot model remove [<name>]"
+		help_heading "Usage:" "idiot assertion repos remove [<name>]"
 		exit 0
 		;;
 	esac

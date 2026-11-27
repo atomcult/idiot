@@ -22,7 +22,6 @@ main() {
 	help_command "snaps" "The snaps in the active store"
 	help_command "browse" "Explore the store: snaps, channel maps, revisions"
 	help_command "members" "The active store's members and roles"
-	help_command "assertion" "Fetch an assertion (and what it needs)"
 	echo >&2
 	help_heading "Environment:"
 	help_env "IDIOT_STORES_DIR" "Stores directory"

@@ -1,17 +1,16 @@
 #!/usr/bin/env sh
-# cmd/model/help - usage for the model subcommand group
+# cmd/assertion/repos/help - usage for the model repos group
 
-. "$(dirname "${0}")/../../share/common.sh"
+. "$(dirname "${0}")/../../../share/common.sh"
 include models.sh
 
 main() {
-	help_heading "Usage:" "idiot model <subcommand>"
+	help_heading "Usage:" "idiot assertion repos <subcommand>"
 	echo >&2
 	help_heading "Subcommands:"
 	help_command "list" "List configured model repos"
 	help_command "add" "Register a user model repo"
 	help_command "remove" "Remove a user model repo and its clone"
-	help_command "pick" "Interactively select a model assertion"
 	help_command "update" "Clone or pull model repositories"
 	echo >&2
 	help_heading "Built-in:"

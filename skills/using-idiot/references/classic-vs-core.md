@@ -82,7 +82,7 @@ components, and a host's own copy of a tool always wins:
 ## What differs on Ubuntu Core
 
 - **No source install, no git.** `idiot kernel`, `idiot example` and
-  `idiot model update` clone git repositories and fail on Core. Run them on
+  `idiot assertion repos update` clone git repositories and fail on Core. Run them on
   a Classic host and copy the results over, or point idiot at copies.
 - **bash only.** Use `idiot init bash`.
 - **Components are the tool source.** There is no apt. Core 24 itself ships
@@ -114,7 +114,7 @@ The snap is strictly confined with no interfaces to connect. Commands that
 only change idiot's own state (`auth login`, `store use`, `arch`, `lp`,
 `profile`, `status`, `prompt`) run confined. Commands that need host tools,
 the network or the user's files (`vm`, `run`, `inspect`, `auth add`,
-`auth export`, `doctor`, `clean`, `kernel`, `example`, `model update`) are
+`auth export`, `doctor`, `clean`, `kernel`, `example`, `assertion repos update`) are
 handed back to the user's shell by the wrapper and run there, as the user,
 from the snap's files. This is why the shell integration must be loaded:
 without it, host commands can't run from the snap at all, and `idiot

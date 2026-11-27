@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
-# cmd/store/assertion - fetch an assertion from the store
+# cmd/assertion/fetch - fetch an assertion from the store
 # idiot: host
-# Usage: idiot store assertion [--chain] [--raw | -o <file>] [--no-verify] [--arch <arch>] [--cred <name>] <type> [<key>...]
+# Usage: idiot assertion fetch [--chain] [--raw | -o <file>] [--no-verify] [--arch <arch>] [--cred <name>] <type> [<key>...]
 
 . "$(dirname "${0}")/../../share/common.sh"
 include arch.sh
@@ -9,10 +9,10 @@ include creds.sh
 include stores.sh
 
 usage() {
-	help_heading "Usage:" "idiot store assertion [options] <type> [<key>...]"
+	help_heading "Usage:" "idiot assertion fetch [options] <type> [<key>...]"
 	echo >&2
-	say "Fetches an assertion from the store and summarises it, as idiot inspect"
-	say "assertion does; --raw prints it as served, -o saves it."
+	say "Fetches an assertion from the store and summarises it, as idiot assertion"
+	say "show does; --raw prints it as served, -o saves it."
 	echo >&2
 	help_heading "Types:"
 	help_option "account <id>" "An account"
@@ -21,6 +21,7 @@ usage() {
 	help_option "model <brand>/<model>" "A model"
 	help_option "snap-declaration <snap>" "A snap's declaration, by name"
 	help_option "snap-revision <snap> <rev>" "A revision's assertion, by snap and revision"
+	help_option "snap-revision <snap> [<channel>]" "...or what is released in a channel (default: stable)"
 	help_option "snap-revision <sha3-384>" "...or by its SHA3-384 (hex or base64url)"
 	help_option "validation-set <acct>/<name>[=<seq>]" "A validation set (default: latest)"
 	help_option "<type> <header>=<value>..." "Any type the store serves, by its primary key"
@@ -30,7 +31,7 @@ usage() {
 	help_option "--raw" "Print the assertions as served (for snap ack /dev/stdin)"
 	help_option "-o <file>" "Save the assertions to <file>"
 	help_option "--no-verify" "Summarise without checking signatures"
-	help_option "--arch <arch>" "For revision lookups (default: UBUNTU_STORE_ARCH, else the host's)"
+	help_option "--arch <arch>" "For revision and channel lookups (default: UBUNTU_STORE_ARCH, else the host's)"
 	help_option "--cred <name>" "Use this saved credential instead of the active one"
 }
 
@@ -71,7 +72,7 @@ main() {
 		esac
 		shift
 	done
-	[ -n "${kind}" ] || die "usage: idiot store assertion [options] <type> [<key>...]"
+	[ -n "${kind}" ] || die "usage: idiot assertion fetch [options] <type> [<key>...]"
 	[ "${raw}" -eq 0 ] || [ -z "${out}" ] || die "--raw and -o can't both be given"
 
 	# the shortcuts, as header words; "header=value" words pass through
@@ -83,18 +84,26 @@ main() {
 	account-key:?*) words="public-key-sha3-384=${k1}" ;;
 	store:*)
 		id="${k1:-${UBUNTU_STORE_ID:-}}"
-		[ -n "${id}" ] || die "no store is active — name one: idiot store assertion store <store-id>"
+		[ -n "${id}" ] || die "no store is active — name one: idiot assertion fetch store <store-id>"
 		words="store=${id}"
 		;;
 	model:*/*) words="brand-id=${k1%%/*}${nl}model=${k1#*/}" ;;
-	model:*) die "a model is fetched by <brand-id>/<model>, e.g. idiot store assertion model canonical/ubuntu-core-24-amd64" ;;
+	model:*) die "a model is fetched by <brand-id>/<model>, e.g. idiot assertion fetch model canonical/ubuntu-core-24-amd64" ;;
 	snap-declaration:?*) words="snap-name=${k1}" ;;
 	snap-revision:?*)
-		if [ -n "${k2}" ]; then
-			words="snap-name=${k1}${nl}snap-revision=${k2}"
-		else
-			words="snap-sha3-384=${k1}"
-		fi
+		# a revision is digits, anything else a channel; one word is a
+		# snap name (40 characters at most) or else a SHA3-384
+		case "${k2}" in
+		'')
+			if [ "${#k1}" -le 40 ]; then
+				words="snap-name=${k1}${nl}snap-channel=stable"
+			else
+				words="snap-sha3-384=${k1}"
+			fi
+			;;
+		*[!0-9]*) words="snap-name=${k1}${nl}snap-channel=${k2}" ;;
+		*) words="snap-name=${k1}${nl}snap-revision=${k2}" ;;
+		esac
 		;;
 	validation-set:*/*)
 		vs="${k1#*/}"
@@ -124,15 +133,20 @@ EOF
 		${UBUNTU_STORE_ID:+--store "${UBUNTU_STORE_ID}"} --arch "${arch}" \
 		${chainflag} "${kind}" "$@" >"${work}/stream" 2>"${work}/err"
 	rc=$?
+	# a channel lookup reports what it settled on: channel<TAB>given<TAB>used<TAB>revision
+	used="$(awk -F'\t' '$1 == "channel" { print $3 "\t" $4 }' "${work}/err")"
 	if [ "${rc}" -ne 0 ]; then
-		msg="$(sed 's/^idiot-store: //' "${work}/err")"
+		msg="$(grep -v '^channel	' "${work}/err" | sed 's/^idiot-store: //')"
 		case "${rc}" in
 		4)
-			case "${kind}:${k2}" in
-			snap-declaration:* | snap-revision:?*)
+			case "${kind}" in
+			snap-declaration | snap-revision)
 				case "${msg}" in
 				*"doesn't show"*" to this credential")
 					die "${msg} — find out why: idiot store check ${k1}"
+					;;
+				*"has nothing released in"*)
+					die "${msg} — see what is: idiot store channels ${k1}"
 					;;
 				esac
 				;;
@@ -143,6 +157,13 @@ EOF
 		esac
 	fi
 	n="$(grep -c '^type: ' "${work}/stream")"
+	if [ -n "${used}" ]; then
+		given="${k2:-stable}"
+		case "${used%%	*}" in
+		"${given}" | */"${given}") say "${k1} ${used%%	*}: revision ${used#*	}" ;;
+		*) say "${k1} ${given} follows ${used%%	*}: revision ${used#*	}" ;;
+		esac
+	fi
 
 	if [ "${raw}" -eq 1 ]; then
 		cat "${work}/stream"
@@ -159,7 +180,7 @@ EOF
 		exit 0
 	fi
 	rc=0
-	"${IDIOT_ROOT}/cmd/inspect/assertion" ${noverify} "${work}/stream" >"${work}/summary" || rc=$?
+	"${IDIOT_ROOT}/cmd/assertion/show" ${noverify} "${work}/stream" >"${work}/summary" || rc=$?
 	cat "${work}/summary"
 	if [ "${chain}" -eq 0 ] && grep -q '^signature: *unverified' "${work}/summary"; then
 		say "${DIM}A signing key isn't known here: add --chain to fetch it too.${RESET}"

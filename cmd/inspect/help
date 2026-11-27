@@ -12,6 +12,5 @@ main() {
 	help_command "image" "Inspect an Ubuntu Core disk image"
 	help_command "diff" "Compare two Ubuntu Core disk images"
 	help_command "state" "Explore snapd's state, secrets redacted"
-	help_command "assertion" "Summarise and verify snapd assertions"
 }
 main "$@"

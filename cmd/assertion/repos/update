@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# cmd/model/update - clone or pull model repositories
+# cmd/assertion/repos/update - clone or pull model repositories
 # idiot: host
-# Usage: idiot model update [<name>]
+# Usage: idiot assertion repos update [<name>]
 
-. "$(dirname "${0}")/../../share/common.sh"
+. "$(dirname "${0}")/../../../share/common.sh"
 include models.sh
 
 _update_repo() {
@@ -33,7 +33,7 @@ _migrate_old_layout() {
 main() {
 	case "${1:-}" in
 	-h | --help | help)
-		help_heading "Usage:" "idiot model update [<name>]"
+		help_heading "Usage:" "idiot assertion repos update [<name>]"
 		exit 0
 		;;
 	esac
@@ -62,7 +62,7 @@ main() {
 				_updated=$((_updated + 1))
 			done
 		done
-		[ "${_updated}" -gt 0 ] || die "no model repos configured — use idiot model add <name> <url>"
+		[ "${_updated}" -gt 0 ] || die "no model repos configured — use idiot assertion repos add <name> <url>"
 		exit "${_failed}"
 	fi
 }

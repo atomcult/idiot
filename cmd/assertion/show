@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
-# cmd/inspect/assertion - summarise and verify snapd assertions
+# cmd/assertion/show - summarise and verify snapd assertions
 # idiot: host
 
 . "$(dirname "${0}")/../../share/common.sh"
 include stores.sh
 include models.sh
 
-USAGE='usage: idiot inspect assertion [options] <file|->'
+USAGE='usage: idiot assertion show [options] <file|->'
 
 # Print the revision header of model file $1 (0 when it has none).
 _model_revision() {
@@ -70,7 +70,7 @@ main() {
 	while [ $# -gt 0 ]; do
 		case "${1}" in
 		-h | --help | help)
-			help_heading "Usage:" "idiot inspect assertion [options] <file|->"
+			help_heading "Usage:" "idiot assertion show [options] <file|->"
 			echo >&2
 			say "Summarise each assertion in a file (or stdin, with -) and check its"
 			say "signature, up to a key snapd trusts or Canonical's root key. Never"
@@ -118,7 +118,7 @@ main() {
 		input="${src}"
 		name="${src}"
 	fi
-	# an unsigned model from `idiot model pick --unsigned` is JSON
+	# an unsigned model from `idiot assertion pick --unsigned` is JSON
 	[ "$(tr -d ' \t\r\n' <"${input}" | head -c 1)" != '{' ] ||
 		die "${name} is an unsigned model (JSON), not a signed assertion — sign it with: snap sign"
 

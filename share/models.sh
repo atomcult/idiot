@@ -58,7 +58,7 @@ require_models_repo() {
             [ -d "${_rp}.git" ] && return 0
         done
     fi
-    die "no model repos found — run 'idiot model update' first"
+    die "no model repos found — run 'idiot assertion repos update' first"
 }
 
 # Resolve a named model repo to its clone URL.
