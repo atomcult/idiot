@@ -1,0 +1,818 @@
+#!/usr/bin/env sh
+# cmd/store/browse - explore the active store's snaps, channel maps and revisions
+# idiot: host
+# Usage: idiot store browse [<snap>...] [<filter>...] [--tsv [--revisions]] [--cred <name>]
+
+. "$(dirname "${0}")/../../share/common.sh"
+include arch.sh
+include creds.sh
+include stores.sh
+
+TAB="$(printf '\t')"
+USAGE='idiot store browse [<snap>...] [<filter>...] [--tsv [--revisions]] [--cred <name>]'
+
+usage() {
+	help_heading "Usage:" "${USAGE}"
+	echo >&2
+	say "Explores the active store in fzf: the snaps store snaps lists (or the"
+	say "ones named), each one's channel map in the preview; Enter opens a snap"
+	say "(its channel map, then every revision when the credential may read the"
+	say "history), Enter on a row prints it: snap, channel, arch, revision."
+	say "Escape goes back. Filters narrow both the list and each snap's rows."
+	echo >&2
+	help_heading "Filters:"
+	help_option "--arch <a>[,<a>…]" "Architectures"
+	help_option "--channel <c>" "Channel: edge, 2.0/*, */stable (* matches any part)"
+	help_option "--version <glob>" "Version, e.g. '1.4*'"
+	help_option "--revision <n>" "Revision"
+	help_option "--type <type>" "Snap type: app, base, gadget, kernel, snapd, …"
+	help_option "--base <base>" "Base, e.g. core24"
+	help_option "--confinement <c>" "strict, classic or devmode"
+	help_option "--since <YYYY-MM-DD>" "Released (revisions: uploaded) on or after"
+	help_option "--status <status>" "Revisions only: Published, Rejected, …"
+	help_option "--unreleased" "Revisions only: in no open channel"
+	help_option "--name <glob>" "Snap name"
+	help_option "--publisher <user>" "Publisher's username"
+	help_option "--private, --public" "Visibility"
+	echo >&2
+	help_heading "Options:"
+	help_option "--tsv" "Print the rows instead (snap, channel, arch, revision,"
+	help_option "" "version, released, type, base, confinement, publisher,"
+	help_option "" "private|public); needed without a terminal"
+	help_option "--revisions" "With --tsv: one row per revision (snap, revision,"
+	help_option "" "version, arches, status, uploaded, channels, base,"
+	help_option "" "confinement, grade)"
+	help_option "--cred <name>" "Use this saved credential instead of the active one"
+}
+
+# --- options -------------------------------------------------------------
+
+# Die with the usage line, or with $1.
+_usage_error() {
+	die "${1:-usage: ${USAGE}}"
+}
+
+# Die unless option $1 has a value ($2).
+_needs_value() {
+	[ -n "${2}" ] || _usage_error "${1} needs a value — usage: ${USAGE}"
+}
+
+_check_arches() {
+	_ca="${1},"
+	while [ -n "${_ca}" ]; do
+		is_store_arch "${_ca%%,*}" ||
+			_usage_error "unknown architecture '${_ca%%,*}' (one of: ${STORE_ARCHES})"
+		_ca="${_ca#*,}"
+	done
+}
+
+# Parse the command line into f_* (filters), names, tsv, revisions, cred.
+_parse() {
+	f_arch='' f_channel='' f_version='' f_revision='' f_type='' f_base=''
+	f_conf='' f_since='' f_status='' f_unrel='' f_name='' f_publisher='' f_vis=''
+	names='' tsv=0 revisions=0 cred=''
+	while [ "$#" -gt 0 ]; do
+		case "${1}" in
+		--arch)
+			_needs_value "${1}" "${2:-}"
+			_check_arches "${2}"
+			f_arch="${2}"
+			shift
+			;;
+		--channel)
+			_needs_value "${1}" "${2:-}"
+			case "${2}" in
+			*/*) f_channel="${2}" ;;
+			*) f_channel="latest/${2}" ;;
+			esac
+			shift
+			;;
+		--version)
+			_needs_value "${1}" "${2:-}"
+			f_version="${2}"
+			shift
+			;;
+		--revision)
+			_needs_value "${1}" "${2:-}"
+			case "${2}" in
+			*[!0-9]*) _usage_error "--revision takes a number, not '${2}'" ;;
+			esac
+			f_revision="${2}"
+			shift
+			;;
+		--type)
+			_needs_value "${1}" "${2:-}"
+			f_type="${2}"
+			shift
+			;;
+		--base)
+			_needs_value "${1}" "${2:-}"
+			f_base="${2}"
+			shift
+			;;
+		--confinement)
+			case "${2:-}" in
+			strict | classic | devmode) f_conf="${2}" ;;
+			*) _usage_error "--confinement takes strict, classic or devmode" ;;
+			esac
+			shift
+			;;
+		--since)
+			case "${2:-}" in
+			[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]) f_since="${2}" ;;
+			*) _usage_error "--since takes a date as YYYY-MM-DD, not '${2:-}'" ;;
+			esac
+			shift
+			;;
+		--status)
+			_needs_value "${1}" "${2:-}"
+			f_status="${2}"
+			shift
+			;;
+		--unreleased) f_unrel=1 ;;
+		--name)
+			_needs_value "${1}" "${2:-}"
+			f_name="${2}"
+			shift
+			;;
+		--publisher)
+			_needs_value "${1}" "${2:-}"
+			f_publisher="${2}"
+			shift
+			;;
+		--private | --public)
+			[ -z "${f_vis}" ] || [ "${f_vis}" = "${1#--}" ] ||
+				_usage_error "--private and --public can't both be given"
+			f_vis="${1#--}"
+			;;
+		--tsv) tsv=1 ;;
+		--revisions) revisions=1 ;;
+		--cred)
+			_needs_value "${1}" "${2:-}"
+			cred="${2}"
+			shift
+			;;
+		-*) _usage_error ;;
+		*)
+			case "${1}" in
+			[a-z0-9]*) ;;
+			*) _usage_error "invalid snap name '${1}'" ;;
+			esac
+			case "${1}" in
+			*[!a-z0-9-]*) _usage_error "invalid snap name '${1}'" ;;
+			esac
+			names="${names} ${1}"
+			;;
+		esac
+		shift
+	done
+	if [ "${tsv}" -eq 1 ] && [ "${revisions}" -eq 0 ] &&
+		{ [ -n "${f_status}" ] || [ -n "${f_unrel}" ]; }; then
+		_usage_error "--status and --unreleased apply to revisions — add --revisions"
+	fi
+	[ "${revisions}" -eq 0 ] || [ "${tsv}" -eq 1 ] ||
+		_usage_error "--revisions goes with --tsv (the explorer shows revisions when a snap is opened)"
+}
+
+# Whether any filter on a snap's rows was given.
+_row_filters() {
+	[ -n "${f_arch}${f_channel}${f_version}${f_revision}${f_type}${f_base}${f_conf}${f_since}${f_status}${f_unrel}" ]
+}
+
+# Whether a filter needs the revision history.
+_history_filters() {
+	[ -n "${f_status}${f_unrel}" ]
+}
+
+# The state previews need, in the cache dir (store data and names only:
+# the credential stays in the environment or its own file).
+_save_state() {
+	{
+		for _ss in arch channel version revision type base conf since status unrel; do
+			eval "printf '%s=%s\n' \"\${_ss}\" \"\${f_${_ss}}\""
+		done
+		printf 'cred=%s\n' "${have_cred}"
+		printf 'file=%s\n' "${query_file:-}"
+	} >"${dir}/state"
+}
+
+_load_state() {
+	while IFS='=' read -r _ls_k _ls_v; do
+		case "${_ls_k}" in
+		arch | channel | version | revision | type | base | conf | since | status | unrel)
+			eval "f_${_ls_k}=\"\${_ls_v}\""
+			;;
+		cred) have_cred="${_ls_v}" ;;
+		file) query_file="${_ls_v}" ;;
+		esac
+	done <"${dir}/state"
+}
+
+# --- fetching (each snap at most once per run) ---------------------------
+
+# Fetch the channel maps of snaps $@ not yet in the cache, in one call.
+_fetch_maps() {
+	_fm_need=''
+	for _fm in "$@"; do
+		[ -f "${dir}/map.${_fm}" ] || _fm_need="${_fm_need} ${_fm}"
+	done
+	[ -n "${_fm_need}" ] || return 0
+	_fm_tmp="${dir}/maps.$$"
+	_fm_rc=0
+	# shellcheck disable=SC2086 # snap names: [a-z0-9-] only, split on purpose
+	"${helper}" channel-maps ${query_file:+--file "${query_file}"} \
+		${UBUNTU_STORE_ID:+--store "${UBUNTU_STORE_ID}"} ${_fm_need} >"${_fm_tmp}" || _fm_rc=$?
+	case "${_fm_rc}" in
+	0) ;;
+	2) die "the store rejected the credential — check it: idiot auth status" ;;
+	*) die "could not read the channel maps (idiot-store exit ${_fm_rc})" ;;
+	esac
+	# one temp file per snap, renamed into place: a preview killed
+	# mid-fetch leaves nothing half-written
+	awk -F '\t' -v d="${dir}" -v p="$$" '
+		$1 == "snap" || $1 == "hidden" { if (f != "") close(f); f = d "/map." $2 ".tmp" p }
+		f != "" { print > f }' "${_fm_tmp}"
+	rm -f "${_fm_tmp}"
+	for _fm in ${_fm_need}; do
+		if [ -f "${dir}/map.${_fm}.tmp$$" ]; then
+			mv -f "${dir}/map.${_fm}.tmp$$" "${dir}/map.${_fm}"
+		else
+			printf 'hidden\t%s\n' "${_fm}" >"${dir}/map.${_fm}"
+		fi
+	done
+}
+
+# Fetch snap $1's revisions and release history unless cached.
+_fetch_history() {
+	[ ! -f "${dir}/rel.${1}" ] || return 0
+	if [ "${have_cred}" -ne 1 ]; then
+		printf 'refused\tno-credential\n' >"${dir}/rel.${1}"
+		return 0
+	fi
+	_fh_rc=0
+	"${helper}" releases ${query_file:+--file "${query_file}"} "${1}" >"${dir}/rel.${1}.tmp$$" || _fh_rc=$?
+	case "${_fh_rc}" in
+	0) mv -f "${dir}/rel.${1}.tmp$$" "${dir}/rel.${1}" ;;
+	2)
+		rm -f "${dir}/rel.${1}.tmp$$"
+		die "the store rejected the credential — check it: idiot auth status"
+		;;
+	*)
+		rm -f "${dir}/rel.${1}.tmp$$"
+		die "could not read ${1}'s revisions (idiot-store exit ${_fh_rc})"
+		;;
+	esac
+}
+
+_hidden() {
+	grep -q "^hidden${TAB}" "${dir}/map.${1}" 2>/dev/null
+}
+
+# The refusal in snap $1's history ("permission <p>", "not-collaborator",
+# "no-credential"), or nothing.
+_refusal() {
+	[ -f "${dir}/rel.${1}" ] || return 0
+	awk -F '\t' '$1 == "refused" { print $2 (NF > 2 ? " " $3 : "") }' "${dir}/rel.${1}"
+}
+
+# Why the history of the snaps $2 was refused ($1, as _refusal prints it),
+# and what it needs.
+_refusal_message() {
+	case "${1}" in
+	permission*) _rm_why="the credential lacks ${1#permission }" ;;
+	no-credential) _rm_why="no credential is active" ;;
+	*) _rm_why="the store refused it: not a publisher or collaborator" ;;
+	esac
+	_rm_have="$(creds_with_permission package_access | paste -sd ' ' -)"
+	_rm_hint=''
+	case "${1}" in
+	permission* | no-credential)
+		[ -z "${_rm_have}" ] || _rm_hint=" (${_rm_have%% *} has it: idiot store browse --cred ${_rm_have%% *})"
+		;;
+	esac
+	printf 'no revision history for %s: %s — it needs a credential with package_access for an account that publishes or collaborates on the snap%s' \
+		"${2}" "${_rm_why}" "${_rm_hint}"
+}
+
+# --- rows ----------------------------------------------------------------
+
+# Snap $1's channel rows: snap, channel, arch, revision, version, released,
+# type, base, confinement, publisher, private|public.
+_channel_rows() {
+	awk -F '\t' -v OFS='\t' '
+		$1 == "snap" { pub = $4; vis = $5 }
+		$1 == "channel" { print $2, $3, $4, $5, $6, $7, $9, $10, $11, pub, vis }' "${dir}/map.${1}"
+}
+
+# Snap $1's revision rows: snap, revision, version, arches, status,
+# uploaded, channels it is in now (from the channel map) or -, base,
+# confinement, grade, and the snap's type (for --type; not printed).
+_revision_rows() {
+	[ -f "${dir}/rel.${1}" ] || return 0
+	awk -F '\t' -v OFS='\t' -v s="${1}" '
+		FNR == NR {
+			if ($1 == "channel") {
+				type = $9
+				if (!(($5, $3) in seen)) { seen[$5, $3] = 1; in_ch[$5] = ($5 in in_ch) ? in_ch[$5] "," $3 : $3 }
+			}
+			next
+		}
+		$1 == "revision" { print s, $2, $3, $4, $5, $6, (($2 in in_ch) ? in_ch[$2] : "-"), $7, $8, $9, type }' \
+		"${dir}/map.${1}" "${dir}/rel.${1}"
+}
+
+# Keep the rows on stdin ($1: channel or revision) that every filter
+# matches. Exact tests in awk; globs with case (POSIX, no regex).
+_filter() {
+	awk -F '\t' -v kind="${1}" -v arch="${f_arch}" -v rev="${f_revision}" -v type="${f_type}" \
+		-v base="${f_base}" -v conf="${f_conf}" -v since="${f_since}" -v status="${f_status}" \
+		-v unrel="${f_unrel}" '
+		BEGIN { n = split(arch, a, ","); for (i = 1; i <= n; i++) want[a[i]] = 1 }
+		kind == "channel" {
+			if (status != "" || unrel != "") next
+			if (arch != "" && !($3 in want)) next
+			if (rev != "" && $4 != rev) next
+			if (type != "" && $7 != type) next
+			if (base != "" && $8 != base) next
+			if (conf != "" && $9 != conf) next
+			if (since != "" && substr($6, 1, 10) < since) next
+			print
+			next
+		}
+		{
+			if (arch != "") { m = split($4, ra, ","); ok = 0; for (i = 1; i <= m; i++) if (ra[i] in want) ok = 1; if (!ok) next }
+			if (rev != "" && $2 != rev) next
+			if (type != "" && $11 != type) next
+			if (base != "" && $8 != base) next
+			if (conf != "" && $9 != conf) next
+			if (since != "" && substr($6, 1, 10) < since) next
+			if (status != "" && tolower($5) != tolower(status)) next
+			if (unrel != "" && $7 != "-") next
+			print
+		}' | if [ -z "${f_channel}${f_version}" ]; then
+		cat
+	else
+		_filter_globs "${1}"
+	fi
+}
+
+_filter_globs() {
+	# fields are never empty (idiot-store writes -), so tab-splitting holds
+	while IFS="${TAB}" read -r _fg_1 _fg_2 _fg_3 _fg_4 _fg_5 _fg_6 _fg_7 _fg_rest; do
+		if [ "${1}" = channel ]; then
+			_fg_ver="${_fg_5}"
+			_fg_chans="${_fg_2},"
+		else
+			_fg_ver="${_fg_3}"
+			_fg_chans="${_fg_7},"
+		fi
+		if [ -n "${f_version}" ]; then
+			# shellcheck disable=SC2254 # the filter is a glob
+			case "${_fg_ver}" in
+			${f_version}) ;;
+			*) continue ;;
+			esac
+		fi
+		if [ -n "${f_channel}" ]; then
+			_fg_ok=0
+			while [ -n "${_fg_chans}" ]; do
+				# shellcheck disable=SC2254 # the filter is a glob
+				case "${_fg_chans%%,*}" in
+				${f_channel}) _fg_ok=1 ;;
+				esac
+				_fg_chans="${_fg_chans#*,}"
+			done
+			[ "${_fg_ok}" -eq 1 ] || continue
+		fi
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${_fg_1}" "${_fg_2}" "${_fg_3}" "${_fg_4}" \
+			"${_fg_5}" "${_fg_6}" "${_fg_7}" "${_fg_rest}"
+	done
+}
+
+# Snap $1's channel rows and (with its history) revision rows, filtered.
+_rows() {
+	_channel_rows "${1}" | _filter channel
+	_revision_rows "${1}" | _filter revision
+}
+
+# --- the snap list -------------------------------------------------------
+
+# Build ${dir}/list.all: name, publisher, private|public, latest channel,
+# revision and version (`-` when unknown); then ${dir}/list from it.
+_list() {
+	if [ -n "${names}" ]; then
+		for _l in ${names}; do
+			printf '%s\t-\t-\t-\t-\t-\n' "${_l}"
+		done >"${dir}/list.all"
+		# publisher and visibility come from the channel maps
+		if [ -n "${f_publisher}${f_vis}" ]; then
+			# shellcheck disable=SC2086 # snap names, split on purpose
+			_fetch_maps ${names}
+			_fill_from_maps
+		fi
+	else
+		store_snap_list
+		[ -z "${store_snap_partial:-}" ] || store_partial_note "${store_snap_partial:-}" "store browse"
+		printf '%s\n' "${store_snap_rows:-}" | grep -v '^$' >"${dir}/list.all"
+	fi
+	_list_filter
+}
+
+# ${dir}/list: the snaps in ${dir}/list.all the snap-level filters keep.
+_list_filter() {
+	while IFS="${TAB}" read -r _l_name _l_pub _l_vis _l_rest; do
+		if [ -n "${f_name}" ]; then
+			# shellcheck disable=SC2254 # the filter is a glob
+			case "${_l_name}" in
+			${f_name}) ;;
+			*) continue ;;
+			esac
+		fi
+		[ -z "${f_publisher}" ] || [ "${_l_pub}" = "${f_publisher}" ] || continue
+		[ -z "${f_vis}" ] || [ "${_l_vis}" = "${f_vis}" ] || continue
+		printf '%s\t%s\t%s\t%s\n' "${_l_name}" "${_l_pub}" "${_l_vis}" "${_l_rest}"
+	done <"${dir}/list.all" >"${dir}/list"
+}
+
+# Fill in publisher and visibility for listed snaps whose maps are cached.
+_fill_from_maps() {
+	while IFS="${TAB}" read -r _ff_name _ff_pub _ff_vis _ff_rest; do
+		if [ "${_ff_pub}" = - ] && [ -f "${dir}/map.${_ff_name}" ]; then
+			_ff_line="$(awk -F '\t' '$1 == "snap" { print $4 "\t" $5 }' "${dir}/map.${_ff_name}")"
+			if [ -n "${_ff_line}" ]; then
+				_ff_pub="${_ff_line%%"${TAB}"*}"
+				_ff_vis="${_ff_line#*"${TAB}"}"
+			fi
+		fi
+		printf '%s\t%s\t%s\t%s\n' "${_ff_name}" "${_ff_pub}" "${_ff_vis}" "${_ff_rest}"
+	done <"${dir}/list.all" >"${dir}/list.all.tmp"
+	mv -f "${dir}/list.all.tmp" "${dir}/list.all"
+}
+
+_list_names() {
+	cut -f1 "${dir}/list"
+}
+
+# Read what the filters (or --tsv) need up front: every listed snap's
+# channel map, and the histories when revisions are asked for.
+_fetch_eager() {
+	_fe_names="$(_list_names | paste -sd ' ' -)"
+	[ -n "${_fe_names}" ] || return 0
+	if [ "${tsv}" -eq 1 ] || _row_filters; then
+		_fe_n="$(_list_names | wc -l | tr -d ' ')"
+		[ "${_fe_n}" -eq 1 ] && _fe_what='channel map' || _fe_what='channel maps'
+		say "${DIM}reading ${_fe_n} ${_fe_what}…${RESET}"
+		# shellcheck disable=SC2086 # snap names, split on purpose
+		_fetch_maps ${_fe_names}
+		[ -z "${names}" ] || {
+			_fill_from_maps
+			_list_filter
+		}
+	fi
+	if [ "${revisions}" -eq 1 ] || _history_filters; then
+		for _fe in ${_fe_names}; do
+			_hidden "${_fe}" && continue
+			[ -f "${dir}/rel.${_fe}" ] || [ "${have_cred}" -ne 1 ] ||
+				say "${DIM}reading ${_fe}'s revisions…${RESET}"
+			_fetch_history "${_fe}"
+		done
+	fi
+	# shellcheck disable=SC2086 # snap names, split on purpose
+	_say_refusals ${_fe_names}
+}
+
+# Say once on stderr, per reason, which snaps' histories were refused.
+_say_refusals() {
+	for _sr in "$@"; do
+		_sr_why="$(_refusal "${_sr}")"
+		[ -n "${_sr_why}" ] || continue
+		[ ! -f "${dir}/said.${_sr}" ] || continue
+		: >"${dir}/said.${_sr}"
+		printf '%s\t%s\n' "${_sr_why}" "${_sr}"
+	done | awk -F '\t' '{ if (!($1 in s)) { o[++n] = $1; s[$1] = $2 } else s[$1] = s[$1] ", " $2 }
+		END { for (i = 1; i <= n; i++) print o[i] "\t" s[o[i]] }' |
+		while IFS="${TAB}" read -r _sr_why _sr_snaps; do
+			say "${DIM}$(_refusal_message "${_sr_why}" "${_sr_snaps}")${RESET}"
+		done
+}
+
+# Drop listed snaps with no row left after the row filters.
+_drop_empty() {
+	_row_filters || return 0
+	while IFS= read -r _de; do
+		_de_name="${_de%%"${TAB}"*}"
+		_hidden "${_de_name}" && continue
+		[ -n "$(_rows "${_de_name}" | head -n 1)" ] || continue
+		printf '%s\n' "${_de}"
+	done <"${dir}/list" >"${dir}/list.tmp"
+	mv -f "${dir}/list.tmp" "${dir}/list"
+}
+
+# --- output --------------------------------------------------------------
+
+_print_tsv() {
+	for _pt in $(_list_names); do
+		if _hidden "${_pt}"; then
+			say "${_pt}: not visible in $(store_label "${UBUNTU_STORE_ID:-}") — see why: idiot store check ${_pt}"
+			continue
+		fi
+		if [ "${revisions}" -eq 1 ]; then
+			_revision_rows "${_pt}" | _filter revision | cut -f1-10
+		else
+			_channel_rows "${_pt}" | _filter channel
+		fi
+	done
+}
+
+# The target architecture, highlighted in rows and previews.
+_target() {
+	printf '%s' "${UBUNTU_STORE_ARCH:-$(uname_to_snap_arch)}"
+}
+
+# Bytes $1 as KiB/MiB/GiB.
+_size() {
+	awk -v b="${1}" 'BEGIN {
+		split("B KiB MiB GiB", u, " "); i = 1
+		while (b >= 1024 && i < 4) { b /= 1024; i++ }
+		printf (i == 1 ? "%d %s" : "%.1f %s"), b, u[i] }'
+}
+
+# The snap list for fzf: name, then what is shown.
+_list_view() {
+	while IFS="${TAB}" read -r _lv_name _lv_pub _lv_vis _lv_ch _lv_rev _lv_ver; do
+		if _hidden "${_lv_name}"; then
+			printf '%s\t%s\t%s\t%s\t%s\n' "${_lv_name}" "${_lv_name}" "${DIM}not visible${RESET}" "" ""
+			continue
+		fi
+		_lv_latest=''
+		[ "${_lv_rev}" = - ] || _lv_latest="${DIM}${_lv_ch} #${_lv_rev} ${_lv_ver}${RESET}"
+		[ "${_lv_pub}" = - ] && _lv_pub=''
+		[ "${_lv_vis}" = - ] && _lv_vis=''
+		printf '%s\t%s\t%s\t%s\t%s\n' "${_lv_name}" "${BOLD}${_lv_name}${RESET}" "${_lv_pub}" \
+			"${DIM}${_lv_vis}${RESET}" "${_lv_latest}"
+	done <"${dir}/list"
+}
+
+# Snap $1's rows for fzf: kind (c|r), channel, arch, revision, then what
+# is shown (the target architecture bold, rejected revisions dim).
+_snap_view() {
+	_sv_t="$(_target)"
+	_channel_rows "${1}" | _filter channel |
+		awk -F '\t' -v OFS='\t' -v t="${_sv_t}" -v b="${BOLD}" -v d="${DIM}" -v r="${RESET}" '
+			{ on = ($3 == t) ? b : ""; off = ($3 == t) ? r : ""
+			  print "c", $2, $3, $4, on $2 off, on $3 off, on $4 off, $5, d substr($6, 1, 10) r }'
+	_revision_rows "${1}" | _filter revision |
+		awk -F '\t' -v OFS='\t' -v t="${_sv_t}" -v b="${BOLD}" -v d="${DIM}" -v r="${RESET}" '
+			{ dim = ($5 == "Published") ? "" : d; off = dim == "" ? "" : r
+			  ch = ($7 == "-") ? d "unreleased" r : $7
+			  print "r", "-", $4, $2, dim "#" $2 off, dim $4 off, dim $5 off, dim $3 off, d substr($6, 1, 10) r " " ch }'
+}
+
+# Column-align fzf lines on stdin: fields before $1 stay as they are (fzf
+# reads them), the rest become one padded field (colour codes not counted).
+_align() {
+	awk -F '\t' -v from="${1}" '
+		function vis(s) { gsub(/\033\[[0-9;]*m/, "", s); return length(s) }
+		{ row[NR] = $0; for (i = from; i <= NF; i++) if (vis($i) > w[i]) w[i] = vis($i) }
+		END {
+			for (n = 1; n <= NR; n++) {
+				k = split(row[n], f, "\t"); line = ""
+				for (i = 1; i < from; i++) line = line f[i] "\t"
+				for (i = from; i <= k; i++) {
+					line = line f[i]
+					if (i < k) for (j = vis(f[i]); j < w[i] + 2; j++) line = line " "
+				}
+				print line
+			}
+		}'
+}
+
+# --- previews (run by fzf: "browse __preview snap|row …") ----------------
+
+_preview_snap() {
+	_fetch_maps "${1}"
+	if _hidden "${1}"; then
+		say "${BOLD}${1}${RESET}: not visible in $(store_label "${UBUNTU_STORE_ID:-}") with this credential."
+		echo >&2
+		say "Find out why: idiot store check ${1}"
+		return 0
+	fi
+	awk -F '\t' -v b="${BOLD}" -v d="${DIM}" -v r="${RESET}" '
+		$1 == "snap" { title = $6; pub = $4; vis = $5 }
+		$1 == "channel" && type == "" { type = $9 }
+		END {
+			printf "%s%s%s", b, ARGV_name, r
+			if (title != "" && title != ARGV_name) printf "  %s", title
+			printf "\n%spublisher%s %s  %s  %stype%s %s\n\n", d, r, pub, vis, d, r, type
+		}' ARGV_name="${1}" "${dir}/map.${1}" >&2
+	_rows_grid "${1}" >&2
+	if _row_filters; then
+		echo >&2
+		say "${DIM}(filtered)${RESET}"
+	fi
+}
+
+# Snap $1's channel rows as a grid: one row per channel, one column per
+# architecture ("revision version"), the target architecture bold.
+_rows_grid() {
+	_channel_rows "${1}" | _filter channel | awk -F '\t' -v t="$(_target)" -v b="${BOLD}" -v d="${DIM}" -v r="${RESET}" '
+		{
+			if (!($2 in seen_c)) { seen_c[$2] = 1; chans[++nc] = $2 }
+			if (!($3 in seen_a)) { seen_a[$3] = 1; arches[++na] = $3 }
+			cell[$2, $3] = $4 " " $5
+			if (length($2) > cw) cw = length($2)
+			if (length($4 " " $5) > aw[$3]) aw[$3] = length($4 " " $5)
+		}
+		END {
+			if (nc == 0) { printf "%sno channel rows%s\n", d, r; exit }
+			for (i = 1; i <= na; i++) for (j = i + 1; j <= na; j++) if (arches[j] < arches[i]) { x = arches[i]; arches[i] = arches[j]; arches[j] = x }
+			for (i = 1; i <= na; i++) if (length(arches[i]) > aw[arches[i]]) aw[arches[i]] = length(arches[i])
+			printf "%s%-" cw "s%s", d, "channel", r
+			for (i = 1; i <= na; i++) printf "  %s%-" (i < na ? aw[arches[i]] : 0) "s%s", (arches[i] == t ? b : d), arches[i], r
+			printf "\n"
+			for (n = 1; n <= nc; n++) {
+				printf "%-" cw "s", chans[n]
+				for (i = 1; i <= na; i++) {
+					c = cell[chans[n], arches[i]]; if (c == "") c = "-"
+					printf "  %s%-" (i < na ? aw[arches[i]] : 0) "s%s", (arches[i] == t ? b : ""), c, (arches[i] == t ? r : "")
+				}
+				printf "\n"
+			}
+		}'
+}
+
+# One "label value" line of a row preview.
+_pr_line() {
+	say "$(printf '%s%-12s%s %s' "${DIM}" "${1}" "${RESET}" "${2}")"
+}
+
+# Row details: snap $1, kind $2 (c|r), channel $3, arch $4, revision $5.
+_preview_row() {
+	_fetch_maps "${1}"
+	_pr_map="$(awk -F '\t' -v ch="${3}" -v a="${4}" -v rev="${5}" '
+		$1 == "channel" && ((ch != "-" && $3 == ch && $4 == a) || (ch == "-" && $5 == rev && m == "")) { m = $0 }
+		END { print m }' "${dir}/map.${1}")"
+	_pr_rev=''
+	[ ! -f "${dir}/rel.${1}" ] ||
+		_pr_rev="$(awk -F '\t' -v rev="${5}" '$1 == "revision" && $2 == rev' "${dir}/rel.${1}")"
+	# map: channel snap ch arch rev ver released created type base conf epoch size sha
+	# rel: revision rev ver arches status created base conf grade epoch size sha
+	if [ -n "${_pr_rev}" ]; then
+		_pr_f="$(printf '%s' "${_pr_rev}" | awk -F '\t' -v OFS='\t' '{ print $3, $4, $7, $8, $9, $10, $11, $12, $6, $5 }')"
+	elif [ -n "${_pr_map}" ]; then
+		_pr_f="$(printf '%s' "${_pr_map}" | awk -F '\t' -v OFS='\t' '{ print $6, $4, $10, $11, "-", $12, $13, $14, $8, "-" }')"
+	else
+		say "${DIM}nothing known about revision ${5}${RESET}"
+		return 0
+	fi
+	IFS="${TAB}" read -r _pr_ver _pr_arches _pr_base _pr_conf _pr_grade _pr_epoch _pr_size _pr_sha _pr_up _pr_status <<EOF
+${_pr_f}
+EOF
+	if [ "${3}" = - ]; then
+		say "${BOLD}${1}${RESET} revision ${BOLD}${5}${RESET}"
+	else
+		say "${BOLD}${1}${RESET} revision ${BOLD}${5}${RESET} in ${3} (${4})"
+	fi
+	echo >&2
+	_pr_line version "${_pr_ver}"
+	_pr_line arches "${_pr_arches}"
+	_pr_line base "${_pr_base}"
+	_pr_line confinement "${_pr_conf}"
+	_pr_line grade "${_pr_grade}"
+	_pr_line epoch "${_pr_epoch}"
+	_pr_line size "$(_size "${_pr_size}")"
+	_pr_line sha3-384 "${_pr_sha}"
+	_pr_line created "${_pr_up}"
+	[ "${_pr_status}" = - ] || _pr_line status "${_pr_status}"
+	_pr_refused="$(_refusal "${1}")"
+	if [ -n "${_pr_refused}" ]; then
+		echo >&2
+		say "${DIM}no history: ${_pr_refused}${RESET}"
+	elif [ -f "${dir}/rel.${1}" ]; then
+		echo >&2
+		say "${DIM}releases of revision ${5}:${RESET}"
+		_pr_rel="$(awk -F '\t' -v rev="${5}" -v d="${DIM}" -v r="${RESET}" '
+			$1 == "release" && $4 == rev {
+				extra = ""
+				if ($6 != "-") extra = extra "  expires " $6
+				if ($7 != "-") extra = extra "  progressive " $7 "%"
+				print "  " $5 "  " $2 " (" $3 ")" d extra r }' "${dir}/rel.${1}")"
+		if [ -n "${_pr_rel}" ]; then
+			printf '%s\n' "${_pr_rel}" >&2
+		else
+			say "  ${DIM}never released${RESET}"
+		fi
+	fi
+}
+
+_preview() {
+	dir="${IDIOT_BROWSE_DIR:-}"
+	[ -n "${dir}" ] && [ -f "${dir}/state" ] || die "not run by idiot store browse"
+	_load_state
+	helper="$(store_helper)" || exit 1
+	case "${1:-}" in
+	snap) _preview_snap "${2}" ;;
+	row) _preview_row "${2}" "${3}" "${4}" "${5}" "${6}" ;;
+	esac
+	return 0
+}
+
+# --- the explorer --------------------------------------------------------
+
+# Open snap $1; print its chosen row and exit, or return (Escape).
+_open() {
+	[ -f "${dir}/map.${1}" ] || say "${DIM}reading ${1}'s channel map…${RESET}"
+	_fetch_maps "${1}"
+	_hidden "${1}" && return 0
+	[ -f "${dir}/rel.${1}" ] || [ "${have_cred}" -ne 1 ] || say "${DIM}reading ${1}'s revisions…${RESET}"
+	_fetch_history "${1}"
+	_say_refusals "${1}"
+	_op_header="${1}: channel map, then revisions"
+	_op_why="$(_refusal "${1}")"
+	case "${_op_why}" in
+	'') ;;
+	permission*) _op_header="${1}: channel map only — the history needs ${_op_why#permission }" ;;
+	no-credential) _op_header="${1}: channel map only — the history needs a credential" ;;
+	*) _op_header="${1}: channel map only — the history is for its publisher and collaborators" ;;
+	esac
+	_op_sel="$(_snap_view "${1}" | _align 5 |
+		fzf --ansi --delimiter="${TAB}" --with-nth=5.. --no-sort --layout=reverse \
+			--prompt="${1}> " --header="${_op_header}" \
+			--preview="${self} __preview row $(shell_quote "${1}") {1} {2} {3} {4}" \
+			--preview-window='right:50%:wrap')" || return 0
+	[ -n "${_op_sel}" ] || return 0
+	printf '%s' "${_op_sel}" | awk -F '\t' -v OFS='\t' -v s="${1}" '{ print s, $2, $3, $4 }'
+	exit 0
+}
+
+_explore() {
+	require fzf "install fzf for interactive browsing"
+	self="$(shell_quote "${0}")"
+	export SHELL=/bin/sh # fzf runs previews with $SHELL -c; the user's may be fish
+	export IDIOT_BROWSE_DIR="${dir}"
+	[ -z "${BOLD}" ] || export FORCE_COLOR=1
+	query=''
+	while :; do
+		_ex_rc=0
+		_ex_out="$(_list_view | _align 2 |
+			fzf --ansi --delimiter="${TAB}" --with-nth=2.. --layout=reverse \
+				--prompt='snap> ' --print-query --query="${query}" \
+				--preview="${self} __preview snap {1}" \
+				--preview-window='right:60%:wrap')" || _ex_rc=$?
+		case "${_ex_rc}" in
+		0 | 1) ;;
+		*) exit 0 ;; # Escape (130) or an error: nothing chosen
+		esac
+		query="$(printf '%s\n' "${_ex_out}" | sed -n 1p)"
+		_ex_snap="$(printf '%s\n' "${_ex_out}" | sed -n 2p | cut -f1)"
+		[ -n "${_ex_snap}" ] || continue
+		_open "${_ex_snap}"
+	done
+}
+
+_cleanup() {
+	[ -z "${dir:-}" ] || rm -rf "${dir:?}"
+}
+
+main() {
+	case "${1:-}" in
+	-h | --help | help)
+		usage
+		exit 0
+		;;
+	__preview)
+		shift
+		_preview "$@" 2>&1 # fzf shows stdout
+		exit 0
+		;;
+	esac
+	_parse "$@"
+	if [ "${tsv}" -eq 0 ]; then
+		[ -t 0 ] && [ -t 2 ] || die "browsing needs a terminal — for rows on stdout, pass --tsv"
+	fi
+	have_cred=1
+	query_cred "${cred}" || {
+		[ -n "${names}" ] ||
+			die "no active credential — log in first (idiot auth login), use --cred <name>, or name the snaps"
+		have_cred=0
+	}
+	helper="$(store_helper)" || exit 1
+	dir="$(mktemp -d)" || die "can't create a temporary directory"
+	chmod 700 "${dir}"
+	trap '_cleanup' EXIT
+	trap '_cleanup; exit 130' INT TERM HUP
+	_save_state
+	_list
+	_fetch_eager
+	_drop_empty
+	if [ ! -s "${dir}/list" ]; then
+		say "${DIM}No snaps to list.${RESET}"
+		exit 0
+	fi
+	if [ "${tsv}" -eq 1 ]; then
+		_print_tsv
+		exit 0
+	fi
+	_explore
+}
+main "$@"

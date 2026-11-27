@@ -20,6 +20,7 @@ main() {
 	help_command "channels" "A snap's channel map in the active store"
 	help_command "roles" "Your stores and roles"
 	help_command "snaps" "The snaps in the active store"
+	help_command "browse" "Explore the store: snaps, channel maps, revisions"
 	help_command "members" "The active store's members and roles"
 	help_command "assertion" "Fetch an assertion (and what it needs)"
 	echo >&2

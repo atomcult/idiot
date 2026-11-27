@@ -318,6 +318,22 @@ $ idiot store members --role admin       # who is in the store, and with which r
 $ idiot store import                     # save your stores (pick and name them; --all for all)
 ```
 
+`idiot store browse` explores the store in fzf: the snaps `store snaps`
+lists (or the ones you name), each one's channel map in the preview, and,
+when you open a snap, its channel map and every revision (released or
+not, when your credential may read the history). Enter on a row prints
+snap, channel, architecture and revision; Escape goes back. Filters
+narrow the list and the rows, and `--tsv` prints the rows instead:
+
+```
+$ idiot store browse                                  # the whole store, in fzf
+$ idiot store browse --arch arm64 --channel edge      # snaps with an arm64 edge revision
+$ idiot store browse --version '1.4*' --tsv           # where is 1.4 released?
+$ idiot store browse --publisher alice --private      # alice's private snaps
+$ idiot store browse ce-dummy --unreleased --revisions --tsv
+$ idiot store browse hello core22 --tsv               # public snaps work without a credential
+```
+
 `idiot store assertion` fetches assertions from the store and summarises
 them as `idiot inspect assertion` does (`--raw` prints them as served,
 `-o` saves them):

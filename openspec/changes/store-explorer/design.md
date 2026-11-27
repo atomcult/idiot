@@ -132,6 +132,10 @@ rules:
 - `--channel`: a bare risk becomes `latest/<risk>` (as `normalise_channel`
   does). `*` comes from the glob. A revision row matches when any channel
   it is currently in matches.
+- `--status` and `--unreleased` leave out channel rows (a channel row has
+  no status and is released by definition), so with them the list keeps
+  the snaps that have such revisions. `--type` applies to revision rows
+  through the snap's type from its channel map. (Decided while applying.)
 - "Currently in" and "unreleased" come from the v2 channel map, not the
   history. So they agree with the channel rows and with what snapd sees in
   the active store.
@@ -173,6 +177,11 @@ versions are there for the length of the run.
   the opened view returns to the list with the saved `--print-query`
   query. Enter prints the row's key fields and exits.
 - The prompts are `snap> ` and `<snap>> `.
+- Previews read the filters, whether there is a credential and the
+  `--cred` file path from a `state` file in the cache dir (names and
+  paths only), not from extra environment variables. Preview output goes
+  to stdout, and `FORCE_COLOR` carries the colours when stderr is a
+  terminal. (Decided while applying.)
 - No `become`, `transform` or `--with-shell`, which 0.44 lacks or which
   are recent.
 
