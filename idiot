@@ -31,18 +31,19 @@ idiot_help() {
 	help_command "status" "Show current environment at a glance"
 	help_command "profile" "Save and switch whole environments"
 	help_command "auth" "Manage snap store credentials"
-	help_command "store" "Select which snap store to use"
+	help_command "store" "Pick a snap store; query and browse it, fetch assertions"
 	help_command "arch" "Set the target build architecture"
 	help_command "lp" "Manage Launchpad identity"
 	echo >&2
 	help_heading "Development:"
 	help_command "kernel" "Clone an Ubuntu kernel from Launchpad"
 	help_command "example" "Clone an example repository"
-	help_command "inspect" "Inspect snaps, images, and snapd changes"
-	help_command "model" "Manage model assertions"
+	help_command "inspect" "Inspect snaps, images, snapd state, changes, assertions"
+	help_command "model" "Model assertion repositories"
+	help_command "assertion" "Write, check and sign models, system-users, validation sets"
 	echo >&2
 	help_heading "VM & device:"
-	help_command "vm" "Launch and connect to a QEMU VM"
+	help_command "vm" "Run a QEMU VM: snapshots, snap installs, ssh"
 	echo >&2
 	help_heading "Shell:"
 	help_command "init" "Set up shell integration"

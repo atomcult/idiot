@@ -96,8 +96,11 @@ command reference.
 | Switch credential / store / arch | `idiot auth login <name>`, `idiot store use <name>`, `idiot arch set <arch>` |
 | Whole setup at once | `idiot profile save <name>`, `idiot profile use <name>` |
 | Boot a Core image | `idiot vm [--name <n>] [--tpm] <image>` (serial console on the terminal) |
-| Try a built snap in a VM | `idiot vm install ./app.snap`, then `idiot vm logs -f app` |
+| Try a built snap in a VM | `idiot vm install ./app.snap` (or a store snap: `idiot vm install hello-world=edge`), then `idiot vm logs -f app` |
+| Save and roll back a VM | `idiot vm snapshot create --name a seeded`, `idiot vm snapshot restore --name a seeded` (VM stopped) |
 | What's in an image | `idiot inspect image core.img`, `idiot inspect diff a.img b.img` |
+| What's in a store | `idiot store browse --tsv`, `idiot store channels <snap>`, `idiot store check <snap>` |
+| Fetch an assertion | `idiot store assertion snap-declaration <snap>` (`--chain --raw` for `snap ack`, `-o file`) |
 | Is an assertion valid | `idiot inspect assertion pc.model` (exit 1 on a bad signature) |
 | What snapd did (changes, kept revisions) | `idiot inspect state --name a` (or a state.json, an image, `--local`; secrets always redacted; `--json` for scripts) |
 | Write a model or validation set | `idiot assertion new model`, `idiot assertion check kiosk.json` (`--set`/`--snap`/`--no-edit` without a terminal) |
