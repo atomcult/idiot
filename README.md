@@ -213,11 +213,19 @@ enrolled) in seconds instead of a reset and a new install-mode boot:
 $ idiot vm stop gadget
 $ idiot vm snapshot create --name gadget seeded   # after its first boot
 $ idiot vm snapshot list --name gadget            # name, taken, UEFI, TPM, ok/broken
+$ idiot vm install ./pc-kernel_broken.snap        # ...and the kernel doesn't boot
+$ idiot vm stop --force gadget
+$ idiot vm snapshot restore --name gadget seeded  # back, TPM-sealed keys and all
+$ idiot vm snapshot delete --name gadget seeded
 ```
 
 The disk snapshot lives inside the VM's overlay (it costs only what the
 guest changes afterwards) and the variables and TPM state are copied
-beside it. Running VMs and `--in-place` VMs can't be snapshotted.
+beside it, so a restore never pairs a disk with another moment's TPM.
+`restore` keeps the snapshot (restore it as often as you like), and it and
+`delete` ask first (`--yes` skips the question). Running VMs and
+`--in-place` VMs can't be snapshotted; a snapshot of a VM stopped with
+`--force` is crash-consistent.
 
 **Changed:** before named VMs, `idiot vm` wrote to the image and threw
 the UEFI variables and TPM state away after each run (unless you gave

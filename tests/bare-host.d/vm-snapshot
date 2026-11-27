@@ -6,7 +6,9 @@
 # over a sparse raw base made with the component's qemu-img, fake UEFI
 # variables and TPM state); no qemu boots, nothing is downloaded. Checks
 # create and list, the refusals (names, running, --in-place, no overlay,
-# several VMs) and the files' modes.
+# several VMs), the files' modes, restore (the disk's contents by pattern,
+# the copies' bytes, an interrupted restore), delete (broken snapshots
+# too) and the confirmations.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
 . "$(dirname "$0")/lib"
@@ -127,5 +129,102 @@ idiot vm snapshot list --name a 2>/dev/null | grep -q '^seed-1 ' &&
 kill "${fake}" 2>/dev/null
 wait "${fake}" 2>/dev/null
 rm -f "${a}/qemu.pid"
+
+# restore: pattern A in the disk at the snapshot, B after
+pat() { # <vm> <letter>: write the letter over the disk's first 4 KiB
+	cp "${work}/base.raw" "${work}/pat.raw"
+	head -c 4096 /dev/zero | tr '\0' "${2}" |
+		dd of="${work}/pat.raw" conv=notrunc status=none
+	qi convert -n -f raw -O qcow2 "${work}/pat.raw" "${IDIOT_VM_DIR}/${1}/disk.qcow2"
+}
+reads() { # <vm>: the disk's first 4 bytes
+	qi convert -O raw "${IDIOT_VM_DIR}/${1}/disk.qcow2" "${work}/read.raw"
+	head -c 4 "${work}/read.raw"
+}
+sums() { # <dir>: checksums of the vars and TPM files in it
+	(cd "${1}" && sha256sum fw_vars.fd tpm2-* 2>/dev/null)
+}
+in_tty() { # <answer> <command>: run the command on a terminal, answering
+	printf '%s\n' "${1}" | script -qec "bash -c '. $(dirname "$0")/lib; ${2}'" /dev/null
+}
+mkvm p
+p="${IDIOT_VM_DIR}/p"
+pat p A
+idiot vm snapshot create --name p pa 2>/dev/null
+saved="$(sums "${p}")"
+pat p B
+head -c 65536 /dev/urandom >"${p}/fw_vars.fd"
+head -c 4096 /dev/urandom >"${p}/tpm2-00.permall"
+head -c 512 /dev/urandom >"${p}/tpm2-00.volatile"
+: >"${p}/swtpm.pid"
+expect "restore without a terminal" "--yes" idiot vm snapshot restore --name p pa </dev/null
+[ "$(reads p)" = BBBB ] && ok "vm-snapshot: a refused restore changes nothing" ||
+	fail "vm-snapshot: the disk changed on a refused restore"
+in_tty n "idiot vm snapshot restore --name p pa" 2>&1 | grep -q 'Nothing changed' &&
+	[ "$(reads p)" = BBBB ] && ok "vm-snapshot: restore answered no changes nothing" ||
+	fail "vm-snapshot: restore answered no"
+idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	[ "$(reads p)" = AAAA ] && [ "$(sums "${p}")" = "${saved}" ] && [ ! -e "${p}/swtpm.pid" ] &&
+	ok "vm-snapshot: restore brings back the disk, vars and TPM files" ||
+	fail "vm-snapshot: after restore: $(reads p); $(sums "${p}")"
+pat p B
+idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	[ "$(reads p)" = AAAA ] && idiot vm snapshot list --name p 2>/dev/null | grep -q '^pa .* ok$' &&
+	ok "vm-snapshot: restore twice, the snapshot kept" || fail "vm-snapshot: second restore"
+expect "unknown snapshot" "idiot vm snapshot list" idiot vm snapshot restore --yes --name p nope
+
+# a snapshot without TPM state removes it on restore
+rm -f "${p}"/tpm2-*
+idiot vm snapshot create --name p notpm 2>/dev/null
+head -c 4096 /dev/urandom >"${p}/tpm2-00.permall"
+idiot vm snapshot restore --yes --name p notpm 2>/dev/null &&
+	! ls "${p}"/tpm2-* >/dev/null 2>&1 && [ -f "${p}/fw_vars.fd" ] &&
+	ok "vm-snapshot: restoring a snapshot without TPM state removes it" ||
+	fail "vm-snapshot: TPM state after restoring notpm: $(ls "${p}")"
+
+# interrupted after the disk: .restoring and the temporaries left by hand
+pat p B
+qi snapshot -a pa "${p}/disk.qcow2"
+printf 'pa\n' >"${p}/snapshots/.restoring"
+printf 'partial' >"${p}/fw_vars.fd.restore"
+idiot vm snapshot list --name p 2>&1 >/dev/null | grep -q 'half-restored.*restore --name p pa' &&
+	ok "vm-snapshot: list reports a half-restored VM" || fail "vm-snapshot: no half-restored note"
+idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	[ "$(reads p)" = AAAA ] && [ "$(sums "${p}")" = "${saved}" ] && [ ! -e "${p}/snapshots/.restoring" ] && ! ls "${p}"/*.restore >/dev/null 2>&1 &&
+	ok "vm-snapshot: restoring again completes it" ||
+	fail "vm-snapshot: after completing: $(sums "${p}"); $(ls -A "${p}" "${p}/snapshots")"
+
+# delete
+expect "delete without a terminal" "--yes" idiot vm snapshot delete --name p notpm </dev/null
+idiot vm snapshot delete --yes --name p notpm 2>/dev/null &&
+	[ "$(idiot vm snapshot list --name p 2>/dev/null | awk 'NR > 1 { print $1 }')" = pa ] &&
+	! qi snapshot -l "${p}/disk.qcow2" | grep -qw notpm &&
+	idiot vm snapshot restore --yes --name p pa 2>/dev/null &&
+	ok "vm-snapshot: deleting one of two leaves the other restorable" ||
+	fail "vm-snapshot: delete notpm"
+expect "unknown snapshot to delete" "idiot vm snapshot list" idiot vm snapshot delete --yes --name p nope
+qi snapshot -d a.b "${a}/disk.qcow2"
+idiot vm snapshot list --name a 2>/dev/null | grep -q '^a\.b .* broken$' &&
+	ok "vm-snapshot: a disk snapshot removed by hand is broken" || fail "vm-snapshot: a.b not broken"
+expect "restoring a broken snapshot" "missing: the disk snapshot" idiot vm snapshot restore --yes --name a a.b
+idiot vm snapshot delete --yes --name a a.b 2>/dev/null &&
+	! idiot vm snapshot list --name a 2>/dev/null | grep -q '^a\.b ' &&
+	ok "vm-snapshot: delete removes a broken snapshot" || fail "vm-snapshot: delete a.b"
+rm -rf "${a}/snapshots/seed-1"
+idiot vm snapshot delete --yes --name a seed-1 2>/dev/null &&
+	! qi snapshot -l "${a}/disk.qcow2" | grep -qw seed-1 &&
+	ok "vm-snapshot: delete removes a disk snapshot whose copies are gone" ||
+	fail "vm-snapshot: delete seed-1"
+
+# vm delete still confirms
+expect "vm delete without a terminal" "--yes" idiot vm delete fresh </dev/null
+in_tty n "idiot vm delete fresh" >/dev/null 2>&1
+[ -d "${IDIOT_VM_DIR}/fresh" ] && ok "vm-snapshot: vm delete answered no keeps the VM" ||
+	fail "vm-snapshot: vm delete answered no deleted it"
+in_tty y "idiot vm delete fresh" >/dev/null 2>&1
+[ ! -e "${IDIOT_VM_DIR}/fresh" ] && ok "vm-snapshot: vm delete answered yes deletes it" ||
+	fail "vm-snapshot: vm delete answered yes kept it"
+idiot vm delete --yes raw 2>/dev/null && [ ! -e "${IDIOT_VM_DIR}/raw" ] &&
+	ok "vm-snapshot: vm delete --yes" || fail "vm-snapshot: vm delete --yes"
 
 rm -rf "${work:?}"

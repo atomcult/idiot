@@ -69,6 +69,8 @@ together; the warning says how to fix it and never blocks.
 | `idiot vm tpm --name n` | swtpm on the stopped VM's TPM state for tpm2-tools |
 | `idiot vm snapshot create [--name n] <snapshot>` | Save a stopped VM's disk, UEFI vars and TPM state under a name (not `--in-place` VMs) |
 | `idiot vm snapshot list [--name n]` | Its snapshots on stdout: name, taken, UEFI, TPM, ok/broken (works while running) |
+| `idiot vm snapshot restore [--yes] [--name n] <snapshot>` | Put the stopped VM back to it (the snapshot is kept; confirm first) |
+| `idiot vm snapshot delete [--yes] [--name n] <snapshot>` | Remove every part of it, broken ones too (confirm first) |
 | `idiot vm reset <n>` | Discard disk overlay, UEFI vars and TPM state (confirm first) |
 | `idiot vm delete [--yes] <n>` | Forget the VM; the image is untouched (confirm first) |
 

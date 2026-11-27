@@ -762,6 +762,20 @@ _require_stopped() {
 		die "VM '${1}' is running — stop it first: idiot vm stop ${1}"
 }
 
+# Asks question $2 on the terminal and succeeds on yes; with yes=1 (--yes)
+# succeeds without asking. Without a terminal, dies saying that $1 (what
+# is being done) needs confirmation.
+_confirm() {
+	[ "${yes:-0}" -eq 0 ] || return 0
+	[ -t 0 ] || die "${1} needs confirmation — run it on a terminal, or pass --yes"
+	printf '%s' "${2} [y/N] " >&2
+	read -r _c_answer || _c_answer=''
+	case "${_c_answer}" in
+	y | Y | yes) return 0 ;;
+	esac
+	return 1
+}
+
 do_reset() {
 	case "${1:-}" in
 	-h | --help | help)
@@ -810,18 +824,10 @@ do_delete() {
 	_d="$(vm_dir "${name}")"
 	_real="$(cd "${_d}" && pwd -P)"
 
-	if [ "${yes}" -eq 0 ]; then
-		[ -t 0 ] || die "deleting VM '${name}' needs confirmation — run it on a terminal, or pass --yes"
-		printf '%s' "Delete VM ${BOLD}${name}${RESET} and its state in ${_real}? [y/N] " >&2
-		read -r _answer || _answer=''
-		case "${_answer}" in
-		y | Y | yes) ;;
-		*)
-			say "Nothing deleted"
-			exit 0
-			;;
-		esac
-	fi
+	_confirm "deleting VM '${name}'" "Delete VM ${BOLD}${name}${RESET} and its state in ${_real}?" || {
+		say "Nothing deleted"
+		exit 0
+	}
 	if [ -L "${_d}" ]; then
 		# a --state-dir: only what idiot put there, and the dir if now empty
 		rm -f "${_d}/vm.conf" "${_d}/disk.qcow2" "${_d}/fw_vars.fd" "${_d}"/tpm2-* \
@@ -1032,6 +1038,124 @@ _snapshot_list() {
 		say "${YELLOW}warning:${RESET} VM '${name}' is half-restored from '$(cat "${_half}")' — finish it: idiot vm snapshot restore --name ${name} $(cat "${_half}")"
 }
 
+_snapshot_restore() {
+	_u="idiot vm snapshot restore [--yes] [--name <vm>] <snapshot>"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "${_u}"
+		echo >&2
+		help_heading "Options:"
+		help_option "--name <vm>" "VM to restore (default: the only VM)"
+		help_option "--yes" "Don't ask for confirmation"
+		echo >&2
+		say "Puts a stopped VM's disk, UEFI variables and TPM state back to what"
+		say "they were when the snapshot was taken, discarding what changed since;"
+		say "a part the VM didn't have then is removed. The snapshot is kept, and"
+		say "the VM's settings, ssh port and serial logs stay as they are. A"
+		say "snapshot of a VM stopped with ${CYAN}idiot vm stop --force${RESET} is crash-consistent."
+		exit 0
+		;;
+	esac
+	_snapshot_args yes snap "${_u}" "$@"
+	_require_stopped "${name}"
+	_snapshot_need_overlay
+	_src="$(vm_snapshot_dir "${name}" "${snap}")"
+	[ -d "${_src}" ] ||
+		die "VM '${name}' has no snapshot '${snap}' — see: idiot vm snapshot list --name ${name}"
+	_snapshot_need_qemu_img
+	_tags="$(vm_snapshot_tags "${name}")" || die "could not read the snapshots in ${_sd}/disk.qcow2"
+	_missing="$(vm_snapshot_problem "${name}" "${snap}" "${_tags}" | paste -sd, - | sed 's/,/, /g')"
+	[ -z "${_missing}" ] ||
+		die "snapshot '${snap}' of VM '${name}' is broken (missing: ${_missing}) — delete it: idiot vm snapshot delete --name ${name} ${snap}"
+	_confirm "restoring VM '${name}'" \
+		"Put VM ${BOLD}${name}${RESET} back to snapshot ${BOLD}${snap}${RESET}, discarding what changed since?" || {
+		say "Nothing changed"
+		exit 0
+	}
+
+	# the copies under temporary names, then the disk, then the copies in
+	# place; .restoring marks the window between the disk and the moves
+	_half="$(vm_snapshot_dir "${name}")/.restoring"
+	_was=''
+	[ ! -f "${_half}" ] || _was="$(cat "${_half}")"
+	rm -f "${_sd}"/*.restore
+	for _f in "${_src}"/fw_vars.fd "${_src}"/tpm2-*; do
+		[ -f "${_f}" ] || continue
+		cp "${_f}" "${_sd}/${_f##*/}.restore" || {
+			rm -f "${_sd}"/*.restore
+			die "could not copy ${_f}: VM '${name}' is unchanged"
+		}
+	done
+	printf '%s\n' "${snap}" >"${_half}" || {
+		rm -f "${_sd}"/*.restore
+		die "could not write ${_half}: VM '${name}' is unchanged"
+	}
+	tool qemu-img snapshot -a "${snap}" "${_sd}/disk.qcow2" >&2 || {
+		rm -f "${_sd}"/*.restore
+		if [ -n "${_was}" ]; then
+			printf '%s\n' "${_was}" >"${_half}"
+		else
+			rm -f "${_half}"
+		fi
+		die "could not restore the disk of VM '${name}' from snapshot '${snap}': the VM is unchanged"
+	}
+	for _f in "${_sd}"/*.restore; do
+		[ -f "${_f}" ] || continue
+		mv -f "${_f}" "${_f%.restore}" ||
+			die "could not move ${_f} into place — finish the restore: idiot vm snapshot restore --name ${name} ${snap}"
+	done
+	[ -f "${_src}/fw_vars.fd" ] || rm -f "${_sd}/fw_vars.fd"
+	for _f in "${_sd}"/tpm2-*; do
+		[ ! -f "${_f}" ] || [ -f "${_src}/${_f##*/}" ] || rm -f "${_f}"
+	done
+	# a leftover swtpm pid or socket would confuse the next boot's swtpm
+	rm -f "${_sd}/swtpm.pid" "${_sd}/swtpm.sock" "${_half}"
+	say "Restored VM ${BOLD}${name}${RESET} to snapshot ${BOLD}${snap}${RESET}"
+}
+
+_snapshot_delete() {
+	_u="idiot vm snapshot delete [--yes] [--name <vm>] <snapshot>"
+	case "${1:-}" in
+	-h | --help | help)
+		help_heading "Usage:" "${_u}"
+		echo >&2
+		help_heading "Options:"
+		help_option "--name <vm>" "VM whose snapshot to delete (default: the only VM)"
+		help_option "--yes" "Don't ask for confirmation"
+		echo >&2
+		say "Removes every part of a stopped VM's snapshot that exists, broken"
+		say "snapshots included. The VM's current state is left as it is."
+		exit 0
+		;;
+	esac
+	_snapshot_args yes snap "${_u}" "$@"
+	_require_stopped "${name}"
+	_dir="$(vm_snapshot_dir "${name}" "${snap}")"
+	_tags=''
+	if [ -f "${_sd}/disk.qcow2" ]; then
+		_snapshot_need_qemu_img
+		_tags="$(vm_snapshot_tags "${name}")" || die "could not read the snapshots in ${_sd}/disk.qcow2"
+	fi
+	_tagged=0
+	! printf '%s\n' "${_tags}" | grep -qxF -- "${snap}" || _tagged=1
+	[ -d "${_dir}" ] || [ "${_tagged}" -eq 1 ] ||
+		die "VM '${name}' has no snapshot '${snap}' — see: idiot vm snapshot list --name ${name}"
+	_half="$(vm_snapshot_dir "${name}")/.restoring"
+	[ ! -f "${_half}" ] || [ "$(cat "${_half}")" != "${snap}" ] ||
+		die "VM '${name}' is half-restored from '${snap}' — finish it first: idiot vm snapshot restore --name ${name} ${snap}"
+	_confirm "deleting snapshot '${snap}' of VM '${name}'" \
+		"Delete snapshot ${BOLD}${snap}${RESET} of VM ${BOLD}${name}${RESET}?" || {
+		say "Nothing deleted"
+		exit 0
+	}
+	if [ "${_tagged}" -eq 1 ]; then
+		tool qemu-img snapshot -d "${snap}" "${_sd}/disk.qcow2" >&2 ||
+			die "could not delete the disk snapshot '${snap}' from ${_sd}/disk.qcow2"
+	fi
+	rm -rf "${_dir:?}"
+	say "Deleted snapshot ${BOLD}${snap}${RESET} of VM ${BOLD}${name}${RESET}"
+}
+
 do_snapshot() {
 	case "${1:-}" in
 	'' | -h | --help | help)
@@ -1040,6 +1164,8 @@ do_snapshot() {
 		help_heading "Subcommands:"
 		help_command "create" "Save a stopped VM's state under a name"
 		help_command "list" "List a VM's snapshots"
+		help_command "restore" "Put a stopped VM back to a snapshot"
+		help_command "delete" "Remove a snapshot"
 		echo >&2
 		say "A snapshot is a stopped VM's disk, UEFI variables and TPM state, taken"
 		say "together. Without --name: the only VM."
@@ -1052,6 +1178,14 @@ do_snapshot() {
 	list)
 		shift
 		_snapshot_list "$@"
+		;;
+	restore)
+		shift
+		_snapshot_restore "$@"
+		;;
+	delete)
+		shift
+		_snapshot_delete "$@"
 		;;
 	*) die "unknown subcommand: idiot vm snapshot ${1} — see: idiot vm snapshot --help" ;;
 	esac
