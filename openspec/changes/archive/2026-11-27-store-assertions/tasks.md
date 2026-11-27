@@ -18,6 +18,17 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run `openspec validate store-assertions --strict`.
+- [x] 4.1 Run `openspec validate store-assertions --strict`.
 - [ ] 4.2 Pack the snap (`snapcraft clean idiot`, pack into a gitignored directory inside the tree) and run `tests/bare-host` on `local:`; all checks pass.
 - [ ] 4.3 With the user, under the snap: `idiot store assertion --chain snap-revision ce-dummy <rev>` with `ce-team-test` active (a brand-store snap, with their credential), `store` for `ce-team-test`, and a brand model by `model <brand>/<model>`; the summaries verify, `--chain --raw … | sudo snap ack /dev/stdin` is accepted on a scratch machine or VM, and nothing printed contains a credential.
+
+Archived 2026-11-27 with 4.2 and 4.3 open. Done of 4.3, from the source
+tree with the user's credential and `ce-team-test` active: the `store`
+assertion and its key (verified); `--chain snap-revision ce-dummy 2`
+(store key, publisher account, declaration, revision, all verified),
+which found and fixed a doubled Snap-Device-Store header; the same
+revision fetched anonymously too (brand-store snap assertions need no
+credential). Not done: a brand model by `model <brand>/<model>`, and
+`snap ack` of a `--chain --raw` stream on a scratch machine. 4.2: the
+first bare-host run passed 231 of 232 (a 503 from the network
+component's HTTPS check); the rerun with the fix was still running.
