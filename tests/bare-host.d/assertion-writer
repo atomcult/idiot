@@ -6,8 +6,9 @@
 # header missing (before anything is contacted), check on a good and a
 # bad draft (offline), anonymous drafts for public snaps (a model, a
 # validation set), a system-user draft (mode 0600, no password), edit's
-# revision bump and its refusal of signed input, and signing with a
-# throwaway key made in a private SNAP_GNUPG_HOME.
+# revision bump, edits of a signed model (and new --from it), one fetched
+# from the store, and signing with a throwaway key made in a private
+# SNAP_GNUPG_HOME.
 
 # shellcheck disable=SC2015 # ok and fail always succeed: A && ok || fail is safe
 . "$(dirname "$0")/lib"
@@ -77,8 +78,40 @@ idiot assertion edit kiosk.json --no-edit 2>"${work}/err" </dev/null
 grep -q '"revision": "3"' kiosk.json &&
 	ok "assertion edit: the model's revision bumped" ||
 	fail "assertion edit: $(head -n 3 "${work}/err" | tr '\n' ' ')"
-printf 'type: model\nauthority-id: canonical\n\nSIG\n' >signed.model
-fails "edit: signed input refused" 'signed assertion' edit signed.model --no-edit
+# a signed-looking model (headers, a blank line, a dummy signature): edit
+# reads the draft it was signed from and never writes to it
+printf 'type: model\nauthority-id: abc\nseries: 16\nbrand-id: abc\nmodel: gadget-x\narchitecture: amd64\nbase: core24\ngrade: signed\nrevision: 4\ntimestamp: 2026-01-01T00:00:00Z\nsnaps:\n  -\n    name: pc\n    id: UqFziVZDHLSyO3TqSWgNBoAdHbLI4dAH\n    type: gadget\n    default-channel: 24/stable\nsign-key-sha3-384: abc\n\nAcLBUgQAAQoABgUC\n' >gadget-x.model
+cp gadget-x.model gadget-x.orig
+idiot assertion edit gadget-x.model --no-edit 2>"${work}/err" </dev/null
+grep -q '"revision": "5"' gadget-x.json && ! grep -q sign-key gadget-x.json &&
+	grep -q '"default-channel": "24/stable"' gadget-x.json && cmp -s gadget-x.model gadget-x.orig &&
+	grep -q 'Starting from model abc/gadget-x revision 4 (signed' "${work}/err" &&
+	ok "assertion edit: a signed model gives gadget-x.json at revision 5, the .model untouched" ||
+	fail "assertion edit signed: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+fails "edit: a signed source's draft isn't overwritten" 'gadget-x.json already exists' edit gadget-x.model --no-edit
+printf 'type: account\nauthority-id: canonical\naccount-id: x\n\nAcLBUgQAAQoABgUC\n' >account.assert
+fails "edit: a stream without a model, system-user or validation-set" 'holds account: no model' edit account.assert --no-edit
+fails "edit: a fetch needs model or validation-set" "unknown assertion type 'serial'" edit serial a/b
+fails "new --from: a template of another type" 'the template is a model, not a validation-set' \
+	new validation-set --from gadget-x.model --no-edit
+fails "new --from: the identity is asked again" 'model is required' new model --from gadget-x.model --no-edit
+idiot assertion new model --from gadget-x.model --set model=gadget-y --set brand-id=def \
+	--no-edit -o - 2>"${work}/err" </dev/null >gadget-y.json
+grep -q '"model": "gadget-y"' gadget-y.json && grep -q '"authority-id": "def"' gadget-y.json &&
+	! grep -q '"revision"' gadget-y.json && grep -q '"name": "pc"' gadget-y.json &&
+	ok "assertion new --from: the template's snaps, a new identity, no revision" ||
+	fail "assertion new --from: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+# and from the store, anonymously: Canonical's published model
+if getent hosts api.snapcraft.io >/dev/null 2>&1; then
+	idiot assertion edit model canonical/ubuntu-core-24-amd64 --no-edit -o - 2>"${work}/err" </dev/null >uc24.json
+	grep -q '"model": "ubuntu-core-24-amd64"' uc24.json && idiot assertion check uc24.json 2>/dev/null &&
+		grep -q 'from the store' "${work}/err" &&
+		ok "assertion edit model canonical/ubuntu-core-24-amd64: fetched, a draft that passes check" ||
+		fail "assertion edit from the store: $(head -n 3 "${work}/err" | tr '\n' ' ')"
+	fails "edit: a model the store doesn't have" "the store has no model" edit model canonical/nope --no-edit
+else
+	ok "assertion edit from the store: skipped (the store isn't reachable from here)"
+fi
 
 # signing with a throwaway key in a private keyring (never root's own);
 # a logging snap first on PATH shows what snap sign is given
